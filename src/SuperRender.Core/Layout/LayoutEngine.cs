@@ -84,9 +84,12 @@ public sealed class LayoutEngine
             };
         }
 
-        var boxType = style.Display == DisplayType.Inline
-            ? LayoutBoxType.Inline
-            : LayoutBoxType.Block;
+        var boxType = style.Display switch
+        {
+            DisplayType.Inline => LayoutBoxType.Inline,
+            DisplayType.InlineBlock => LayoutBoxType.Inline,
+            _ => LayoutBoxType.Block, // Block, FlowRoot, etc.
+        };
 
         var box = new LayoutBox
         {

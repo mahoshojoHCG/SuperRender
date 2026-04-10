@@ -154,6 +154,8 @@ public sealed class StyleResolver
                     "block" => DisplayType.Block,
                     "inline" => DisplayType.Inline,
                     "none" => DisplayType.None,
+                    "inline-block" => DisplayType.InlineBlock,
+                    "flow-root" => DisplayType.FlowRoot,
                     _ => style.Display
                 };
                 break;
@@ -271,6 +273,72 @@ public sealed class StyleResolver
             case "bottom":
                 style.Bottom = ResolveLength(value, parentStyle);
                 break;
+
+            case "box-sizing":
+                style.BoxSizing = value.Raw.ToLowerInvariant() switch
+                {
+                    "content-box" => BoxSizing.ContentBox,
+                    "border-box" => BoxSizing.BorderBox,
+                    _ => style.BoxSizing
+                };
+                break;
+
+            case "min-width":
+                style.MinWidth = ResolveLength(value, parentStyle);
+                break;
+            case "max-width":
+                style.MaxWidth = ResolveLength(value, parentStyle);
+                break;
+            case "min-height":
+                style.MinHeight = ResolveLength(value, parentStyle);
+                break;
+            case "max-height":
+                style.MaxHeight = ResolveLength(value, parentStyle);
+                break;
+
+            case "z-index":
+                if (value.Type == CssValueType.Number || value.Type == CssValueType.Length)
+                    style.ZIndex = (int)value.NumericValue;
+                else if (int.TryParse(value.Raw, out var zi))
+                    style.ZIndex = zi;
+                break;
+
+            case "overflow":
+                style.Overflow = value.Raw.ToLowerInvariant() switch
+                {
+                    "visible" => OverflowType.Visible,
+                    "hidden" => OverflowType.Hidden,
+                    "scroll" => OverflowType.Scroll,
+                    "auto" => OverflowType.Auto,
+                    _ => style.Overflow
+                };
+                break;
+
+            case "text-overflow":
+                style.TextOverflow = value.Raw.ToLowerInvariant() switch
+                {
+                    "clip" => TextOverflowType.Clip,
+                    "ellipsis" => TextOverflowType.Ellipsis,
+                    _ => style.TextOverflow
+                };
+                break;
+
+            case "font-weight":
+                style.FontWeight = ResolveFontWeight(value, parentStyle);
+                break;
+
+            case "font-style":
+                style.FontStyle = value.Raw.ToLowerInvariant() switch
+                {
+                    "normal" => FontStyleType.Normal,
+                    "italic" or "oblique" => FontStyleType.Italic,
+                    _ => style.FontStyle
+                };
+                break;
+
+            case "text-decoration":
+                style.TextDecoration = ResolveTextDecoration(value);
+                break;
         }
     }
 
@@ -345,6 +413,36 @@ public sealed class StyleResolver
         return Color.Black;
     }
 
+    private static float ResolveFontWeight(CssValue value, ComputedStyle? parentStyle)
+    {
+        var raw = value.Raw.ToLowerInvariant();
+        return raw switch
+        {
+            "normal" => 400f,
+            "bold" => 700f,
+            "lighter" => Math.Max(100f, (parentStyle?.FontWeight ?? 400f) - 100f),
+            "bolder" => Math.Min(900f, (parentStyle?.FontWeight ?? 400f) + 300f),
+            _ => value.Type is CssValueType.Number or CssValueType.Length
+                ? Math.Clamp((float)value.NumericValue, 1f, 1000f)
+                : float.TryParse(raw, System.Globalization.NumberStyles.Float,
+                      System.Globalization.CultureInfo.InvariantCulture, out var fw)
+                    ? Math.Clamp(fw, 1f, 1000f)
+                    : parentStyle?.FontWeight ?? 400f
+        };
+    }
+
+    private static TextDecorationLine ResolveTextDecoration(CssValue value)
+    {
+        var raw = value.Raw.ToLowerInvariant();
+        if (raw == "none") return TextDecorationLine.None;
+
+        var flags = TextDecorationLine.None;
+        if (raw.Contains("underline")) flags |= TextDecorationLine.Underline;
+        if (raw.Contains("line-through")) flags |= TextDecorationLine.LineThrough;
+        if (raw.Contains("overline")) flags |= TextDecorationLine.Overline;
+        return flags;
+    }
+
     private static void InheritFromParent(ComputedStyle style, ComputedStyle parentStyle)
     {
         style.Color = parentStyle.Color;
@@ -352,6 +450,8 @@ public sealed class StyleResolver
         style.FontFamily = parentStyle.FontFamily;
         style.TextAlign = parentStyle.TextAlign;
         style.LineHeight = parentStyle.LineHeight;
+        style.FontWeight = parentStyle.FontWeight;
+        style.FontStyle = parentStyle.FontStyle;
     }
 
     private static DisplayType GetDefaultDisplay(string tagName) => tagName switch

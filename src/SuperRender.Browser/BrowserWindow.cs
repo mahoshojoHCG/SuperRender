@@ -340,6 +340,9 @@ public sealed class BrowserWindow : IDisposable
                 Y = t.Y + offsetY,
                 FontSize = t.FontSize,
                 Color = t.Color,
+                FontWeight = t.FontWeight,
+                FontStyle = t.FontStyle,
+                TextDecoration = t.TextDecoration,
             },
             _ => cmd,
         };

@@ -1,4 +1,5 @@
 using SuperRender.Core.Layout;
+using SuperRender.Core.Style;
 
 namespace SuperRender.Core.Painting;
 
@@ -22,10 +23,42 @@ public sealed class Painter
         // 2. Paint border
         PaintBorder(box, list);
 
-        // 3. Paint children (recursively)
+        // Emit clip if overflow is not visible
+        bool clipped = box.Style.Overflow != OverflowType.Visible;
+        if (clipped)
+        {
+            list.Add(new ClipRectCommand { Rect = box.Dimensions.PaddingRect });
+        }
+
+        // 3. Separate children into non-positioned and positioned for z-index ordering
+        var nonPositioned = new List<LayoutBox>();
+        var positioned = new List<LayoutBox>();
+
         foreach (var child in box.Children)
         {
+            if (child.Style.Position != PositionType.Static)
+                positioned.Add(child);
+            else
+                nonPositioned.Add(child);
+        }
+
+        // Paint non-positioned children first
+        foreach (var child in nonPositioned)
+        {
             PaintBox(child, list);
+        }
+
+        // Paint positioned children in z-index order
+        positioned.Sort((a, b) => a.Style.ZIndex.CompareTo(b.Style.ZIndex));
+        foreach (var child in positioned)
+        {
+            PaintBox(child, list);
+        }
+
+        // Restore clip
+        if (clipped)
+        {
+            list.Add(new RestoreClipCommand());
         }
 
         // 4. Paint text runs
@@ -105,14 +138,55 @@ public sealed class Painter
         {
             if (string.IsNullOrWhiteSpace(run.Text)) continue;
 
+            var style = run.Style;
+
             list.Add(new DrawTextCommand
             {
                 Text = run.Text,
                 X = run.X,
                 Y = run.Y,
-                FontSize = run.Style.FontSize,
-                Color = run.Style.Color,
+                FontSize = style.FontSize,
+                Color = style.Color,
+                FontWeight = style.FontWeight,
+                FontStyle = style.FontStyle,
+                TextDecoration = style.TextDecoration,
             });
+
+            // Draw text decorations as thin rectangles
+            if (style.TextDecoration != TextDecorationLine.None)
+            {
+                float lineThickness = Math.Max(1f, style.FontSize / 14f);
+                var decoColor = style.Color;
+
+                if (style.TextDecoration.HasFlag(TextDecorationLine.Underline))
+                {
+                    float underlineY = run.Y + style.FontSize * 0.9f;
+                    list.Add(new FillRectCommand
+                    {
+                        Rect = new RectF(run.X, underlineY, run.Width, lineThickness),
+                        Color = decoColor,
+                    });
+                }
+
+                if (style.TextDecoration.HasFlag(TextDecorationLine.LineThrough))
+                {
+                    float strikeY = run.Y + style.FontSize * 0.5f;
+                    list.Add(new FillRectCommand
+                    {
+                        Rect = new RectF(run.X, strikeY, run.Width, lineThickness),
+                        Color = decoColor,
+                    });
+                }
+
+                if (style.TextDecoration.HasFlag(TextDecorationLine.Overline))
+                {
+                    list.Add(new FillRectCommand
+                    {
+                        Rect = new RectF(run.X, run.Y, run.Width, lineThickness),
+                        Color = decoColor,
+                    });
+                }
+            }
         }
     }
 }

@@ -114,7 +114,21 @@ public static class UserAgentStylesheet
         /* === Links === */
         a {
             color: #0000EE;
+            text-decoration: underline;
         }
+
+        /* === Font weight: bold elements === */
+        strong, b { font-weight: bold; }
+        h1, h2, h3, h4, h5, h6 { font-weight: bold; }
+
+        /* === Font style: italic elements === */
+        em, i, cite, var, dfn, address { font-style: italic; }
+
+        /* === Text decoration: underline === */
+        u, ins { text-decoration: underline; }
+
+        /* === Text decoration: line-through === */
+        s, del, strike { text-decoration: line-through; }
 
         /* === Mark === */
         mark {

@@ -82,6 +82,14 @@ internal static class InlineLayout
         ref float lineHeight, float lineStartX, float availableWidth,
         ITextMeasurer measurer, List<TextRun> currentLineRuns)
     {
+        // Inline-block: lay out as a block but position inline
+        if (box.Style.Display == DisplayType.InlineBlock)
+        {
+            LayoutInlineBlock(box, ref cursorX, ref cursorY, ref lineHeight,
+                lineStartX, availableWidth, measurer, currentLineRuns);
+            return;
+        }
+
         var style = box.Style;
         var paddingH = style.Padding.Left + style.Padding.Right;
         var borderH = style.BorderWidth.Left + style.BorderWidth.Right;
@@ -190,6 +198,53 @@ internal static class InlineLayout
             dims.Height = cursorY - containingBlock.Y;
             box.Dimensions = dims;
         }
+    }
+
+    private static void LayoutInlineBlock(LayoutBox box, ref float cursorX, ref float cursorY,
+        ref float lineHeight, float lineStartX, float availableWidth,
+        ITextMeasurer measurer, List<TextRun> currentLineRuns)
+    {
+        var style = box.Style;
+        var marginLeft = float.IsNaN(style.Margin.Left) ? 0 : style.Margin.Left;
+        var marginRight = float.IsNaN(style.Margin.Right) ? 0 : style.Margin.Right;
+
+        // Do a block layout to determine the inline-block's dimensions
+        var container = new BoxDimensions
+        {
+            X = cursorX + marginLeft,
+            Y = cursorY,
+            Width = availableWidth - (cursorX - lineStartX) - marginLeft - marginRight,
+            Height = 0,
+        };
+
+        BlockLayout.Layout(box, container, measurer);
+
+        float totalWidth = marginLeft + box.Dimensions.BorderRect.Width + marginRight;
+
+        // Wrap to next line if needed
+        if (cursorX - lineStartX + totalWidth > availableWidth && cursorX > lineStartX)
+        {
+            AlignLine(currentLineRuns, lineStartX, availableWidth, style.TextAlign);
+            cursorY += lineHeight;
+            cursorX = lineStartX;
+            lineHeight = 0;
+            currentLineRuns.Clear();
+
+            // Re-layout with new position
+            container = new BoxDimensions
+            {
+                X = cursorX + marginLeft,
+                Y = cursorY,
+                Width = availableWidth - marginLeft - marginRight,
+                Height = 0,
+            };
+            BlockLayout.Layout(box, container, measurer);
+        }
+
+        float blockHeight = box.Dimensions.MarginRect.Height;
+        lineHeight = Math.Max(lineHeight, blockHeight);
+
+        cursorX += totalWidth;
     }
 
     private static List<string> SplitIntoWords(string text)

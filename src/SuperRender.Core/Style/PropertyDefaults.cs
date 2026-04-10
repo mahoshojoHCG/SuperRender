@@ -9,6 +9,8 @@ public static class PropertyDefaults
         "font-family",
         "text-align",
         "line-height",
+        "font-weight",
+        "font-style",
     ];
 
     public static bool IsInherited(string property) => InheritedProperties.Contains(property);
