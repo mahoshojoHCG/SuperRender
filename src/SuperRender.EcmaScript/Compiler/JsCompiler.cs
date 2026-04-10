@@ -301,8 +301,9 @@ public sealed class JsCompiler
 
         try
         {
-            // Evaluate the right-hand side
+            // Evaluate the right-hand side once and cache it
             var objExpr = CompileNode(right);
+            var objVar = Expr.Parameter(typeof(JsValue), "forOfObj");
             var keysVar = Expr.Parameter(typeof(string[]), "keys");
             var indexVar = Expr.Parameter(typeof(int), "idx");
 
@@ -312,18 +313,19 @@ public sealed class JsCompiler
                 // For-of: use RuntimeHelpers.GetIterableKeys
                 getKeys = Expr.Call(
                     typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.GetForOfValues))!,
-                    EnsureJsValue(objExpr));
+                    objVar);
             }
             else
             {
                 // For-in: get enumerable property keys
                 getKeys = Expr.Call(
                     typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.GetForInKeys))!,
-                    EnsureJsValue(objExpr));
+                    objVar);
             }
 
             var exprs = new List<Expr>
             {
+                Expr.Assign(objVar, EnsureJsValue(objExpr)),
                 Expr.Assign(keysVar, getKeys),
                 Expr.Assign(indexVar, Expr.Constant(0))
             };
@@ -344,7 +346,7 @@ public sealed class JsCompiler
                 // For-of values are already stored as stringified JsValues in the helper
                 keyAsJsValue = Expr.Call(
                     typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.GetForOfValueAt))!,
-                    EnsureJsValue(objExpr),
+                    objVar,
                     indexVar);
             }
             else
@@ -363,7 +365,7 @@ public sealed class JsCompiler
             var loopBody = Expr.Block(typeof(void), bodyExprs.Select(ToVoid));
             exprs.Add(Expr.Loop(loopBody, breakLbl));
 
-            return Expr.Block(typeof(JsValue), [keysVar, indexVar], exprs);
+            return Expr.Block(typeof(JsValue), [objVar, keysVar, indexVar], exprs);
         }
         finally
         {
