@@ -1,7 +1,7 @@
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.KHR;
 
-namespace SuperRender.Demo;
+namespace SuperRender.Gpu;
 
 public sealed unsafe class SwapchainManager : IDisposable
 {

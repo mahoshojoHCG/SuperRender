@@ -1,6 +1,6 @@
 using SuperRender.Core.Layout;
 
-namespace SuperRender.Demo;
+namespace SuperRender.Gpu;
 
 public sealed class BitmapFontTextMeasurer : ITextMeasurer
 {

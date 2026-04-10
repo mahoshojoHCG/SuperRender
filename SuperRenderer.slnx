@@ -9,9 +9,12 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/SuperRender.Core/SuperRender.Core.csproj" />
+    <Project Path="src/SuperRender.Gpu/SuperRender.Gpu.csproj" />
     <Project Path="src/SuperRender.Demo/SuperRender.Demo.csproj" />
     <Project Path="src/SuperRender.EcmaScript/SuperRender.EcmaScript.csproj" />
     <Project Path="src/SuperRender.EcmaScript.Console/SuperRender.EcmaScript.Console.csproj" />
+    <Project Path="src/SuperRender.EcmaScript.Dom/SuperRender.EcmaScript.Dom.csproj" />
+    <Project Path="src/SuperRender.Browser/SuperRender.Browser.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/SuperRender.Tests/SuperRender.Tests.csproj" />

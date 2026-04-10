@@ -7,10 +7,12 @@ namespace SuperRender.Core.Style;
 public sealed class StyleResolver
 {
     private readonly List<Stylesheet> _stylesheets;
+    private readonly Stylesheet? _userAgentStylesheet;
 
-    public StyleResolver(List<Stylesheet> stylesheets)
+    public StyleResolver(List<Stylesheet> stylesheets, Stylesheet? userAgentStylesheet = null)
     {
         _stylesheets = stylesheets;
+        _userAgentStylesheet = userAgentStylesheet;
     }
 
     public Dictionary<Node, ComputedStyle> ResolveAll(Document document)
@@ -98,32 +100,45 @@ public sealed class StyleResolver
         var result = new List<MatchedDeclaration>();
         int sourceOrder = 0;
 
+        // User-agent stylesheet first (lowest cascade priority)
+        if (_userAgentStylesheet != null)
+        {
+            CollectFromStylesheet(_userAgentStylesheet, element, result, ref sourceOrder);
+        }
+
         foreach (var stylesheet in _stylesheets)
         {
-            foreach (var rule in stylesheet.Rules)
-            {
-                foreach (var selector in rule.Selectors)
-                {
-                    if (selector.Matches(element))
-                    {
-                        var specificity = selector.GetSpecificity();
-                        foreach (var declaration in rule.Declarations)
-                        {
-                            result.Add(new MatchedDeclaration
-                            {
-                                Specificity = specificity,
-                                SourceOrder = sourceOrder++,
-                                Declaration = declaration,
-                                Important = declaration.Important,
-                            });
-                        }
-                        break; // Only match once per rule
-                    }
-                }
-            }
+            CollectFromStylesheet(stylesheet, element, result, ref sourceOrder);
         }
 
         return result;
+    }
+
+    private static void CollectFromStylesheet(
+        Stylesheet stylesheet, Element element,
+        List<MatchedDeclaration> result, ref int sourceOrder)
+    {
+        foreach (var rule in stylesheet.Rules)
+        {
+            foreach (var selector in rule.Selectors)
+            {
+                if (selector.Matches(element))
+                {
+                    var specificity = selector.GetSpecificity();
+                    foreach (var declaration in rule.Declarations)
+                    {
+                        result.Add(new MatchedDeclaration
+                        {
+                            Specificity = specificity,
+                            SourceOrder = sourceOrder++,
+                            Declaration = declaration,
+                            Important = declaration.Important,
+                        });
+                    }
+                    break; // Only match once per rule
+                }
+            }
+        }
     }
 
     private static void ApplyDeclaration(ComputedStyle style, Declaration decl, ComputedStyle? parentStyle)

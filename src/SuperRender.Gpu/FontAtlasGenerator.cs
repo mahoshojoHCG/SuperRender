@@ -1,6 +1,6 @@
 using FreeTypeSharp;
 
-namespace SuperRender.Demo;
+namespace SuperRender.Gpu;
 
 public static class FontAtlasGenerator
 {
@@ -158,10 +158,6 @@ public static class FontAtlasGenerator
                 float u1 = (cursorX + Padding + bmpW) / (float)AtlasWidth;
                 float v1 = (cursorY + Padding + bmpH) / (float)AtlasHeight;
 
-                // OffsetY: position relative to line top, not baseline.
-                // maxAscent is the distance from baseline to top of tallest glyph.
-                // bearingY is this glyph's distance from baseline to its top.
-                // So (maxAscent - bearingY) = how far below the line top this glyph starts.
                 glyphs[c] = new GlyphInfo
                 {
                     U0 = u0,

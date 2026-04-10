@@ -1,4 +1,4 @@
-namespace SuperRender.Demo;
+namespace SuperRender.Gpu;
 
 public sealed class FontAtlas : IDisposable
 {

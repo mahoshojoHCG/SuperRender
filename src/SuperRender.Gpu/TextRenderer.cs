@@ -2,7 +2,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using SuperRender.Core.Painting;
 
-namespace SuperRender.Demo;
+namespace SuperRender.Gpu;
 
 [StructLayout(LayoutKind.Sequential)]
 public struct TextVertex
@@ -38,10 +38,6 @@ public sealed class TextRenderer
 
         return (vertices.ToArray(), indices.ToArray());
     }
-
-    // ------------------------------------------------------------------
-    //  Helpers
-    // ------------------------------------------------------------------
 
     private void EmitTextQuads(
         List<TextVertex> verts, List<uint> idx, DrawTextCommand cmd)

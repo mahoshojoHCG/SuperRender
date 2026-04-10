@@ -3,7 +3,7 @@ using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.KHR;
 using Silk.NET.Windowing;
 
-namespace SuperRender.Demo;
+namespace SuperRender.Gpu;
 
 public sealed unsafe class VulkanContext : IDisposable
 {
@@ -282,10 +282,6 @@ public sealed unsafe class VulkanContext : IDisposable
 
     /// <summary>
     /// Make MoltenVK discoverable by both GLFW and the Vulkan loader.
-    /// GLFW calls dlopen("libvulkan.1.dylib") / dlopen("libMoltenVK.dylib")
-    /// but only searches standard paths + the executable directory — not the
-    /// NuGet runtimes/ subdirectory. We fix this by symlinking the dylib
-    /// (and the ICD JSON) into the app's base directory.
     /// Must be called before any Silk.NET Vulkan/Window usage.
     /// </summary>
     public static void EnsureMoltenVK()
@@ -306,30 +302,25 @@ public sealed unsafe class VulkanContext : IDisposable
 
         if (nativeDir == null)
         {
-            // Already in the base dir, or truly missing
             if (!File.Exists(Path.Combine(appDir, "libMoltenVK.dylib")))
                 Console.WriteLine("Warning: libMoltenVK.dylib not found. Vulkan may not work on macOS.");
             return;
         }
 
-        // Symlink libMoltenVK.dylib into the app directory so GLFW can dlopen it
         CreateSymlinkIfMissing(
             Path.Combine(appDir, "libMoltenVK.dylib"),
             Path.Combine(nativeDir, "libMoltenVK.dylib"));
 
-        // GLFW first tries libvulkan.1.dylib — provide that too
         CreateSymlinkIfMissing(
             Path.Combine(appDir, "libvulkan.1.dylib"),
             Path.Combine(nativeDir, "libMoltenVK.dylib"));
 
-        // Point the Vulkan loader at the ICD JSON (only if not already set)
         if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("VK_DRIVER_FILES"))
             && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("VK_ICD_FILENAMES")))
         {
             var icdSrc = Path.Combine(nativeDir, "MoltenVK_icd.json");
             if (File.Exists(icdSrc))
             {
-                // Copy the ICD JSON into appDir and rewrite its relative library_path
                 var icdDst = Path.Combine(appDir, "MoltenVK_icd.json");
                 if (!File.Exists(icdDst))
                     File.Copy(icdSrc, icdDst);

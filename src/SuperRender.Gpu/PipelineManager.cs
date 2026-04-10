@@ -1,6 +1,6 @@
 using Silk.NET.Vulkan;
 
-namespace SuperRender.Demo;
+namespace SuperRender.Gpu;
 
 public sealed unsafe class PipelineManager : IDisposable
 {
@@ -25,11 +25,11 @@ public sealed unsafe class PipelineManager : IDisposable
     private void CreateQuadPipeline(RenderPass renderPass, Extent2D extent)
     {
         var vertBytes = ShaderCompiler.LoadOrCompileShader(
-            "SuperRender.Demo.Resources.Shaders.quad.vert.spv",
-            "SuperRender.Demo.Shaders.quad.vert.glsl", isVertex: true);
+            "SuperRender.Gpu.Resources.Shaders.quad.vert.spv",
+            "SuperRender.Gpu.Shaders.quad.vert.glsl", isVertex: true);
         var fragBytes = ShaderCompiler.LoadOrCompileShader(
-            "SuperRender.Demo.Resources.Shaders.quad.frag.spv",
-            "SuperRender.Demo.Shaders.quad.frag.glsl", isVertex: false);
+            "SuperRender.Gpu.Resources.Shaders.quad.frag.spv",
+            "SuperRender.Gpu.Shaders.quad.frag.glsl", isVertex: false);
 
         if (vertBytes == null || fragBytes == null)
         {
@@ -96,11 +96,11 @@ public sealed unsafe class PipelineManager : IDisposable
     private void CreateTextPipeline(RenderPass renderPass, Extent2D extent)
     {
         var vertBytes = ShaderCompiler.LoadOrCompileShader(
-            "SuperRender.Demo.Resources.Shaders.text.vert.spv",
-            "SuperRender.Demo.Shaders.text.vert.glsl", isVertex: true);
+            "SuperRender.Gpu.Resources.Shaders.text.vert.spv",
+            "SuperRender.Gpu.Shaders.text.vert.glsl", isVertex: true);
         var fragBytes = ShaderCompiler.LoadOrCompileShader(
-            "SuperRender.Demo.Resources.Shaders.text.frag.spv",
-            "SuperRender.Demo.Shaders.text.frag.glsl", isVertex: false);
+            "SuperRender.Gpu.Resources.Shaders.text.frag.spv",
+            "SuperRender.Gpu.Shaders.text.frag.glsl", isVertex: false);
 
         if (vertBytes == null || fragBytes == null)
         {

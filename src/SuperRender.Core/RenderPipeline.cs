@@ -10,6 +10,7 @@ namespace SuperRender.Core;
 public sealed class RenderPipeline
 {
     private readonly ITextMeasurer _textMeasurer;
+    private readonly bool _useUserAgentStylesheet;
     private Document? _document;
     private Dictionary<Node, ComputedStyle> _styles = new();
     private LayoutBox? _layoutRoot;
@@ -17,9 +18,10 @@ public sealed class RenderPipeline
     private float _lastWidth;
     private float _lastHeight;
 
-    public RenderPipeline(ITextMeasurer textMeasurer)
+    public RenderPipeline(ITextMeasurer textMeasurer, bool useUserAgentStylesheet = false)
     {
         _textMeasurer = textMeasurer;
+        _useUserAgentStylesheet = useUserAgentStylesheet;
     }
 
     public Document? Document => _document;
@@ -41,7 +43,8 @@ public sealed class RenderPipeline
             return new PaintList();
 
         // Style resolution
-        var resolver = new StyleResolver(_document.Stylesheets);
+        var uaStylesheet = _useUserAgentStylesheet ? UserAgentStylesheet.Create() : null;
+        var resolver = new StyleResolver(_document.Stylesheets, uaStylesheet);
         _styles = resolver.ResolveAll(_document);
 
         // Layout

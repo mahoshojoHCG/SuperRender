@@ -2,7 +2,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using SuperRender.Core.Painting;
 
-namespace SuperRender.Demo;
+namespace SuperRender.Gpu;
 
 [StructLayout(LayoutKind.Sequential)]
 public struct QuadVertex
@@ -41,10 +41,6 @@ public sealed class QuadRenderer
 
         return (vertices.ToArray(), indices.ToArray());
     }
-
-    // ------------------------------------------------------------------
-    //  Helpers
-    // ------------------------------------------------------------------
 
     private static void AddFilledRect(
         List<QuadVertex> verts, List<uint> idx,

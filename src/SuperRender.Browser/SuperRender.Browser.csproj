@@ -5,5 +5,7 @@
   <ItemGroup>
     <ProjectReference Include="..\SuperRender.Core\SuperRender.Core.csproj" />
     <ProjectReference Include="..\SuperRender.Gpu\SuperRender.Gpu.csproj" />
+    <ProjectReference Include="..\SuperRender.EcmaScript\SuperRender.EcmaScript.csproj" />
+    <ProjectReference Include="..\SuperRender.EcmaScript.Dom\SuperRender.EcmaScript.Dom.csproj" />
   </ItemGroup>
 </Project>

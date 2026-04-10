@@ -2,7 +2,7 @@ using System.Numerics;
 using Silk.NET.Vulkan;
 using SuperRender.Core.Painting;
 
-namespace SuperRender.Demo;
+namespace SuperRender.Gpu;
 
 public sealed unsafe class VulkanRenderer : IDisposable
 {
@@ -34,6 +34,13 @@ public sealed unsafe class VulkanRenderer : IDisposable
     private bool _framebufferResized;
     private uint _width, _height;
     private bool _disposed;
+
+    /// <summary>
+    /// Content scale factor for HiDPI support.
+    /// 1.0 = standard display, 2.0 = Retina/HiDPI.
+    /// The projection matrix uses logical (CSS) pixels; this factor maps them to physical pixels.
+    /// </summary>
+    public float ContentScale { get; set; } = 1.0f;
 
     public FontAtlas FontAtlasData => _fontAtlas;
 
@@ -170,11 +177,12 @@ public sealed unsafe class VulkanRenderer : IDisposable
         vk.CmdBeginRenderPass(cmd, in renderPassBegin, SubpassContents.Inline);
 
         // Push projection matrix (orthographic, top-left origin, Y-down)
-        // Vulkan NDC: Y=-1 is top, Y=+1 is bottom (opposite of OpenGL)
-        // CreateOrthographicOffCenter params: (left, right, bottom, top, near, far)
-        // We want Y=0 at top → NDC Y=-1, Y=height at bottom → NDC Y=+1
+        // HiDPI: layout uses logical (CSS) pixels; projection maps them to physical framebuffer pixels.
+        // Dividing extent by ContentScale gives logical dimensions.
+        float logicalWidth = _swapchain.Extent.Width / ContentScale;
+        float logicalHeight = _swapchain.Extent.Height / ContentScale;
         var projection = Matrix4x4.CreateOrthographicOffCenter(
-            0, _swapchain.Extent.Width, 0, _swapchain.Extent.Height, -1, 1);
+            0, logicalWidth, 0, logicalHeight, -1, 1);
 
         // Draw quads
         if (_pipelines.QuadPipeline.Handle != 0 && _buffers.QuadIndexCount > 0)
@@ -217,7 +225,6 @@ public sealed unsafe class VulkanRenderer : IDisposable
         (_atlasImage, _atlasMemory) = _buffers.CreateTextureImage(
             _fontAtlas.PixelData, _fontAtlas.AtlasWidth, _fontAtlas.AtlasHeight);
 
-        // Image view
         var viewInfo = new ImageViewCreateInfo
         {
             SType = StructureType.ImageViewCreateInfo,
@@ -233,7 +240,6 @@ public sealed unsafe class VulkanRenderer : IDisposable
         };
         _ctx.Vk.CreateImageView(_ctx.Device, in viewInfo, null, out _atlasImageView);
 
-        // Sampler
         var samplerInfo = new SamplerCreateInfo
         {
             SType = StructureType.SamplerCreateInfo,
@@ -255,7 +261,6 @@ public sealed unsafe class VulkanRenderer : IDisposable
     {
         if (_pipelines.TextDescriptorSetLayout.Handle == 0) return;
 
-        // Descriptor pool
         var poolSize = new DescriptorPoolSize
         {
             Type = DescriptorType.CombinedImageSampler,
@@ -271,7 +276,6 @@ public sealed unsafe class VulkanRenderer : IDisposable
         };
         _ctx.Vk.CreateDescriptorPool(_ctx.Device, in poolInfo, null, out _descriptorPool);
 
-        // Allocate descriptor set
         var layout = _pipelines.TextDescriptorSetLayout;
         var allocInfo = new DescriptorSetAllocateInfo
         {
@@ -282,7 +286,6 @@ public sealed unsafe class VulkanRenderer : IDisposable
         };
         _ctx.Vk.AllocateDescriptorSets(_ctx.Device, in allocInfo, out _textDescriptorSet);
 
-        // Update descriptor set with font atlas
         var imageInfo = new DescriptorImageInfo
         {
             ImageLayout = ImageLayout.ShaderReadOnlyOptimal,
@@ -364,7 +367,6 @@ public sealed unsafe class VulkanRenderer : IDisposable
         _swapchain.Recreate(_width, _height);
         _pipelines = new PipelineManager(_ctx, _swapchain.RenderPass, _swapchain.Extent);
 
-        // Re-create descriptor resources for the text pipeline
         if (_descriptorPool.Handle != 0)
             _ctx.Vk.DestroyDescriptorPool(_ctx.Device, _descriptorPool, null);
         CreateDescriptorResources();

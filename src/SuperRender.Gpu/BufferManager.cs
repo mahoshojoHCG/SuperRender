@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 using Silk.NET.Vulkan;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
-namespace SuperRender.Demo;
+namespace SuperRender.Gpu;
 
 public sealed unsafe class BufferManager : IDisposable
 {
@@ -123,8 +123,6 @@ public sealed unsafe class BufferManager : IDisposable
 
     public (Image image, DeviceMemory memory) CreateTextureImage(byte[] pixels, int width, int height)
     {
-        var imageSize = (ulong)(width * height);
-
         // Create staging buffer
         var (stagingBuffer, stagingMemory) = CreateAndUploadBuffer(
             pixels.AsSpan(), BufferUsageFlags.TransferSrcBit);

@@ -3,6 +3,7 @@ using Silk.NET.Maths;
 using Silk.NET.Windowing;
 using SuperRender.Core;
 using SuperRender.Core.Painting;
+using SuperRender.Gpu;
 
 namespace SuperRender.Demo;
 
@@ -40,6 +41,12 @@ public static class Program
     {
         _renderer = new VulkanRenderer(_window);
 
+        // HiDPI: compute content scale from framebuffer vs logical size
+        var logicalSize = _window.Size;
+        var fbSize = _window.FramebufferSize;
+        if (logicalSize.X > 0)
+            _renderer.ContentScale = (float)fbSize.X / logicalSize.X;
+
         var measurer = new BitmapFontTextMeasurer(_renderer.FontAtlasData);
         _renderPipeline = new RenderPipeline(measurer);
 
@@ -69,11 +76,15 @@ public static class Program
         var size = _window.FramebufferSize;
         if (size.X == 0 || size.Y == 0) return;
 
-        var paintList = _renderPipeline.RenderIfDirty(size.X, size.Y);
+        // HiDPI: pass logical pixels to the layout engine
+        float logicalWidth = size.X / _renderer.ContentScale;
+        float logicalHeight = size.Y / _renderer.ContentScale;
+
+        var paintList = _renderPipeline.RenderIfDirty(logicalWidth, logicalHeight);
         if (paintList != null)
             _lastPaintList = paintList;
 
-        _lastPaintList ??= _renderPipeline.Render(size.X, size.Y);
+        _lastPaintList ??= _renderPipeline.Render(logicalWidth, logicalHeight);
 
         _renderer.RenderFrame(_lastPaintList);
     }
@@ -81,6 +92,12 @@ public static class Program
     private static void OnResize(Vector2D<int> size)
     {
         _renderer.OnResize(size.X, size.Y);
+
+        // Recalculate content scale (may change on multi-monitor setups)
+        var logicalSize = _window.Size;
+        if (logicalSize.X > 0)
+            _renderer.ContentScale = (float)size.X / logicalSize.X;
+
         if (_renderPipeline.Document != null)
             _renderPipeline.Document.NeedsLayout = true;
     }

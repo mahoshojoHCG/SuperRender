@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 
-namespace SuperRender.Demo;
+namespace SuperRender.Gpu;
 
 public static class ShaderCompiler
 {
