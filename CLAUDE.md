@@ -35,6 +35,9 @@ dotnet run --project src/SuperRender.EcmaScript.Console  # Launch the JS console
 - `StyleResolver` — cascade, specificity, `!important`, inherited properties
 - `LayoutEngine` — block layout, inline layout with word-wrap, anonymous block wrapping
 - `Painter` — generates FillRect/DrawText commands from layout tree
+- `SelectionPainter` — generates highlight FillRect commands for text selection ranges
+- `TextHitTester` — hit-tests mouse coordinates against laid-out TextRuns to find character positions
+- `TextSelectionState` — tracks selection start/end as `TextPosition(RunIndex, CharOffset)`
 - `VulkanRenderer` — frame loop with quad pipeline (backgrounds/borders) + text pipeline (font atlas with alpha blending), HiDPI content scale support
 - `DomMutationApi` — runtime DOM modification with automatic re-layout
 - `UserAgentStylesheet` — default browser CSS styles (body margin, heading sizes, list indent, etc.)
@@ -99,15 +102,21 @@ A Vulkan-powered browser application with tabbed browsing support.
 
 **Key components:**
 - `BrowserWindow` — main orchestrator: owns renderer, tab manager, chrome, input handler
-- `BrowserChrome` — renders tab bar (32px) + address bar (36px) as PaintCommands
+- `BrowserChrome` — renders tab bar (32px) + address bar (36px) as PaintCommands, vertically centered text via `CenterTextY`, font-metrics-accurate cursor positioning
 - `TabManager` — tab lifecycle: create, close, switch tabs
-- `Tab` — individual browsing context: owns Document, RenderPipeline, JsEngine, DomBridge
-- `InputHandler` — routes keyboard/mouse to chrome or content area
+- `Tab` — individual browsing context: owns Document, RenderPipeline, JsEngine, DomBridge, TextSelectionState
+- `InputHandler` — routes keyboard/mouse to chrome or content area, handles text selection drag, address bar click-to-cursor, right-click context menus
+- `ContextMenu` — reusable context menu: items with hover highlighting, hit-testing, PaintList rendering
+- `ClipboardHelper` — cross-platform clipboard access (pbcopy/pbpaste on macOS, xclip on Linux, PowerShell on Windows)
 - `ResourceLoader` — HTTP client for fetching HTML/CSS/JS resources
 - `SecurityPolicy` — same-origin checks + CORS header validation for sub-resources
 - `UrlResolver` — resolves relative URLs against base URI
 
-**HiDPI support:** Content scale derived from `FramebufferSize / Size`. Layout engine works in logical (CSS) pixels; projection matrix maps logical → physical coordinates.
+**HiDPI support:** Content scale derived from `FramebufferSize / Size`. Layout engine works in logical (CSS) pixels; projection matrix maps logical → physical coordinates. Font atlas is generated at `BaseFontSize * contentScale` for sharp text on Retina/HiDPI displays.
+
+**Text selection:** Click-and-drag in the content area creates a text selection. `TextHitTester` maps mouse coordinates to `(runIndex, charOffset)` positions. `SelectionPainter` generates blue highlight rectangles behind selected text. `TextSelectionState` tracks start/end positions with ordered normalization.
+
+**Context menus:** Right-click the address bar for Cut/Copy/Paste/Select All. Right-click the content area for Copy (when text selected)/Select All/View Source.
 
 ## EcmaScript DOM Bindings
 
@@ -132,6 +141,6 @@ Shared Vulkan rendering library used by both Demo and Browser.
 - `PipelineManager` — quad pipeline (solid rects) + text pipeline (font atlas sampling)
 - `BufferManager` — GPU buffer allocation, vertex/index upload, texture creation
 - `VulkanRenderer` — frame loop orchestrator with HiDPI content scale support
-- `FontAtlasGenerator` — FreeType-based font atlas (1024x1024, BaseFontSize=32)
+- `FontAtlasGenerator` — FreeType-based font atlas (1024x1024, BaseFontSize=32, HiDPI-scaled via `AtlasRenderSize`)
 - `QuadRenderer` / `TextRenderer` — PaintList → GPU vertex batch builders
 - `BitmapFontTextMeasurer` — ITextMeasurer implementation using font atlas metrics

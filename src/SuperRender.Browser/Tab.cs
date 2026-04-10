@@ -25,7 +25,9 @@ public sealed class Tab : IDisposable
     public string Title { get; private set; } = "New Tab";
     public Uri? CurrentUri { get; private set; }
     public Document? Document => _pipeline?.Document;
+    public LayoutBox? LayoutRoot => _pipeline?.LayoutRoot;
     public bool IsLoading { get; private set; }
+    public TextSelectionState Selection { get; } = new();
 
     public Tab(ITextMeasurer measurer, ResourceLoader loader)
     {

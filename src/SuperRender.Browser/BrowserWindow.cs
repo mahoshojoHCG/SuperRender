@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
@@ -20,7 +21,10 @@ public sealed class BrowserWindow : IDisposable
     private InputHandler _inputHandler = null!;
     private ResourceLoader _resourceLoader = null!;
     private PaintList? _lastCombinedPaintList;
+    private ContextMenu? _contextMenu;
+    private ITextMeasurer _measurer = null!;
     private float _contentScale = 1.0f;
+    private readonly ConcurrentQueue<Action> _mainThreadQueue = new();
 
     public BrowserWindow(IWindow window)
     {
@@ -29,23 +33,25 @@ public sealed class BrowserWindow : IDisposable
 
     public void OnLoad()
     {
-        _renderer = new VulkanRenderer(_window);
-
-        // HiDPI
+        // HiDPI: compute content scale before creating renderer so font atlas
+        // can be generated at the correct resolution.
         var logicalSize = _window.Size;
         var fbSize = _window.FramebufferSize;
         if (logicalSize.X > 0)
             _contentScale = (float)fbSize.X / logicalSize.X;
-        _renderer.ContentScale = _contentScale;
+
+        _renderer = new VulkanRenderer(_window, _contentScale);
 
         var measurer = new BitmapFontTextMeasurer(_renderer.FontAtlasData);
+        _measurer = measurer;
         _resourceLoader = new ResourceLoader();
         _tabManager = new TabManager(measurer, _resourceLoader);
-        _chrome = new BrowserChrome();
+        _chrome = new BrowserChrome(measurer);
 
         _inputHandler = new InputHandler(
             _chrome,
             _tabManager,
+            measurer,
             () => _contentScale,
             NavigateAsync);
 
@@ -63,6 +69,8 @@ public sealed class BrowserWindow : IDisposable
         foreach (var mouse in input.Mice)
         {
             mouse.MouseDown += OnMouseDown;
+            mouse.MouseUp += OnMouseUp;
+            mouse.MouseMove += OnMouseMove;
         }
 
         Console.WriteLine("SuperRenderer Browser started.");
@@ -70,6 +78,10 @@ public sealed class BrowserWindow : IDisposable
 
     public void OnRender(double deltaTime)
     {
+        // Drain pending main-thread work
+        while (_mainThreadQueue.TryDequeue(out var action))
+            action();
+
         var fbSize = _window.FramebufferSize;
         if (fbSize.X == 0 || fbSize.Y == 0) return;
 
@@ -99,6 +111,15 @@ public sealed class BrowserWindow : IDisposable
 
         if (contentPaintList is not null)
         {
+            // Selection highlights render behind text (quads drawn before text in Vulkan pipeline)
+            if (activeTab?.Selection.HasSelection == true && activeTab.LayoutRoot is not null)
+            {
+                var allRuns = TextHitTester.CollectTextRuns(activeTab.LayoutRoot);
+                var highlights = SelectionPainter.BuildHighlights(activeTab.Selection, allRuns, _measurer);
+                foreach (var cmd in highlights.Commands)
+                    combined.Add(OffsetCommand(cmd, BrowserChrome.TotalChromeHeight));
+            }
+
             foreach (var cmd in contentPaintList.Commands)
             {
                 combined.Add(OffsetCommand(cmd, BrowserChrome.TotalChromeHeight));
@@ -106,6 +127,15 @@ public sealed class BrowserWindow : IDisposable
         }
 
         _lastCombinedPaintList = combined;
+
+        // Context menu renders on top of everything
+        if (_contextMenu is { IsVisible: true })
+        {
+            var menuPaintList = _contextMenu.BuildPaintList();
+            foreach (var cmd in menuPaintList.Commands)
+                combined.Add(cmd);
+        }
+
         _renderer.RenderFrame(_lastCombinedPaintList);
     }
 
@@ -147,9 +177,58 @@ public sealed class BrowserWindow : IDisposable
 
     private void OnMouseDown(IMouse mouse, MouseButton button)
     {
+        var pos = mouse.Position;
+        float physX = pos.X * _contentScale;
+        float physY = pos.Y * _contentScale;
+        float scale = _contentScale;
+        float logX = physX / scale;
+        float logY = physY / scale;
+
+        // Dismiss open context menu on any click
+        if (_contextMenu is { IsVisible: true })
+        {
+            if (button == MouseButton.Left)
+            {
+                int idx = _contextMenu.HitTest(logX, logY);
+                if (idx >= 0 && _contextMenu.Items[idx].Enabled)
+                    _contextMenu.Items[idx].Action();
+            }
+            _contextMenu = null;
+            return;
+        }
+
+        if (button == MouseButton.Left)
+        {
+            _inputHandler.OnMouseDown(physX, physY, (float)_window.FramebufferSize.X);
+        }
+        else if (button == MouseButton.Right)
+        {
+            _contextMenu = _inputHandler.OnRightClick(physX, physY, (float)_window.FramebufferSize.X);
+        }
+    }
+
+    private void OnMouseUp(IMouse mouse, MouseButton button)
+    {
         if (button != MouseButton.Left) return;
         var pos = mouse.Position;
-        _inputHandler.OnMouseDown(pos.X * _contentScale, pos.Y * _contentScale, (float)_window.FramebufferSize.X);
+        _inputHandler.OnMouseUp(pos.X * _contentScale, pos.Y * _contentScale, (float)_window.FramebufferSize.X);
+    }
+
+    private void OnMouseMove(IMouse mouse, System.Numerics.Vector2 position)
+    {
+        float scale = _contentScale;
+        float logX = position.X;
+        float logY = position.Y;
+
+        // Update context menu hover
+        if (_contextMenu is { IsVisible: true })
+        {
+            _contextMenu.UpdateHover(logX, logY);
+        }
+
+        float physX = position.X * scale;
+        float physY = position.Y * scale;
+        _inputHandler.OnMouseMove(physX, physY, (float)_window.FramebufferSize.X);
     }
 
     private async void NavigateAsync(Uri uri)
@@ -157,7 +236,10 @@ public sealed class BrowserWindow : IDisposable
         _chrome.AddressText = uri.ToString();
         _chrome.CursorPosition = _chrome.AddressText.Length;
         await _tabManager.NavigateActiveTabAsync(uri).ConfigureAwait(false);
-        _window.Title = $"{_tabManager.ActiveTab?.Title ?? "SuperRenderer"} - SuperRenderer Browser";
+        _mainThreadQueue.Enqueue(() =>
+        {
+            _window.Title = $"{_tabManager.ActiveTab?.Title ?? "SuperRenderer"} - SuperRenderer Browser";
+        });
     }
 
     private static void LoadWelcomePage(Tab tab)

@@ -42,7 +42,7 @@ public sealed class TextRenderer
     private void EmitTextQuads(
         List<TextVertex> verts, List<uint> idx, DrawTextCommand cmd)
     {
-        float scale = cmd.FontSize / FontAtlasGenerator.BaseFontSize;
+        float scale = cmd.FontSize / FontAtlasGenerator.AtlasRenderSize;
         var color = new Vector4(cmd.Color.R, cmd.Color.G, cmd.Color.B, cmd.Color.A);
 
         float cursorX = cmd.X;

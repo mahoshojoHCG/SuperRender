@@ -49,9 +49,10 @@ public static class FontAtlasGenerator
         ["/usr/share/fonts/truetype/freefont/FreeSans.ttf"],
     ];
 
-    public static byte[] GenerateAtlas(out Dictionary<char, GlyphInfo> glyphs)
+    public static byte[] GenerateAtlas(out Dictionary<char, GlyphInfo> glyphs, float contentScale = 1.0f)
     {
         glyphs = new Dictionary<char, GlyphInfo>();
+        float renderSize = BaseFontSize * Math.Max(contentScale, 1.0f);
         var pixels = new byte[AtlasWidth * AtlasHeight];
 
         var lib = new FreeTypeLibrary();
@@ -81,8 +82,8 @@ public static class FontAtlasGenerator
                 }
             }
 
-            // Set pixel size
-            FT.FT_Set_Pixel_Sizes(facePtr, 0, (uint)BaseFontSize);
+            // Set pixel size (scaled for HiDPI)
+            FT.FT_Set_Pixel_Sizes(facePtr, 0, (uint)renderSize);
 
             // --- Pass 1: measure all glyphs to find max ascent ---
             for (int i = 0; i < GlyphCount; i++)
@@ -178,13 +179,21 @@ public static class FontAtlasGenerator
         }
 
         lib.Dispose();
+        AtlasRenderSize = renderSize;
         Ascent = maxAscent;
-        Console.WriteLine($"Font atlas generated: {glyphs.Count} glyphs, ascent={maxAscent:F1}");
+        Console.WriteLine($"Font atlas generated: {glyphs.Count} glyphs, renderSize={renderSize:F0}, ascent={maxAscent:F1}");
         return pixels;
     }
 
     /// <summary>
-    /// Font ascent in pixels at BaseFontSize. Set after GenerateAtlas is called.
+    /// The actual pixel size used to render glyphs into the atlas.
+    /// On HiDPI this is <c>BaseFontSize * contentScale</c>.
+    /// TextRenderer and BitmapFontTextMeasurer scale against this value.
+    /// </summary>
+    public static float AtlasRenderSize { get; private set; } = BaseFontSize;
+
+    /// <summary>
+    /// Font ascent in pixels at <see cref="AtlasRenderSize"/>. Set after GenerateAtlas is called.
     /// </summary>
     public static float Ascent { get; private set; } = BaseFontSize * 0.8f;
 

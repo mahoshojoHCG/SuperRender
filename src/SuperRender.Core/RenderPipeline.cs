@@ -25,6 +25,7 @@ public sealed class RenderPipeline
     }
 
     public Document? Document => _document;
+    public LayoutBox? LayoutRoot => _layoutRoot;
 
     public Document LoadHtml(string html)
     {

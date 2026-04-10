@@ -18,7 +18,7 @@ public sealed class BitmapFontTextMeasurer : ITextMeasurer
     /// </summary>
     public float MeasureWidth(string text, float fontSize)
     {
-        float scale = fontSize / FontAtlasGenerator.BaseFontSize;
+        float scale = fontSize / FontAtlasGenerator.AtlasRenderSize;
         float width = 0f;
 
         foreach (char c in text)
@@ -36,5 +36,5 @@ public sealed class BitmapFontTextMeasurer : ITextMeasurer
         => fontSize * lineHeightMultiplier;
 
     public float GetAscent(float fontSize)
-        => FontAtlasGenerator.Ascent * (fontSize / FontAtlasGenerator.BaseFontSize);
+        => FontAtlasGenerator.Ascent * (fontSize / FontAtlasGenerator.AtlasRenderSize);
 }

@@ -7,11 +7,11 @@ public sealed class FontAtlas : IDisposable
     public byte[] PixelData { get; }
     public Dictionary<char, GlyphInfo> Glyphs { get; }
 
-    public FontAtlas()
+    public FontAtlas(float contentScale = 1.0f)
     {
         AtlasWidth = FontAtlasGenerator.AtlasWidth;
         AtlasHeight = FontAtlasGenerator.AtlasHeight;
-        PixelData = FontAtlasGenerator.GenerateAtlas(out var glyphs);
+        PixelData = FontAtlasGenerator.GenerateAtlas(out var glyphs, contentScale);
         Glyphs = glyphs;
     }
 

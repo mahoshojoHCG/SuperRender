@@ -34,8 +34,10 @@ public sealed class BrowserChrome
     private const float TabWidth = 160f;
     private const float TabPadding = 4f;
     private const float NewTabButtonWidth = 28f;
-    private const float ButtonWidth = 32f;
-    private const float AddressBarPadding = 8f;
+    public const float ButtonWidth = 32f;
+    public const float AddressBarPadding = 8f;
+
+    private readonly ITextMeasurer _measurer;
 
     // Colors
     private static readonly Color ChromeBg = Color.FromRgb(222, 226, 230);
@@ -51,6 +53,14 @@ public sealed class BrowserChrome
     public bool AddressBarFocused { get; set; }
     public string AddressText { get; set; } = "";
     public int CursorPosition { get; set; }
+
+    public BrowserChrome(ITextMeasurer measurer)
+    {
+        _measurer = measurer;
+    }
+
+    private static float CenterTextY(float containerY, float containerH, float fontSize)
+        => containerY + (containerH - fontSize) / 2f;
 
     /// <summary>
     /// Builds a PaintList for the browser chrome (tab bar + address bar).
@@ -99,7 +109,7 @@ public sealed class BrowserChrome
             {
                 Text = title,
                 X = tabX + 8,
-                Y = TabPadding + 4,
+                Y = CenterTextY(TabPadding, TabBarHeight - TabPadding, 12),
                 FontSize = 12,
                 Color = TextColor,
             });
@@ -111,7 +121,7 @@ public sealed class BrowserChrome
                 {
                     Text = "x",
                     X = tabX + tabW - 16,
-                    Y = TabPadding + 4,
+                    Y = CenterTextY(TabPadding, TabBarHeight - TabPadding, 12),
                     FontSize = 12,
                     Color = ButtonText,
                 });
@@ -130,7 +140,7 @@ public sealed class BrowserChrome
         {
             Text = "+",
             X = tabX + 10,
-            Y = TabPadding + 3,
+            Y = CenterTextY(TabPadding, TabBarHeight - TabPadding * 2, 14),
             FontSize = 14,
             Color = ButtonText,
         });
@@ -191,7 +201,7 @@ public sealed class BrowserChrome
         {
             Text = displayText,
             X = btnX + 6,
-            Y = btnY + 4,
+            Y = CenterTextY(btnY, btnH, 13),
             FontSize = 13,
             Color = TextColor,
         });
@@ -200,7 +210,8 @@ public sealed class BrowserChrome
         if (AddressBarFocused)
         {
             // Simple cursor: a thin line after text
-            float cursorX = btnX + 6 + CursorPosition * 7.8f; // approximate char width
+            string textBeforeCursor = AddressText[..Math.Min(CursorPosition, AddressText.Length)];
+            float cursorX = btnX + 6 + _measurer.MeasureWidth(textBeforeCursor, 13);
             list.Add(new FillRectCommand
             {
                 Rect = new RectF(cursorX, btnY + 3, 1.5f, btnH - 6),
@@ -239,7 +250,7 @@ public sealed class BrowserChrome
         {
             Text = label,
             X = x + 6,
-            Y = y + 4,
+            Y = CenterTextY(y, h, 13),
             FontSize = 13,
             Color = ButtonText,
         });

@@ -44,10 +44,11 @@ public sealed unsafe class VulkanRenderer : IDisposable
 
     public FontAtlas FontAtlasData => _fontAtlas;
 
-    public VulkanRenderer(Silk.NET.Windowing.IWindow window)
+    public VulkanRenderer(Silk.NET.Windowing.IWindow window, float contentScale = 1.0f)
     {
+        ContentScale = contentScale;
         _ctx = new VulkanContext(window);
-        _fontAtlas = new FontAtlas();
+        _fontAtlas = new FontAtlas(contentScale);
         _quadRenderer = new QuadRenderer();
         _textRenderer = new TextRenderer(_fontAtlas);
 
