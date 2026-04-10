@@ -7,6 +7,7 @@
     <File Path=".editorconfig" />
     <File Path=".gitignore" />
     <File Path="TODO.md" />
+    <File Path="LICENSE" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/SuperRender.Core/SuperRender.Core.csproj" />

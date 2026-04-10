@@ -1,5 +1,7 @@
 # SuperRenderer
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A from-scratch HTML + CSS rendering engine, ECMAScript 2025 engine, and tabbed browser -- built entirely in C# on .NET 10. Renders to a native window via Vulkan (Silk.NET).
 
 No WebView. No Chromium. No Gecko. Just parsers, a layout engine, a JS compiler, and a GPU.
