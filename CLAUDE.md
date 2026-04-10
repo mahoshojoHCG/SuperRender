@@ -50,6 +50,10 @@ dotnet run --project src/SuperRender.EcmaScript.Console  # Launch the JS console
 
 **Deferred features** tracked in `src/SuperRender.EcmaScript/es-2025-todos.md`: BigInt, generators/async runtime, WeakRef, SharedArrayBuffer, Intl, Temporal, decorators (26 items total).
 
+**Deferred CSS features** tracked in `src/SuperRender.Core/css-todos.md`: selectors level 4, flexbox, grid, custom properties, calc(), transforms, transitions, animations, media queries, container queries, CSS nesting, and more (34 sections).
+
+**Deferred HTML features** tracked in `src/SuperRender.Core/html-todos.md`: full WHATWG tokenizer states, tree construction algorithm, adoption agency, forms, tables, embedded content, events, Shadow DOM, MutationObserver, user-agent stylesheet, and more (10 sections).
+
 ## EcmaScript Console
 
 Node.js-style interactive REPL powered by the EcmaScript engine.
