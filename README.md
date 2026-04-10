@@ -1,8 +1,8 @@
 # SuperRenderer
 
-A from-scratch HTML + CSS rendering engine and ECMAScript 2025 engine, built entirely in C# on .NET 10. Renders to a native window via Vulkan (Silk.NET).
+A from-scratch HTML + CSS rendering engine, ECMAScript 2025 engine, and tabbed browser -- built entirely in C# on .NET 10. Renders to a native window via Vulkan (Silk.NET).
 
-No WebView. No Chromium. No Gecko. Just parsers, a layout engine, and a GPU.
+No WebView. No Chromium. No Gecko. Just parsers, a layout engine, a JS compiler, and a GPU.
 
 ## What It Does
 
@@ -13,7 +13,12 @@ HTML string
   -> Style resolution (cascade, specificity, inheritance)
   -> Layout (block + inline box model)
   -> Paint commands (rects, text)
-  -> Vulkan rendering
+  -> Vulkan GPU rendering
+
+JavaScript source
+  -> Lexer -> Parser (AST)
+  -> DLR Expression Trees -> Compiled delegates
+  -> Execution with DOM bindings
 ```
 
 The ECMAScript engine compiles JavaScript to .NET DLR expression trees and runs them natively -- no interpreter loop.
@@ -29,34 +34,52 @@ dotnet build
 # Run all 489 tests
 dotnet test
 
-# Launch the demo window (1024x768, Vulkan)
+# Launch the browser (tabs, address bar, networking)
+dotnet run --project src/SuperRender.Browser
+
+# Launch the rendering demo window (1024x768, Vulkan)
 dotnet run --project src/SuperRender.Demo
 
 # Launch the interactive JavaScript console
 dotnet run --project src/SuperRender.EcmaScript.Console
 ```
 
-The demo renders a sample page with styled headings, containers, lists, and a dynamically-inserted DOM element -- all from raw HTML/CSS parsed and laid out at runtime.
-
 ## Project Structure
 
 ```
 SuperRenderer/
   src/
-    SuperRender.Core/            Core library (zero dependencies)
-      Html/                        HTML tokenizer + tree builder
-      Css/                         CSS tokenizer, parser, selector engine
-      Dom/                         Document, Element, TextNode, mutation API
-      Style/                       Cascade, specificity, computed styles
-      Layout/                      Block + inline layout, box model
-      Painting/                    Paint command generation
-    SuperRender.EcmaScript/      ECMAScript 2025 engine (zero dependencies)
+    SuperRender.Core/                Core library (zero dependencies)
+      Html/                            HTML tokenizer + tree builder
+      Css/                             CSS tokenizer, parser, selector engine
+      Dom/                             Document, Element, TextNode, mutation API
+      Style/                           Cascade, specificity, computed styles
+      Layout/                          Block + inline layout, box model
+      Painting/                        Paint command generation
+    SuperRender.Gpu/                 Shared Vulkan rendering infrastructure
+    SuperRender.EcmaScript/          ECMAScript 2025 engine (zero dependencies)
+    SuperRender.EcmaScript.Dom/      JS DOM API bindings (document, element, window)
     SuperRender.EcmaScript.Console/  Node.js-style interactive REPL
-    SuperRender.Demo/            Vulkan-powered windowed demo
+    SuperRender.Browser/             Tabbed browser application
+    SuperRender.Demo/                Minimal Vulkan demo app
   tests/
-    SuperRender.Tests/           Core engine tests (68 tests)
-    SuperRender.EcmaScript.Tests/  JS engine tests (421 tests)
+    SuperRender.Tests/               Core engine tests (68 tests)
+    SuperRender.EcmaScript.Tests/    JS engine tests (421 tests)
 ```
+
+## Browser
+
+A Vulkan-powered browser with tabbed browsing, built on the rendering and JS engines.
+
+- **Tabbed browsing** -- create, switch, and close tabs; each tab owns its own document, render pipeline, and JS engine
+- **Address bar** -- type URLs and press Enter to navigate; auto-adds `https://` for domain-like input
+- **Navigation** -- Back/Forward/Reload/Go buttons, error pages, `about:blank` support
+- **External resources** -- fetches HTML, CSS (`<link rel="stylesheet">`), and JavaScript (`<script src>`) with CORS validation
+- **JavaScript execution** -- inline and external scripts run with full DOM bindings (`document.createElement`, `querySelector`, `innerHTML`, `classList`, `style`, etc.)
+- **Text selection** -- click-and-drag to select text, copy to clipboard
+- **Context menus** -- right-click for Cut/Copy/Paste/Select All (address bar) or Copy/Select All/View Source (content)
+- **HiDPI support** -- content scale derived from framebuffer size; font atlas rendered at scaled resolution for sharp text on Retina displays
+- **Cross-platform** -- macOS (MoltenVK), Windows, Linux (native Vulkan)
 
 ## Rendering Engine
 
@@ -72,6 +95,7 @@ SuperRenderer/
 - Cascade with specificity calculation, `!important`, source-order sorting
 - Inheritance for `color`, `font-size`, `font-family`, `text-align`, `line-height`
 - Inline `style` attribute support
+- User-agent stylesheet with default browser styles
 
 ### Supported CSS Properties
 | Category | Properties |
@@ -90,10 +114,13 @@ Units: `px`, `em`, `rem`, `pt`, `%`, `auto`. Colors: hex (#RGB/#RRGGBB/#RRGGBBAA
 - Inline layout with word-based text wrapping, line-height, text alignment (left/center/right/justify)
 - Whitespace collapsing, anonymous block wrapping for mixed block/inline children
 
-### Vulkan Renderer
+### Vulkan Renderer (Gpu Library)
 - Quad pipeline for backgrounds and borders
 - Text pipeline with FreeType font atlas and alpha blending
+- HiDPI content scale support -- layout in logical pixels, projection matrix maps to physical coordinates
+- Font atlas generated at `BaseFontSize * contentScale` for sharp text on Retina/HiDPI displays
 - Dirty-flag optimization -- only re-renders when the DOM changes
+- Shared by both the Browser and Demo applications
 - Cross-platform: MoltenVK on macOS, native Vulkan on Windows/Linux
 
 ## ECMAScript Engine
@@ -115,6 +142,14 @@ A DLR-based JavaScript engine with no external dependencies.
 - 20 built-in objects: Object, Array, String, Number, Boolean, Math, JSON, Date, RegExp, Map, Set, WeakMap, WeakSet, Symbol, Promise, Proxy, Reflect, Error, ArrayBuffer, DataView
 - Sandboxed .NET interop: `RegisterType<T>()` / `SetValue()` for controlled host access
 
+### DOM Bindings
+- `document` global: `createElement`, `createTextNode`, `getElementById`, `querySelector`/`querySelectorAll`, `body`, `head`, `title`
+- `window` global: `document`, `innerWidth`/`innerHeight`, `devicePixelRatio`, `setTimeout`, `alert`, `console`
+- Node API: `appendChild`, `removeChild`, `insertBefore`, `parentNode`, `childNodes`, `textContent`
+- Element API: `tagName`, `id`, `className`, `classList` (add/remove/toggle/contains), `getAttribute`/`setAttribute`, `innerHTML`, `style`
+- `element.style`: camelCase CSS property get/set mapped to inline style attributes
+- 1:1 identity mapping between C# DOM nodes and JS wrapper objects via `ConditionalWeakTable`
+
 ### JS Console (REPL)
 ```bash
 dotnet run --project src/SuperRender.EcmaScript.Console
@@ -130,8 +165,11 @@ Features: multiline editing, command history, ANSI-colored output, `.help`/`.exi
 
 ## Roadmap
 
-Unimplemented features are tracked in detail:
+The master roadmap with P0-P4 prioritization is in [`TODO.md`](TODO.md).
 
+Detailed feature gap audits by subsystem:
+
+- **Browser:** [`src/SuperRender.Browser/browser-todos.md`](src/SuperRender.Browser/browser-todos.md) -- navigation history, scrolling, keyboard shortcuts, cookies, forms, images, events, timers, dev tools, and more (25 sections + experimental ideas)
 - **CSS:** [`src/SuperRender.Core/css-todos.md`](src/SuperRender.Core/css-todos.md) -- Selectors Level 4, flexbox, grid, custom properties, `calc()`, transforms, transitions, animations, media queries, container queries, CSS nesting (34 sections)
 - **HTML:** [`src/SuperRender.Core/html-todos.md`](src/SuperRender.Core/html-todos.md) -- Full WHATWG tokenizer, tree construction algorithm, forms, tables, embedded content, events, Shadow DOM, user-agent stylesheet (10 sections)
 - **ECMAScript:** [`src/SuperRender.EcmaScript/es-2025-todos.md`](src/SuperRender.EcmaScript/es-2025-todos.md) -- BigInt, generators, async/await runtime, WeakRef, Intl, Temporal (26 items)
@@ -142,12 +180,15 @@ Unimplemented features are tracked in detail:
 |---|---|
 | SuperRender.Core | None (pure C#) |
 | SuperRender.EcmaScript | None (pure C#, DLR ships with .NET) |
-| SuperRender.EcmaScript.Console | None (references EcmaScript project only) |
-| SuperRender.Demo | Silk.NET 2.23 (Vulkan, Windowing, Input, Shaderc), FreeTypeSharp 3.1 |
+| SuperRender.EcmaScript.Dom | None (references Core + EcmaScript only) |
+| SuperRender.EcmaScript.Console | None (references EcmaScript only) |
+| SuperRender.Gpu | Silk.NET 2.23 (Vulkan, Windowing, Input, Shaderc), FreeTypeSharp 3.1 |
+| SuperRender.Browser | References Core, Gpu, EcmaScript, EcmaScript.Dom |
+| SuperRender.Demo | References Core, Gpu |
 | Tests | xUnit 2.9, Microsoft.NET.Test.Sdk 17.12 |
 
 ## Requirements
 
 - .NET 10 SDK
-- Vulkan-capable GPU (for the demo app only; Core and EcmaScript run anywhere)
+- Vulkan-capable GPU (for Browser and Demo; Core and EcmaScript run anywhere)
 - macOS, Windows, or Linux
