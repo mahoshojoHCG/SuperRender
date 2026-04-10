@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SuperRender.Core/SuperRender.Core.csproj" />
+    <Project Path="src/SuperRender.Demo/SuperRender.Demo.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SuperRender.Tests/SuperRender.Tests.csproj" />
+  </Folder>
+</Solution>
