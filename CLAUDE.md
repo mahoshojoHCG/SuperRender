@@ -62,6 +62,8 @@ dotnet run --project src/SuperRender.EcmaScript.Console  # Launch the JS console
 
 **Deferred HTML features** tracked in `src/SuperRender.Core/html-todos.md`: full WHATWG tokenizer states, tree construction algorithm, adoption agency, forms, tables, embedded content, events, Shadow DOM, MutationObserver, user-agent stylesheet, and more (10 sections).
 
+**Deferred browser features** tracked in `src/SuperRender.Browser/browser-todos.md`: navigation history, keyboard shortcuts, content scrolling, page zoom, cookies, HTTP caching, security hardening, DOM events, timers, images, form elements, find-in-page, dev tools, bookmarks, downloads, link navigation, fetch API, and more (25 sections + experimental ideas).
+
 ## EcmaScript Console
 
 Node.js-style interactive REPL powered by the EcmaScript engine.
