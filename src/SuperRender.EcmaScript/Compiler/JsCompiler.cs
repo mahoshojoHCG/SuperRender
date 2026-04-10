@@ -75,7 +75,7 @@ public sealed class JsCompiler
             }
 
             // Ensure the block returns a JsValue
-            if (bodyExprs.Count == 0 || bodyExprs[^1].Type != typeof(JsValue))
+            if (bodyExprs.Count == 0 || !typeof(JsValue).IsAssignableFrom(bodyExprs[^1].Type))
             {
                 bodyExprs.Add(Expr.Constant(JsValue.Undefined, typeof(JsValue)));
             }
@@ -182,7 +182,7 @@ public sealed class JsCompiler
                 exprs.Add(CompileNode(stmt));
             }
 
-            if (exprs.Count == 1 || exprs[^1].Type != typeof(JsValue))
+            if (exprs.Count == 1 || !typeof(JsValue).IsAssignableFrom(exprs[^1].Type))
             {
                 exprs.Add(Expr.Constant(JsValue.Undefined, typeof(JsValue)));
             }

@@ -6,6 +6,7 @@ A complete HTML+CSS rendering engine built with C# (.NET 10), using Silk.NET + V
 
 - `src/SuperRender.Core/` — Core library (zero external deps): HTML/CSS parsers, DOM, style resolution, layout engine, painting
 - `src/SuperRender.EcmaScript/` — ECMAScript 2025 engine (DLR-based, zero external deps)
+- `src/SuperRender.EcmaScript.Console/` — Interactive JS console (Node.js-style REPL)
 - `src/SuperRender.Demo/` — Vulkan-powered windowed demo app
 - `tests/SuperRender.Tests/` — xUnit tests for Core (68 tests)
 - `tests/SuperRender.EcmaScript.Tests/` — xUnit tests for EcmaScript (421 tests)
@@ -16,6 +17,7 @@ A complete HTML+CSS rendering engine built with C# (.NET 10), using Silk.NET + V
 dotnet build              # Build all projects (warnings are errors)
 dotnet test               # Run all unit tests (489 total)
 dotnet run --project src/SuperRender.Demo  # Launch the demo window (requires Vulkan)
+dotnet run --project src/SuperRender.EcmaScript.Console  # Launch the JS console REPL
 ```
 
 ## Architecture
@@ -48,6 +50,16 @@ dotnet run --project src/SuperRender.Demo  # Launch the demo window (requires Vu
 
 **Deferred features** tracked in `src/SuperRender.EcmaScript/es-2025-todos.md`: BigInt, generators/async runtime, WeakRef, SharedArrayBuffer, Intl, Temporal, decorators (26 items total).
 
+## EcmaScript Console
+
+Node.js-style interactive REPL powered by the EcmaScript engine.
+
+**Components:**
+- `Program.cs` — CLI entry point: `--eval <code>`, `<file.js>`, or interactive REPL
+- `Repl` — REPL loop with multiline detection, dot commands (`.help`, `.exit`, `.clear`, `.editor`), object-literal-vs-block disambiguation
+- `LineEditor` — Readline-style key-by-key line editor: arrow keys, cursor movement, command history, word navigation (Ctrl+Left/Right), line editing shortcuts (Ctrl+U/K/W)
+- `ValueInspector` — Node.js-style ANSI-colored value formatting (strings green, numbers yellow, functions cyan, etc.)
+
 ## Code Quality
 
 - **TreatWarningsAsErrors** is on globally — the build must be zero-warning
@@ -65,6 +77,7 @@ dotnet run --project src/SuperRender.Demo  # Launch the demo window (requires Vu
 
 - Core library must remain dependency-free (pure C#)
 - EcmaScript engine must remain dependency-free (pure C#, DLR ships with .NET)
+- EcmaScript Console has no dependencies beyond the EcmaScript engine
 - All Vulkan/GPU code stays in the Demo project
 - `unsafe` is enabled globally (required by Silk.NET Vulkan bindings)
 - Tests use `MonospaceTextMeasurer` (deterministic, no GPU needed)

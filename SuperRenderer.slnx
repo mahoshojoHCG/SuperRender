@@ -3,6 +3,7 @@
     <Project Path="src/SuperRender.Core/SuperRender.Core.csproj" />
     <Project Path="src/SuperRender.Demo/SuperRender.Demo.csproj" />
     <Project Path="src/SuperRender.EcmaScript/SuperRender.EcmaScript.csproj" />
+    <Project Path="src/SuperRender.EcmaScript.Console/SuperRender.EcmaScript.Console.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/SuperRender.Tests/SuperRender.Tests.csproj" />
