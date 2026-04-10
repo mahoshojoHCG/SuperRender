@@ -6,6 +6,7 @@
     <File Path="global.json" />
     <File Path=".editorconfig" />
     <File Path=".gitignore" />
+    <File Path="TODO.md" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/SuperRender.Core/SuperRender.Core.csproj" />
