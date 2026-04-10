@@ -29,6 +29,16 @@ public sealed class Tab : IDisposable
     public bool IsLoading { get; private set; }
     public TextSelectionState Selection { get; } = new();
 
+    // Scrolling
+    public float ScrollOffsetY { get; set; }
+    public float ContentHeight { get; private set; }
+
+    // Navigation history
+    private readonly List<Uri> _history = [];
+    private int _historyIndex = -1;
+    public bool CanGoBack => _historyIndex > 0;
+    public bool CanGoForward => _historyIndex < _history.Count - 1;
+
     public Tab(ITextMeasurer measurer, ResourceLoader loader)
     {
         _measurer = measurer;
@@ -39,11 +49,22 @@ public sealed class Tab : IDisposable
     /// Navigate this tab to a URL. Fetches HTML, parses, loads external CSS/JS with CORS checks,
     /// sets up JS engine with DOM bindings, and executes scripts.
     /// </summary>
-    public async Task NavigateAsync(Uri uri)
+    public async Task NavigateAsync(Uri uri, bool isHistoryNavigation = false)
     {
         IsLoading = true;
         CurrentUri = uri;
         Title = uri.Host;
+        ScrollOffsetY = 0;
+
+        // Update history (only for non-history navigations)
+        if (!isHistoryNavigation)
+        {
+            // Truncate forward history
+            if (_historyIndex < _history.Count - 1)
+                _history.RemoveRange(_historyIndex + 1, _history.Count - _historyIndex - 1);
+            _history.Add(uri);
+            _historyIndex = _history.Count - 1;
+        }
 
         try
         {
@@ -196,7 +217,32 @@ public sealed class Tab : IDisposable
             _lastPaintList = paintList;
 
         _lastPaintList ??= _pipeline.Render(width, height);
+
+        // Update content height from layout root
+        if (_pipeline.LayoutRoot is not null)
+            ContentHeight = _pipeline.LayoutRoot.Dimensions.MarginRect.Bottom;
+
         return _lastPaintList;
+    }
+
+    /// <summary>
+    /// Go back in navigation history. Returns the URI to navigate to, or null if can't go back.
+    /// </summary>
+    public Uri? GoBack()
+    {
+        if (!CanGoBack) return null;
+        _historyIndex--;
+        return _history[_historyIndex];
+    }
+
+    /// <summary>
+    /// Go forward in navigation history. Returns the URI to navigate to, or null if can't go forward.
+    /// </summary>
+    public Uri? GoForward()
+    {
+        if (!CanGoForward) return null;
+        _historyIndex++;
+        return _history[_historyIndex];
     }
 
     public void MarkNeedsLayout()

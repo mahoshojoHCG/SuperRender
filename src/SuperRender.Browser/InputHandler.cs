@@ -1,4 +1,5 @@
 using SuperRender.Browser.Networking;
+using SuperRender.Core.Dom;
 using SuperRender.Core.Layout;
 using SuperRender.Core.Painting;
 using Silk.NET.Input;
@@ -15,6 +16,7 @@ public sealed class InputHandler
     private readonly ITextMeasurer _measurer;
     private readonly Func<float> _getContentScale;
     private readonly Action<Uri> _navigateCallback;
+    private readonly Func<float> _getViewportHeight;
     private bool _isDragging;
 
     public InputHandler(
@@ -22,13 +24,15 @@ public sealed class InputHandler
         TabManager tabs,
         ITextMeasurer measurer,
         Func<float> getContentScale,
-        Action<Uri> navigateCallback)
+        Action<Uri> navigateCallback,
+        Func<float> getViewportHeight)
     {
         _chrome = chrome;
         _tabs = tabs;
         _measurer = measurer;
         _getContentScale = getContentScale;
         _navigateCallback = navigateCallback;
+        _getViewportHeight = getViewportHeight;
     }
 
     public void OnMouseDown(float physicalX, float physicalY, float viewportWidth)
@@ -75,6 +79,14 @@ public sealed class InputHandler
                     if (_tabs.ActiveTab?.CurrentUri is not null)
                         _navigateCallback(_tabs.ActiveTab.CurrentUri);
                     break;
+
+                case ChromeHitArea.BackButton:
+                    NavigateHistory(forward: false);
+                    break;
+
+                case ChromeHitArea.ForwardButton:
+                    NavigateHistory(forward: true);
+                    break;
             }
         }
         else
@@ -86,12 +98,40 @@ public sealed class InputHandler
             if (tab?.LayoutRoot is not null)
             {
                 float contentX = x;
-                float contentY = y - BrowserChrome.TotalChromeHeight;
-                var allRuns = TextHitTester.CollectTextRuns(tab.LayoutRoot);
-                var hit = TextHitTester.HitTest(allRuns, contentX, contentY, _measurer);
-                if (hit.HasValue)
+                float contentY = y - BrowserChrome.TotalChromeHeight + tab.ScrollOffsetY;
+
+                // Check for link clicks
+                var hitBox = HitTestLayoutBox(tab.LayoutRoot, contentX, contentY);
+                if (hitBox is not null)
                 {
-                    tab.Selection.Start = new TextPosition(hit.Value.runIndex, hit.Value.charOffset);
+                    var anchor = FindAnchorElement(hitBox.DomNode);
+                    if (anchor is not null)
+                    {
+                        var href = anchor.GetAttribute("href");
+                        if (!string.IsNullOrWhiteSpace(href))
+                        {
+                            var targetUri = UrlResolver.Resolve(href, tab.CurrentUri);
+                            var target = anchor.GetAttribute("target");
+                            if (target is not null && target.Equals("_blank", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var newTab = _tabs.CreateTab();
+                                _navigateCallback(targetUri);
+                            }
+                            else
+                            {
+                                _navigateCallback(targetUri);
+                            }
+                            return;
+                        }
+                    }
+                }
+
+                // Text selection
+                var allRuns = TextHitTester.CollectTextRuns(tab.LayoutRoot);
+                var textHit = TextHitTester.HitTest(allRuns, contentX, contentY, _measurer);
+                if (textHit.HasValue)
+                {
+                    tab.Selection.Start = new TextPosition(textHit.Value.runIndex, textHit.Value.charOffset);
                     tab.Selection.End = tab.Selection.Start;
                     _isDragging = true;
                 }
@@ -103,20 +143,115 @@ public sealed class InputHandler
         }
     }
 
-    public void OnKeyDown(Key key)
+    public void OnKeyDown(Key key, bool ctrl = false, bool shift = false)
     {
-        if (!_chrome.AddressBarFocused) return;
+        // Keyboard shortcuts (processed before address bar input)
+        if (ctrl)
+        {
+            switch (key)
+            {
+                case Key.T:
+                    _tabs.CreateTab();
+                    _chrome.AddressText = "";
+                    _chrome.CursorPosition = 0;
+                    _chrome.AddressBarFocused = true;
+                    return;
 
+                case Key.W:
+                    _tabs.CloseTab(_tabs.ActiveTabIndex);
+                    UpdateAddressFromTab();
+                    return;
+
+                case Key.Tab:
+                    if (shift)
+                    {
+                        int prev = _tabs.ActiveTabIndex - 1;
+                        if (prev < 0) prev = _tabs.Tabs.Count - 1;
+                        _tabs.SwitchTab(prev);
+                    }
+                    else
+                    {
+                        int next = (_tabs.ActiveTabIndex + 1) % _tabs.Tabs.Count;
+                        _tabs.SwitchTab(next);
+                    }
+                    UpdateAddressFromTab();
+                    return;
+
+                case Key.L:
+                    _chrome.AddressBarFocused = true;
+                    _chrome.CursorPosition = _chrome.AddressText.Length;
+                    return;
+
+                case Key.R:
+                    if (_tabs.ActiveTab?.CurrentUri is not null)
+                        _navigateCallback(_tabs.ActiveTab.CurrentUri);
+                    return;
+            }
+        }
+
+        if (key == Key.F5)
+        {
+            if (_tabs.ActiveTab?.CurrentUri is not null)
+                _navigateCallback(_tabs.ActiveTab.CurrentUri);
+            return;
+        }
+
+        if (key == Key.Escape)
+        {
+            if (_chrome.AddressBarFocused)
+            {
+                _chrome.AddressBarFocused = false;
+                UpdateAddressFromTab();
+            }
+            return;
+        }
+
+        // Content scrolling (when address bar is not focused)
+        if (!_chrome.AddressBarFocused)
+        {
+            var tab = _tabs.ActiveTab;
+            if (tab is not null)
+            {
+                float contentAreaHeight = _getViewportHeight() - BrowserChrome.TotalChromeHeight;
+                if (contentAreaHeight < 0) contentAreaHeight = 0;
+                const float scrollStep = 40f;
+
+                switch (key)
+                {
+                    case Key.Up:
+                        tab.ScrollOffsetY -= scrollStep;
+                        ClampScrollOffset(tab);
+                        return;
+                    case Key.Down:
+                        tab.ScrollOffsetY += scrollStep;
+                        ClampScrollOffset(tab);
+                        return;
+                    case Key.PageUp:
+                        tab.ScrollOffsetY -= contentAreaHeight;
+                        ClampScrollOffset(tab);
+                        return;
+                    case Key.PageDown:
+                    case Key.Space:
+                        tab.ScrollOffsetY += contentAreaHeight;
+                        ClampScrollOffset(tab);
+                        return;
+                    case Key.Home:
+                        tab.ScrollOffsetY = 0;
+                        return;
+                    case Key.End:
+                        tab.ScrollOffsetY = Math.Max(0, tab.ContentHeight - contentAreaHeight);
+                        return;
+                }
+            }
+            return;
+        }
+
+        // Address bar key handling
         switch (key)
         {
             case Key.Enter:
                 TriggerNavigation();
                 _chrome.AddressBarFocused = false;
-                break;
-
-            case Key.Escape:
-                _chrome.AddressBarFocused = false;
-                UpdateAddressFromTab();
                 break;
 
             case Key.Backspace:
@@ -175,6 +310,29 @@ public sealed class InputHandler
         _chrome.CursorPosition = _chrome.AddressText.Length;
     }
 
+    private void NavigateHistory(bool forward)
+    {
+        var tab = _tabs.ActiveTab;
+        if (tab is null) return;
+
+        var uri = forward ? tab.GoForward() : tab.GoBack();
+        if (uri is not null)
+        {
+            _chrome.AddressText = uri.ToString();
+            _chrome.CursorPosition = _chrome.AddressText.Length;
+            // Navigate with history flag so we don't push a new entry
+            _ = tab.NavigateAsync(uri, isHistoryNavigation: true);
+        }
+    }
+
+    private void ClampScrollOffset(Tab tab)
+    {
+        float contentAreaHeight = _getViewportHeight() - BrowserChrome.TotalChromeHeight;
+        if (contentAreaHeight < 0) contentAreaHeight = 0;
+        float maxScroll = Math.Max(0, tab.ContentHeight - contentAreaHeight);
+        tab.ScrollOffsetY = Math.Clamp(tab.ScrollOffsetY, 0, maxScroll);
+    }
+
     public ContextMenu? OnRightClick(float physicalX, float physicalY, float viewportWidth)
     {
         float scale = _getContentScale();
@@ -210,7 +368,7 @@ public sealed class InputHandler
         if (tab?.LayoutRoot is null) return;
 
         float contentX = x;
-        float contentY = y - BrowserChrome.TotalChromeHeight;
+        float contentY = y - BrowserChrome.TotalChromeHeight + tab.ScrollOffsetY;
         var allRuns = TextHitTester.CollectTextRuns(tab.LayoutRoot);
         var hit = TextHitTester.HitTest(allRuns, contentX, contentY, _measurer);
         if (hit.HasValue)
@@ -435,7 +593,7 @@ public sealed class InputHandler
             return;
         }
 
-        if (node is SuperRender.Core.Dom.Element el)
+        if (node is Element el)
         {
             sb.Append('<').Append(el.TagName);
             foreach (var attr in el.Attributes)
@@ -461,5 +619,31 @@ public sealed class InputHandler
             .Replace("<", "&lt;")
             .Replace(">", "&gt;")
             .Replace("\"", "&quot;");
+    }
+
+    private static Element? FindAnchorElement(Node? node)
+    {
+        while (node != null)
+        {
+            if (node is Element el && el.TagName.Equals("a", StringComparison.OrdinalIgnoreCase))
+                return el;
+            node = node.Parent;
+        }
+        return null;
+    }
+
+    private static LayoutBox? HitTestLayoutBox(LayoutBox box, float x, float y)
+    {
+        // Check children first (front-to-back, reverse order)
+        for (int i = box.Children.Count - 1; i >= 0; i--)
+        {
+            var hit = HitTestLayoutBox(box.Children[i], x, y);
+            if (hit != null) return hit;
+        }
+        // Check this box
+        var rect = box.Dimensions.BorderRect;
+        if (x >= rect.X && x < rect.Right && y >= rect.Y && y < rect.Bottom)
+            return box;
+        return null;
     }
 }

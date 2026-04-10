@@ -53,7 +53,8 @@ public sealed class BrowserWindow : IDisposable
             _tabManager,
             measurer,
             () => _contentScale,
-            NavigateAsync);
+            NavigateAsync,
+            () => _window.FramebufferSize.Y / _contentScale);
 
         // Create first tab with welcome page
         var tab = _tabManager.CreateTab();
@@ -71,6 +72,7 @@ public sealed class BrowserWindow : IDisposable
             mouse.MouseDown += OnMouseDown;
             mouse.MouseUp += OnMouseUp;
             mouse.MouseMove += OnMouseMove;
+            mouse.Scroll += OnMouseScroll;
         }
 
         Console.WriteLine("SuperRenderer Browser started.");
@@ -111,18 +113,20 @@ public sealed class BrowserWindow : IDisposable
 
         if (contentPaintList is not null)
         {
+            float scrollOffset = activeTab?.ScrollOffsetY ?? 0;
+
             // Selection highlights render behind text (quads drawn before text in Vulkan pipeline)
             if (activeTab?.Selection.HasSelection == true && activeTab.LayoutRoot is not null)
             {
                 var allRuns = TextHitTester.CollectTextRuns(activeTab.LayoutRoot);
                 var highlights = SelectionPainter.BuildHighlights(activeTab.Selection, allRuns, _measurer);
                 foreach (var cmd in highlights.Commands)
-                    combined.Add(OffsetCommand(cmd, BrowserChrome.TotalChromeHeight));
+                    combined.Add(OffsetCommand(cmd, BrowserChrome.TotalChromeHeight - scrollOffset));
             }
 
             foreach (var cmd in contentPaintList.Commands)
             {
-                combined.Add(OffsetCommand(cmd, BrowserChrome.TotalChromeHeight));
+                combined.Add(OffsetCommand(cmd, BrowserChrome.TotalChromeHeight - scrollOffset));
             }
         }
 
@@ -167,7 +171,10 @@ public sealed class BrowserWindow : IDisposable
 
     private void OnKeyDown(IKeyboard kb, Key key, int scancode)
     {
-        _inputHandler.OnKeyDown(key);
+        bool ctrl = kb.IsKeyPressed(Key.ControlLeft) || kb.IsKeyPressed(Key.ControlRight)
+                  || kb.IsKeyPressed(Key.SuperLeft) || kb.IsKeyPressed(Key.SuperRight);
+        bool shift = kb.IsKeyPressed(Key.ShiftLeft) || kb.IsKeyPressed(Key.ShiftRight);
+        _inputHandler.OnKeyDown(key, ctrl, shift);
     }
 
     private void OnKeyChar(IKeyboard kb, char c)
@@ -346,5 +353,25 @@ public sealed class BrowserWindow : IDisposable
             },
             _ => cmd,
         };
+    }
+
+    private void OnMouseScroll(IMouse mouse, ScrollWheel scroll)
+    {
+        var activeTab = _tabManager.ActiveTab;
+        if (activeTab is null) return;
+
+        const float scrollStep = 40f;
+        activeTab.ScrollOffsetY -= scroll.Y * scrollStep;
+
+        ClampScrollOffset(activeTab);
+    }
+
+    private void ClampScrollOffset(Tab tab)
+    {
+        var fbSize = _window.FramebufferSize;
+        float logicalHeight = fbSize.Y / _contentScale;
+        float contentAreaHeight = logicalHeight - BrowserChrome.TotalChromeHeight;
+        float maxScroll = Math.Max(0, tab.ContentHeight - contentAreaHeight);
+        tab.ScrollOffsetY = Math.Clamp(tab.ScrollOffsetY, 0, maxScroll);
     }
 }
