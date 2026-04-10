@@ -6,7 +6,7 @@ public enum CssValueType
     Length,
     Percentage,
     Color,
-    String,
+    StringLiteral,
     Number
 }
 

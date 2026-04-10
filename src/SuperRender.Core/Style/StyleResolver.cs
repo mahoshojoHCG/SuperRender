@@ -352,7 +352,7 @@ public sealed class StyleResolver
         _ => DisplayType.Block,
     };
 
-    private void ApplyInlineStyle(ComputedStyle style, string cssText, ComputedStyle? parentStyle)
+    private static void ApplyInlineStyle(ComputedStyle style, string cssText, ComputedStyle? parentStyle)
     {
         // Parse inline style as declarations
         // Simple parsing: split by ; then split by :

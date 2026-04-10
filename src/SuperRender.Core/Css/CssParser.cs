@@ -173,7 +173,7 @@ public sealed class CssParser
     private static bool IsBoxShorthand(string property)
         => property is "margin" or "padding" or "border-width";
 
-    private List<Declaration> ExpandBoxShorthand(string property, List<CssToken> valueTokens, bool important)
+    private static List<Declaration> ExpandBoxShorthand(string property, List<CssToken> valueTokens, bool important)
     {
         // Split value tokens by whitespace into groups
         var parts = SplitByWhitespace(valueTokens);
@@ -235,7 +235,7 @@ public sealed class CssParser
         ];
     }
 
-    private List<Declaration> ExpandBorderShorthand(List<CssToken> valueTokens, bool important)
+    private static List<Declaration> ExpandBorderShorthand(List<CssToken> valueTokens, bool important)
     {
         // border: <width> <style> <color>
         var parts = SplitByWhitespace(valueTokens);
@@ -300,7 +300,7 @@ public sealed class CssParser
 
     #region Value Parsing
 
-    private CssValue ParseValueTokens(List<CssToken> tokens)
+    private static CssValue ParseValueTokens(List<CssToken> tokens)
     {
         var trimmed = TrimWhitespace(tokens);
         if (trimmed.Count == 0)
@@ -381,10 +381,10 @@ public sealed class CssParser
                     ColorValue = color
                 };
 
-            case CssTokenType.String:
+            case CssTokenType.StringLiteral:
                 return new CssValue
                 {
-                    Type = CssValueType.String,
+                    Type = CssValueType.StringLiteral,
                     Raw = token.Value
                 };
 
@@ -397,7 +397,7 @@ public sealed class CssParser
         }
     }
 
-    private CssValue ParseFunction(List<CssToken> tokens)
+    private static CssValue ParseFunction(List<CssToken> tokens)
     {
         string funcName = tokens[0].Value.ToLowerInvariant();
 

@@ -49,8 +49,7 @@ public sealed class RenderPipeline
         _layoutRoot = layoutEngine.BuildLayoutTree(_document, _styles, viewportWidth, viewportHeight);
 
         // Paint
-        var painter = new Painter();
-        _paintList = painter.Paint(_layoutRoot);
+        _paintList = Painter.Paint(_layoutRoot);
 
         _lastWidth = viewportWidth;
         _lastHeight = viewportHeight;
@@ -74,13 +73,13 @@ public sealed class RenderPipeline
         return null;
     }
 
-    private void ExtractStylesheets(Document document)
+    private static void ExtractStylesheets(Document document)
     {
         document.Stylesheets.Clear();
         ExtractStylesFromNode(document, document);
     }
 
-    private void ExtractStylesFromNode(Node node, Document document)
+    private static void ExtractStylesFromNode(Node node, Document document)
     {
         if (node is Element element && element.TagName == "style")
         {

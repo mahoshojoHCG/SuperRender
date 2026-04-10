@@ -14,7 +14,7 @@ public enum CssTokenType
     Number,
     Dimension,
     Percentage,
-    String,
+    StringLiteral,
     Function,
     LeftParen,
     RightParen,
@@ -33,7 +33,7 @@ public sealed class CssToken
     {
         CssTokenType.Dimension => $"{NumericValue}{Unit}",
         CssTokenType.Percentage => $"{NumericValue}%",
-        CssTokenType.Number => NumericValue.ToString(),
+        CssTokenType.Number => NumericValue.ToString(System.Globalization.CultureInfo.InvariantCulture),
         _ => Value
     };
 }

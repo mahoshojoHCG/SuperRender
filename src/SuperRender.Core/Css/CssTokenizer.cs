@@ -124,10 +124,10 @@ public sealed class CssTokenizer
 
     private char Advance() => _input[_pos++];
 
-    private bool IsIdentStart(char c)
+    private static bool IsIdentStart(char c)
         => char.IsLetter(c) || c == '_' || c == '-';
 
-    private bool IsIdentChar(char c)
+    private static bool IsIdentChar(char c)
         => char.IsLetterOrDigit(c) || c == '_' || c == '-';
 
     private bool IsNumberStart(char c)
@@ -193,7 +193,7 @@ public sealed class CssTokenizer
             }
         }
         if (_pos < _input.Length) Advance(); // skip closing quote
-        return new CssToken { Type = CssTokenType.String, Value = sb.ToString() };
+        return new CssToken { Type = CssTokenType.StringLiteral, Value = sb.ToString() };
     }
 
     private CssToken ConsumeNumeric()

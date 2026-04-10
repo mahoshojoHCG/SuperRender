@@ -4,14 +4,14 @@ namespace SuperRender.Core.Painting;
 
 public sealed class Painter
 {
-    public PaintList Paint(LayoutBox root)
+    public static PaintList Paint(LayoutBox root)
     {
         var list = new PaintList();
         PaintBox(root, list);
         return list;
     }
 
-    private void PaintBox(LayoutBox box, PaintList list)
+    private static void PaintBox(LayoutBox box, PaintList list)
     {
         if (box.Style.Display == DisplayType.None)
             return;

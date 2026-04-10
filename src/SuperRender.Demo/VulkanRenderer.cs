@@ -83,7 +83,7 @@ public sealed unsafe class VulkanRenderer : IDisposable
         vk.ResetFences(_ctx.Device, 1, in _inFlightFences[_currentFrame]);
 
         // Build GPU data from paint list
-        var (quadVerts, quadIndices) = _quadRenderer.BuildQuadBatch(paintList);
+        var (quadVerts, quadIndices) = QuadRenderer.BuildQuadBatch(paintList);
         var (textVerts, textIndices) = _textRenderer.BuildTextBatch(paintList);
 
         _buffers.UploadQuads(quadVerts, quadIndices);

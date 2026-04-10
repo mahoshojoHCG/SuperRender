@@ -1,0 +1,17 @@
+root = true
+
+[*]
+indent_style = space
+indent_size = 4
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.cs]
+# CA1707: Identifiers should not contain underscores
+# Suppressed in test projects where Method_Scenario_Expected is standard xUnit convention
+dotnet_diagnostic.CA1707.severity = warning
+
+[tests/**/*.cs]
+dotnet_diagnostic.CA1707.severity = none

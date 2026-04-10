@@ -60,7 +60,7 @@ public class CssTokenizerTests
     public void String_Parsed()
     {
         var tokens = Tokenize("\"Arial\"");
-        Assert.Equal(CssTokenType.String, tokens[0].Type);
+        Assert.Equal(CssTokenType.StringLiteral, tokens[0].Type);
         Assert.Equal("Arial", tokens[0].Value);
     }
 

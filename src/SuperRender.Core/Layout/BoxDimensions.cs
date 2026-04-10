@@ -2,10 +2,10 @@ namespace SuperRender.Core.Layout;
 
 public struct EdgeSizes
 {
-    public float Top;
-    public float Right;
-    public float Bottom;
-    public float Left;
+    public float Top { get; set; }
+    public float Right { get; set; }
+    public float Bottom { get; set; }
+    public float Left { get; set; }
 
     public EdgeSizes(float top, float right, float bottom, float left)
     {
@@ -31,10 +31,10 @@ public struct EdgeSizes
 
 public struct RectF
 {
-    public float X;
-    public float Y;
-    public float Width;
-    public float Height;
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Width { get; set; }
+    public float Height { get; set; }
 
     public RectF(float x, float y, float width, float height)
     {
@@ -56,13 +56,13 @@ public struct RectF
 
 public struct BoxDimensions
 {
-    public float X;
-    public float Y;
-    public float Width;
-    public float Height;
-    public EdgeSizes Padding;
-    public EdgeSizes Border;
-    public EdgeSizes Margin;
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Width { get; set; }
+    public float Height { get; set; }
+    public EdgeSizes Padding { get; set; }
+    public EdgeSizes Border { get; set; }
+    public EdgeSizes Margin { get; set; }
 
     public RectF ContentRect => new(X, Y, Width, Height);
 

@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using FreeTypeSharp;
 
 namespace SuperRender.Demo;

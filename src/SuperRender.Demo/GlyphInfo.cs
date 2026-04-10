@@ -2,8 +2,13 @@ namespace SuperRender.Demo;
 
 public struct GlyphInfo
 {
-    public float U0, V0, U1, V1;  // texture coordinates in [0,1]
-    public float Width, Height;    // glyph size at base font size
-    public float AdvanceX;         // horizontal advance
-    public float OffsetX, OffsetY; // bearing offset
+    public float U0 { get; set; }
+    public float V0 { get; set; }
+    public float U1 { get; set; }
+    public float V1 { get; set; }
+    public float Width { get; set; }
+    public float Height { get; set; }
+    public float AdvanceX { get; set; }
+    public float OffsetX { get; set; }
+    public float OffsetY { get; set; }
 }

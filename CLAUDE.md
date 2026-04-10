@@ -11,7 +11,7 @@ A complete HTML+CSS rendering engine built with C# (.NET 10), using Silk.NET + V
 ## Build & Run
 
 ```bash
-dotnet build              # Build all projects
+dotnet build              # Build all projects (warnings are errors)
 dotnet test               # Run 68 unit tests
 dotnet run --project src/SuperRender.Demo  # Launch the demo window (requires Vulkan)
 ```
@@ -29,6 +29,13 @@ dotnet run --project src/SuperRender.Demo  # Launch the demo window (requires Vu
 - `Painter` — generates FillRect/DrawText commands from layout tree
 - `VulkanRenderer` — frame loop with quad pipeline (backgrounds/borders) + text pipeline (font atlas with alpha blending)
 - `DomMutationApi` — runtime DOM modification with automatic re-layout
+
+## Code Quality
+
+- **TreatWarningsAsErrors** is on globally — the build must be zero-warning
+- **AnalysisLevel**: `latest-Recommended` with `EnforceCodeStyleInBuild`
+- **Rule suppressions** go in `.editorconfig`, not in `.csproj` `<NoWarn>` — keeps rules centralized and auditable
+- CA1707 (underscore in identifiers) is suppressed only under `tests/` for xUnit `Method_Scenario_Expected` naming
 
 ## Platform Notes
 

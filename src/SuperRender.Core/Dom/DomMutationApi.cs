@@ -118,7 +118,7 @@ public static class DomMutationApi
         }
     }
 
-    private static IReadOnlyList<CssToken> TokenizeSelector(string selectorText)
+    private static List<CssToken> TokenizeSelector(string selectorText)
     {
         var tokenizer = new CssTokenizer(selectorText);
         return tokenizer.Tokenize()

@@ -2,7 +2,6 @@ using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
 using SuperRender.Core;
-using SuperRender.Core.Dom;
 using SuperRender.Core.Painting;
 
 namespace SuperRender.Demo;

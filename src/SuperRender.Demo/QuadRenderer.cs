@@ -18,7 +18,7 @@ public sealed class QuadRenderer
     /// <see cref="StrokeRectCommand"/> entries and returns interleaved vertex + index
     /// arrays ready for GPU upload.
     /// </summary>
-    public (QuadVertex[] vertices, uint[] indices) BuildQuadBatch(PaintList paintList)
+    public static (QuadVertex[] vertices, uint[] indices) BuildQuadBatch(PaintList paintList)
     {
         var vertices = new List<QuadVertex>();
         var indices = new List<uint>();

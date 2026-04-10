@@ -47,7 +47,7 @@ public sealed class LayoutEngine
         return root;
     }
 
-    private LayoutBox BuildBox(Node node, Dictionary<Node, ComputedStyle> styles)
+    private static LayoutBox BuildBox(Node node, Dictionary<Node, ComputedStyle> styles)
     {
         var style = styles.GetValueOrDefault(node) ?? new ComputedStyle();
 
