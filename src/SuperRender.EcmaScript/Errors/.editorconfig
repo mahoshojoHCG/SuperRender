@@ -1,0 +1,3 @@
+[*.cs]
+# CA1710: Identifiers should have correct suffix — JS error base class follows engine convention, not .NET Exception suffix
+dotnet_diagnostic.CA1710.severity = none

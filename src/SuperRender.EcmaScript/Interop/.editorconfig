@@ -1,0 +1,4 @@
+[*.cs]
+# CA1859: Return concrete types — suppressed because these methods are called
+# from contexts that need the abstract JsValue type
+dotnet_diagnostic.CA1859.severity = none

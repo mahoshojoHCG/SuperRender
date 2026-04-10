@@ -1,0 +1,9 @@
+[*.cs]
+# CA1859: Use concrete types — builtin methods return JsValue per the runtime interface contract
+dotnet_diagnostic.CA1859.severity = none
+# CA1822: Mark members as static — lambda-based implementations share a common delegate shape
+dotnet_diagnostic.CA1822.severity = none
+# CA1720: Identifier contains type name — ECMAScript builtin names (Object, String, Number) are spec-mandated
+dotnet_diagnostic.CA1720.severity = none
+# CA1716: Identifiers should not match keywords — ECMAScript method names (Get, Set, Delete) are spec-mandated
+dotnet_diagnostic.CA1716.severity = none

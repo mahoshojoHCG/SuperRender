@@ -1,0 +1,5 @@
+[*.cs]
+# CA1859: Return concrete types for better performance
+# Suppressed in parsing — methods return SyntaxNode (abstract base) by design
+# since the parser's dispatch tables call them polymorphically
+dotnet_diagnostic.CA1859.severity = none

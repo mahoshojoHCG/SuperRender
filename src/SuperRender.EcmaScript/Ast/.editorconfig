@@ -1,0 +1,5 @@
+[*.cs]
+# CA1716: Type name conflicts with reserved keyword — AST node names follow ESTree specification
+dotnet_diagnostic.CA1716.severity = none
+# CA1720: Identifier contains type name — AST property names follow ESTree specification
+dotnet_diagnostic.CA1720.severity = none

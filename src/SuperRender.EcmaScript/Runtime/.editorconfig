@@ -1,0 +1,5 @@
+[*.cs]
+# CA1716: Identifiers should not match keywords — ECMAScript spec names (TypeOf, Get, Set, Call) are intentional
+dotnet_diagnostic.CA1716.severity = none
+# CA1720: Identifier contains type name — property names follow ECMAScript specification
+dotnet_diagnostic.CA1720.severity = none

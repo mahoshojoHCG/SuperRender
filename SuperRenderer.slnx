@@ -2,8 +2,10 @@
   <Folder Name="/src/">
     <Project Path="src/SuperRender.Core/SuperRender.Core.csproj" />
     <Project Path="src/SuperRender.Demo/SuperRender.Demo.csproj" />
+    <Project Path="src/SuperRender.EcmaScript/SuperRender.EcmaScript.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/SuperRender.Tests/SuperRender.Tests.csproj" />
+    <Project Path="tests/SuperRender.EcmaScript.Tests/SuperRender.EcmaScript.Tests.csproj" />
   </Folder>
 </Solution>
