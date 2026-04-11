@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 07 - Scrolling</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .instructions {
+            background-color: #ffffdd;
+            border: 2px solid #cccc33;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .section {
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 2px solid #999999;
+        }
+        .section-even {
+            background-color: #ddddff;
+        }
+        .section-odd {
+            background-color: #ffdddd;
+        }
+        .section-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333333;
+            margin-bottom: 10px;
+        }
+        .bottom-marker {
+            background-color: #ddffdd;
+            border: 3px solid #33cc33;
+            padding: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 07: Scrolling</h1>
+    <p><a href="index.html">Back to index</a></p>
+
+    <div class="instructions">
+        <p><strong>Scrolling Test Instructions:</strong></p>
+        <p>Test each scrolling method and verify smooth movement:</p>
+        <ul>
+            <li><strong>Mouse wheel</strong> - scroll up and down</li>
+            <li><strong>Arrow keys (Up/Down)</strong> - scroll step by step</li>
+            <li><strong>Page Up / Page Down</strong> - scroll by one page</li>
+            <li><strong>Space bar</strong> - scroll down one page</li>
+            <li><strong>Home</strong> - jump to top of page</li>
+            <li><strong>End</strong> - jump to bottom of page</li>
+        </ul>
+        <p>There are 20 numbered sections below. The scrollbar on the right should reflect your position.</p>
+    </div>
+
+    <div class="section section-odd">
+        <div class="section-number">Section 1</div>
+        <p>This is the first section. After scrolling away, use Home to return here.</p>
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+    </div>
+
+    <div class="section section-even">
+        <div class="section-number">Section 2</div>
+        <p>Second section. Try using the mouse wheel to scroll slowly through the content.</p>
+        <p>Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+    </div>
+
+    <div class="section section-odd">
+        <div class="section-number">Section 3</div>
+        <p>Third section. The scrollbar thumb should be getting smaller as you see more content exists.</p>
+        <p>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</p>
+    </div>
+
+    <div class="section section-even">
+        <div class="section-number">Section 4</div>
+        <p>Fourth section. Try pressing Page Down to jump ahead.</p>
+        <p>Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+    </div>
+
+    <div class="section section-odd">
+        <div class="section-number">Section 5</div>
+        <p>Fifth section. One quarter of the way through.</p>
+        <p>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium.</p>
+    </div>
+
+    <div class="section section-even">
+        <div class="section-number">Section 6</div>
+        <p>Sixth section. Keep scrolling to verify consistent behavior.</p>
+        <p>Totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.</p>
+    </div>
+
+    <div class="section section-odd">
+        <div class="section-number">Section 7</div>
+        <p>Seventh section.</p>
+        <p>Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit.</p>
+    </div>
+
+    <div class="section section-even">
+        <div class="section-number">Section 8</div>
+        <p>Eighth section.</p>
+        <p>Sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.</p>
+    </div>
+
+    <div class="section section-odd">
+        <div class="section-number">Section 9</div>
+        <p>Ninth section.</p>
+        <p>Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet.</p>
+    </div>
+
+    <div class="section section-even">
+        <div class="section-number">Section 10</div>
+        <p>Tenth section. You are halfway through the page.</p>
+        <p>Consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt.</p>
+    </div>
+
+    <div class="section section-odd">
+        <div class="section-number">Section 11</div>
+        <p>Eleventh section. Try pressing Up arrow to scroll back up a little.</p>
+        <p>Ut labore et dolore magnam aliquam quaerat voluptatem.</p>
+    </div>
+
+    <div class="section section-even">
+        <div class="section-number">Section 12</div>
+        <p>Twelfth section.</p>
+        <p>Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam.</p>
+    </div>
+
+    <div class="section section-odd">
+        <div class="section-number">Section 13</div>
+        <p>Thirteenth section.</p>
+        <p>Nisi ut aliquid ex ea commodi consequatur.</p>
+    </div>
+
+    <div class="section section-even">
+        <div class="section-number">Section 14</div>
+        <p>Fourteenth section.</p>
+        <p>Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse.</p>
+    </div>
+
+    <div class="section section-odd">
+        <div class="section-number">Section 15</div>
+        <p>Fifteenth section. Three quarters of the way through.</p>
+        <p>Quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur.</p>
+    </div>
+
+    <div class="section section-even">
+        <div class="section-number">Section 16</div>
+        <p>Sixteenth section.</p>
+        <p>At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium.</p>
+    </div>
+
+    <div class="section section-odd">
+        <div class="section-number">Section 17</div>
+        <p>Seventeenth section.</p>
+        <p>Voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint.</p>
+    </div>
+
+    <div class="section section-even">
+        <div class="section-number">Section 18</div>
+        <p>Eighteenth section. Almost there.</p>
+        <p>Occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi.</p>
+    </div>
+
+    <div class="section section-odd">
+        <div class="section-number">Section 19</div>
+        <p>Nineteenth section.</p>
+        <p>Id est laborum et dolorum fuga. Et harum quidem rerum facilis est et expedita distinctio.</p>
+    </div>
+
+    <div class="section section-even">
+        <div class="section-number">Section 20</div>
+        <p>Twentieth and final section. Press End to jump here. Press Home to jump back to the top.</p>
+        <p>Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus.</p>
+    </div>
+
+    <div class="bottom-marker">
+        YOU HAVE REACHED THE BOTTOM OF THE PAGE. Press Home to return to the top.
+    </div>
+</body>
+</html>

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 14 - DOM Events</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+            font-size: 16px;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+
+        #click-target {
+            width: 300px;
+            padding: 20px;
+            background-color: #ddddff;
+            border: 2px solid #3333cc;
+            text-align: center;
+            font-size: 16px;
+        }
+
+        #outer {
+            width: 350px;
+            padding: 20px;
+            background-color: #ffdddd;
+            border: 2px solid #cc3333;
+        }
+        #inner {
+            width: 200px;
+            padding: 15px;
+            background-color: #ddddff;
+            border: 2px solid #3333cc;
+            margin: 10px;
+        }
+
+        #toggle-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #333333;
+            color: #ffffff;
+            border: 2px solid #111111;
+        }
+
+        #event-log {
+            width: 400px;
+            min-height: 100px;
+            padding: 10px;
+            background-color: #111111;
+            color: #33ff33;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 14: DOM Events</h1>
+    <p><a href="index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 14a: Click event changes text</div>
+        <p>Click the blue box to change its text:</p>
+        <div id="click-target">Click me!</div>
+        <div class="info">EXPECT: Text changes on each click. Cycles through: "Clicked once!" / "Clicked twice!" / "Clicked N times!"</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 14b: Event bubbling (parent and child)</div>
+        <p>Click the inner blue box. Events bubble from inner to outer:</p>
+        <div id="outer">
+            OUTER (red) - click events bubble here
+            <div id="inner">INNER (blue) - click here first</div>
+        </div>
+        <p id="bubble-log">Bubble log: (click inner box to see events)</p>
+        <div class="info">EXPECT: Clicking the inner blue box triggers BOTH the inner handler and the outer handler (event bubbles up). The log shows both events.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 14c: Add/Remove event listeners</div>
+        <p>Click the dark button. First click adds a listener to the blue target. Second click removes it.</p>
+        <div id="toggle-btn">Toggle listener</div>
+        <p id="toggle-status">Status: No listener attached. Click button to add one.</p>
+        <p>After adding, click the target box below:</p>
+        <div id="toggle-target" style="width: 200px; padding: 15px; background-color: #ddffdd; border: 2px solid #33cc33;">
+            Event target (green)
+        </div>
+        <div class="info">EXPECT: Click button once -> "Listener added". Click green box -> text changes. Click button again -> "Listener removed". Click green box -> nothing happens.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 14d: Event details display</div>
+        <p>Click anywhere in the dark box below to see event information:</p>
+        <div id="event-log">Event log will appear here...</div>
+        <div class="info">EXPECT: Shows event type, target tag name, clientX/Y coordinates, and event phase information.</div>
+    </div>
+
+    <script>
+        // Test 14a: Click counter
+        var clickCount = 0;
+        var clickTarget = document.getElementById("click-target");
+        clickTarget.addEventListener("click", function(e) {
+            clickCount = clickCount + 1;
+            if (clickCount === 1) {
+                clickTarget.textContent = "Clicked once!";
+            } else if (clickCount === 2) {
+                clickTarget.textContent = "Clicked twice!";
+            } else {
+                clickTarget.textContent = "Clicked " + clickCount + " times!";
+            }
+            clickTarget.style.backgroundColor = clickCount % 2 === 0 ? "#ddddff" : "#ddffdd";
+        });
+
+        // Test 14b: Event bubbling
+        var bubbleLog = document.getElementById("bubble-log");
+        var outerDiv = document.getElementById("outer");
+        var innerDiv = document.getElementById("inner");
+
+        outerDiv.addEventListener("click", function(e) {
+            bubbleLog.textContent = bubbleLog.textContent + " | OUTER clicked";
+        });
+
+        innerDiv.addEventListener("click", function(e) {
+            bubbleLog.textContent = "Bubble log: INNER clicked";
+        });
+
+        // Test 14c: Toggle listener
+        var toggleBtn = document.getElementById("toggle-btn");
+        var toggleTarget = document.getElementById("toggle-target");
+        var toggleStatus = document.getElementById("toggle-status");
+        var listenerAttached = false;
+
+        function targetHandler(e) {
+            toggleTarget.textContent = "Event handler fired!";
+            toggleTarget.style.backgroundColor = "#ffffdd";
+        }
+
+        toggleBtn.addEventListener("click", function(e) {
+            if (listenerAttached) {
+                toggleTarget.removeEventListener("click", targetHandler);
+                listenerAttached = false;
+                toggleStatus.textContent = "Status: Listener REMOVED. Clicking green box does nothing now.";
+                toggleTarget.textContent = "Event target (green)";
+                toggleTarget.style.backgroundColor = "#ddffdd";
+            } else {
+                toggleTarget.addEventListener("click", targetHandler);
+                listenerAttached = true;
+                toggleStatus.textContent = "Status: Listener ADDED. Now click the green box below.";
+            }
+        });
+
+        // Test 14d: Event details
+        var eventLog = document.getElementById("event-log");
+        eventLog.addEventListener("click", function(e) {
+            var info = "Event type: " + e.type + "\n";
+            info = info + "Target tag: " + e.target.tagName + "\n";
+            info = info + "ClientX: " + e.clientX + "\n";
+            info = info + "ClientY: " + e.clientY + "\n";
+            info = info + "Phase: " + e.eventPhase;
+            eventLog.textContent = info;
+        });
+
+        eventLog.addEventListener("mousedown", function(e) {
+            eventLog.style.backgroundColor = "#222222";
+        });
+
+        eventLog.addEventListener("mouseup", function(e) {
+            eventLog.style.backgroundColor = "#111111";
+        });
+    </script>
+</body>
+</html>

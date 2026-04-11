@@ -42,7 +42,7 @@ public sealed class QuadRenderer
         return (vertices.ToArray(), indices.ToArray());
     }
 
-    private static void AddFilledRect(
+    public static void AddFilledRect(
         List<QuadVertex> verts, List<uint> idx,
         float x, float y, float w, float h,
         SuperRender.Core.Color color)
@@ -64,7 +64,7 @@ public sealed class QuadRenderer
         idx.Add(baseIndex + 3);
     }
 
-    private static void AddStrokeRect(
+    public static void AddStrokeRect(
         List<QuadVertex> verts, List<uint> idx,
         float x, float y, float w, float h,
         float lineWidth, SuperRender.Core.Color color)

@@ -73,4 +73,4 @@ public struct BoxDimensions
     public RectF MarginRect => BorderRect.Expand(Margin);
 }
 
-public enum DisplayType { Block, Inline, None }
+public enum DisplayType { Block, Inline, InlineBlock, FlowRoot, None }

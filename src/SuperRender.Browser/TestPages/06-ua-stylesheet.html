@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 06 - User-Agent Stylesheet</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        .test-section {
+            margin-bottom: 24px;
+            padding: 10px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+            font-size: 12px;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+            border-top: 1px solid #dddddd;
+            padding-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 06: User-Agent Stylesheet Verification</h1>
+    <p><a href="index.html">Back to index</a></p>
+    <p>All elements below use ONLY the browser default (user-agent) stylesheet. No custom styles applied to them.</p>
+
+    <div class="test-section">
+        <div class="label">HEADINGS (h1-h6)</div>
+        <h1>Heading 1 (largest, bold)</h1>
+        <h2>Heading 2</h2>
+        <h3>Heading 3</h3>
+        <h4>Heading 4</h4>
+        <h5>Heading 5</h5>
+        <h6>Heading 6 (smallest, bold)</h6>
+        <div class="info">EXPECT: Decreasing sizes from h1 (largest) to h6 (smallest). All bold. Each has top/bottom margins.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">TEXT-LEVEL SEMANTICS: bold, italic, underline, strikethrough</div>
+        <p>Normal text. <strong>Strong text (bold).</strong> <b>B tag (bold).</b></p>
+        <p><em>Emphasized text (italic).</em> <i>I tag (italic).</i></p>
+        <p><u>Underlined text.</u></p>
+        <p><s>Strikethrough text.</s></p>
+        <div class="info">EXPECT: strong/b = bold. em/i = italic. u = underline. s = strikethrough (line through middle).</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">MONOSPACE: code, kbd, samp</div>
+        <p>Inline <code>code element</code> in a sentence.</p>
+        <p>Press <kbd>Ctrl+C</kbd> to copy.</p>
+        <p>Output: <samp>Hello, World!</samp></p>
+        <div class="info">EXPECT: code, kbd, and samp all render in a monospace font, distinct from the surrounding text.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">PRE (monospace + preserved whitespace)</div>
+        <pre>This is preformatted text.
+    Indentation is preserved.
+        More indentation.
+Tabs:	here	and	here.</pre>
+        <div class="info">EXPECT: Monospace font. All whitespace (spaces, tabs, newlines) preserved exactly.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">LINKS</div>
+        <p>Click this <a href="index.html">link to the index page</a> to test link styling.</p>
+        <div class="info">EXPECT: Link text is blue (#0000ee) with an underline.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">MARK and SMALL</div>
+        <p>This has a <mark>highlighted/marked word</mark> in it.</p>
+        <p>This has <small>small text</small> next to normal text.</p>
+        <div class="info">EXPECT: mark = yellow background highlight. small = smaller font size than surrounding text.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">BLOCKQUOTE</div>
+        <blockquote>This is a blockquote. It should be indented from the left margin compared to normal paragraphs. Blockquotes are used for quotations.</blockquote>
+        <p>This is a normal paragraph for comparison.</p>
+        <div class="info">EXPECT: Blockquote is indented (has left margin). Normal paragraph is at the default left position.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">HR (horizontal rule)</div>
+        <p>Text above the rule.</p>
+        <hr>
+        <p>Text below the rule.</p>
+        <div class="info">EXPECT: A horizontal line separating the two paragraphs.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">LISTS (ul and ol)</div>
+        <p>Unordered list:</p>
+        <ul>
+            <li>First item</li>
+            <li>Second item</li>
+            <li>Third item</li>
+        </ul>
+        <p>Ordered list:</p>
+        <ol>
+            <li>First item</li>
+            <li>Second item</li>
+            <li>Third item</li>
+        </ol>
+        <div class="info">EXPECT: Both lists are indented from the left. ul items may have bullets, ol items may have numbers (depending on UA implementation). Items are block-level.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">PARAGRAPHS</div>
+        <p>First paragraph. Should have top and bottom margins creating spacing between paragraphs.</p>
+        <p>Second paragraph. There should be visible spacing between this and the paragraph above.</p>
+        <p>Third paragraph. Margin collapsing may apply between adjacent paragraphs.</p>
+        <div class="info">EXPECT: Visible vertical spacing between each paragraph due to top/bottom margins.</div>
+    </div>
+</body>
+</html>

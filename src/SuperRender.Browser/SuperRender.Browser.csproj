@@ -8,4 +8,7 @@
     <ProjectReference Include="..\SuperRender.EcmaScript\SuperRender.EcmaScript.csproj" />
     <ProjectReference Include="..\SuperRender.EcmaScript.Dom\SuperRender.EcmaScript.Dom.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="TestPages\*" />
+  </ItemGroup>
 </Project>

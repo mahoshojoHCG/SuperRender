@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 05 - White Space</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 10px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+        .demo-box {
+            width: 400px;
+            padding: 10px;
+            border: 2px solid #666666;
+            background-color: #ffffff;
+            margin-bottom: 8px;
+        }
+        .ws-normal {
+            white-space: normal;
+        }
+        .ws-pre {
+            white-space: pre;
+        }
+        .ws-nowrap {
+            white-space: nowrap;
+        }
+        .ws-prewrap {
+            white-space: pre-wrap;
+        }
+        .ws-preline {
+            white-space: pre-line;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 05: White-Space Modes</h1>
+    <p><a href="index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 5a: white-space: normal (default)</div>
+        <div class="demo-box ws-normal">Multiple    spaces     are     collapsed     to     single     spaces.
+Newlines
+are
+also
+collapsed.     Everything wraps normally at the container edge. This is a long sentence to verify that wrapping occurs at the 400px boundary of the container.</div>
+        <div class="info">EXPECT: All extra spaces and newlines are collapsed. Text wraps at the container edge.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 5b: white-space: pre</div>
+        <div class="demo-box ws-pre">Spaces    are    preserved.
+Newlines are preserved too.
+	Tab characters also preserved.
+    Indented line.
+This will NOT wrap even if the line is very very very very very very very very very very very very long.</div>
+        <div class="info">EXPECT: Spaces, tabs, and newlines are all preserved exactly as written. No wrapping even for long lines.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 5c: white-space: nowrap</div>
+        <div class="demo-box ws-nowrap">This is a very long line of text that should not wrap at all regardless of how wide the container is. It should just keep going and going and extend beyond the box boundary. Spaces are collapsed but no line breaks.</div>
+        <div class="info">EXPECT: All text on one line, no wrapping. Spaces collapsed to single spaces. Text may extend beyond the container.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 5d: white-space: pre-wrap</div>
+        <div class="demo-box ws-prewrap">Spaces    are    preserved.
+Newlines are preserved too.
+But this mode DOES wrap when a line is too long for the container. This sentence should wrap at the 400px boundary while still preserving the spaces and newlines above.</div>
+        <div class="info">EXPECT: Spaces and newlines are preserved, AND text wraps at the container edge.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 5e: white-space: pre-line</div>
+        <div class="demo-box ws-preline">Spaces     are     collapsed     like     normal.
+But newlines ARE preserved.
+So each source line becomes a new line.
+Long lines will wrap at the container edge like white-space:normal does, this sentence should wrap at the 400px boundary.</div>
+        <div class="info">EXPECT: Spaces collapsed to single space, but newlines are preserved. Wrapping occurs at container edge.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 5f: pre tag (UA stylesheet default: white-space: pre, monospace font)</div>
+        <pre>function hello() {
+    console.log("Hello, world!");
+    for (var i = 0; i &lt; 10; i++) {
+        console.log(i);
+    }
+}</pre>
+        <div class="info">EXPECT: Code displayed in monospace font with all whitespace preserved (indentation, newlines).</div>
+    </div>
+</body>
+</html>

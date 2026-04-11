@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 08 - Link Navigation</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 10px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 08: Link Navigation</h1>
+    <p><a href="index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 8a: Internal links (relative paths to other test files)</div>
+        <p>Click each link and verify navigation works. Then use Back button or Cmd+[ to return.</p>
+        <ul>
+            <li><a href="01-box-sizing.html">01 - Box Sizing</a></li>
+            <li><a href="05-white-space.html">05 - White Space</a></li>
+            <li><a href="06-ua-stylesheet.html">06 - UA Stylesheet</a></li>
+            <li><a href="07-scrolling.html">07 - Scrolling</a></li>
+        </ul>
+        <div class="info">EXPECT: Clicking each link navigates to that test page. Address bar updates. Back button returns here.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 8b: Link with target="_blank" (opens in new tab)</div>
+        <p><a href="index.html" target="_blank">Open index page in a NEW TAB</a></p>
+        <div class="info">EXPECT: Clicking this link opens the index page in a new browser tab. The current tab stays on this page.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 8c: Multiple sequential navigation (history test)</div>
+        <p>Follow these steps to test back/forward history:</p>
+        <ol>
+            <li>Click: <a href="01-box-sizing.html">Go to Box Sizing</a></li>
+            <li>From that page, click "Back to index" link</li>
+            <li>From the index, click any other test link</li>
+            <li>Now press Back (Cmd+[) multiple times to retrace your steps</li>
+            <li>Press Forward (Cmd+]) to go forward again</li>
+        </ol>
+        <div class="info">EXPECT: Back and Forward correctly navigate through the history of pages visited. Address bar updates at each step.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 8d: Link appearance</div>
+        <p>Links should be <a href="index.html">blue with an underline</a> by default (user-agent stylesheet).</p>
+        <p>This is normal text for comparison. <a href="index.html">This is a link.</a> Notice the color and underline difference.</p>
+        <div class="info">EXPECT: Links are visually distinct from surrounding text: blue color and underline decoration.</div>
+    </div>
+</body>
+</html>

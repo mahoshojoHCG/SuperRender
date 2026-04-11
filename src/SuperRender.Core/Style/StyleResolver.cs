@@ -32,8 +32,10 @@ public sealed class StyleResolver
         }
         else if (node is TextNode)
         {
-            style = parentStyle?.Clone() ?? new ComputedStyle();
-            style.Display = DisplayType.Inline;
+            // Text nodes only inherit text-related properties, not box-model properties
+            style = new ComputedStyle { Display = DisplayType.Inline };
+            if (parentStyle != null)
+                InheritFromParent(style, parentStyle);
         }
         else
         {
@@ -90,6 +92,12 @@ public sealed class StyleResolver
         if (!string.IsNullOrWhiteSpace(inlineStyle))
         {
             ApplyInlineStyle(style, inlineStyle, parentStyle);
+        }
+
+        // Apply hidden attribute
+        if (element.Attributes.ContainsKey("hidden"))
+        {
+            style.Display = DisplayType.None;
         }
 
         return style;
@@ -153,6 +161,8 @@ public sealed class StyleResolver
                 {
                     "block" => DisplayType.Block,
                     "inline" => DisplayType.Inline,
+                    "inline-block" => DisplayType.InlineBlock,
+                    "flow-root" => DisplayType.FlowRoot,
                     "none" => DisplayType.None,
                     _ => style.Display
                 };
@@ -163,6 +173,74 @@ public sealed class StyleResolver
                 break;
             case "height":
                 style.Height = ResolveLength(value, parentStyle);
+                break;
+
+            case "box-sizing":
+                style.BoxSizing = value.Raw.ToLowerInvariant() switch
+                {
+                    "content-box" => BoxSizingType.ContentBox,
+                    "border-box" => BoxSizingType.BorderBox,
+                    _ => style.BoxSizing
+                };
+                break;
+
+            case "min-width":
+                var minW = ResolveLength(value, parentStyle);
+                style.MinWidth = float.IsNaN(minW) ? 0 : minW;
+                break;
+            case "max-width":
+                if (value.Raw.Equals("none", StringComparison.OrdinalIgnoreCase))
+                    style.MaxWidth = float.PositiveInfinity;
+                else
+                {
+                    var maxW = ResolveLength(value, parentStyle);
+                    style.MaxWidth = float.IsNaN(maxW) ? float.PositiveInfinity : maxW;
+                }
+                break;
+            case "min-height":
+                var minH = ResolveLength(value, parentStyle);
+                style.MinHeight = float.IsNaN(minH) ? 0 : minH;
+                break;
+            case "max-height":
+                if (value.Raw.Equals("none", StringComparison.OrdinalIgnoreCase))
+                    style.MaxHeight = float.PositiveInfinity;
+                else
+                {
+                    var maxH = ResolveLength(value, parentStyle);
+                    style.MaxHeight = float.IsNaN(maxH) ? float.PositiveInfinity : maxH;
+                }
+                break;
+
+            case "overflow" or "overflow-x" or "overflow-y":
+                style.Overflow = value.Raw.ToLowerInvariant() switch
+                {
+                    "visible" => OverflowType.Visible,
+                    "hidden" => OverflowType.Hidden,
+                    "scroll" => OverflowType.Scroll,
+                    "auto" => OverflowType.Auto,
+                    _ => style.Overflow
+                };
+                break;
+
+            case "text-overflow":
+                style.TextOverflow = value.Raw.ToLowerInvariant() switch
+                {
+                    "clip" => TextOverflowType.Clip,
+                    "ellipsis" => TextOverflowType.Ellipsis,
+                    _ => style.TextOverflow
+                };
+                break;
+
+            case "white-space":
+                style.WhiteSpace = value.Raw.ToLowerInvariant() switch
+                {
+                    "normal" => WhiteSpaceType.Normal,
+                    "pre" => WhiteSpaceType.Pre,
+                    "nowrap" => WhiteSpaceType.Nowrap,
+                    "pre-wrap" => WhiteSpaceType.PreWrap,
+                    "pre-line" => WhiteSpaceType.PreLine,
+                    _ => style.WhiteSpace
+                };
                 break;
 
             case "margin-top":
@@ -209,10 +287,42 @@ public sealed class StyleResolver
                 break;
 
             case "border-color":
-                style.BorderColor = ResolveColor(value);
+                var bc = ResolveColor(value);
+                style.BorderTopColor = bc;
+                style.BorderRightColor = bc;
+                style.BorderBottomColor = bc;
+                style.BorderLeftColor = bc;
+                break;
+            case "border-top-color":
+                style.BorderTopColor = ResolveColor(value);
+                break;
+            case "border-right-color":
+                style.BorderRightColor = ResolveColor(value);
+                break;
+            case "border-bottom-color":
+                style.BorderBottomColor = ResolveColor(value);
+                break;
+            case "border-left-color":
+                style.BorderLeftColor = ResolveColor(value);
                 break;
             case "border-style":
-                style.BorderStyle = value.Raw.ToLowerInvariant();
+                var bs = value.Raw.ToLowerInvariant();
+                style.BorderTopStyle = bs;
+                style.BorderRightStyle = bs;
+                style.BorderBottomStyle = bs;
+                style.BorderLeftStyle = bs;
+                break;
+            case "border-top-style":
+                style.BorderTopStyle = value.Raw.ToLowerInvariant();
+                break;
+            case "border-right-style":
+                style.BorderRightStyle = value.Raw.ToLowerInvariant();
+                break;
+            case "border-bottom-style":
+                style.BorderBottomStyle = value.Raw.ToLowerInvariant();
+                break;
+            case "border-left-style":
+                style.BorderLeftStyle = value.Raw.ToLowerInvariant();
                 break;
 
             case "color":
@@ -292,6 +402,19 @@ public sealed class StyleResolver
                 break;
             case "bottom":
                 style.Bottom = ResolveLength(value, parentStyle);
+                break;
+
+            case "z-index":
+                if (value.Raw.Equals("auto", StringComparison.OrdinalIgnoreCase))
+                {
+                    style.ZIndex = 0;
+                    style.ZIndexIsAuto = true;
+                }
+                else if (value.Type == CssValueType.Number)
+                {
+                    style.ZIndex = (int)value.NumericValue;
+                    style.ZIndexIsAuto = false;
+                }
                 break;
         }
     }
@@ -411,6 +534,7 @@ public sealed class StyleResolver
         style.FontStyle = parentStyle.FontStyle;
         style.TextAlign = parentStyle.TextAlign;
         style.LineHeight = parentStyle.LineHeight;
+        style.WhiteSpace = parentStyle.WhiteSpace;
     }
 
     private static DisplayType GetDefaultDisplay(string tagName) => tagName switch

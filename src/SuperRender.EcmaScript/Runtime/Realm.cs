@@ -21,6 +21,7 @@ public sealed class Realm
     public JsObject SetPrototype { get; private set; } = null!;
     public JsObject PromisePrototype { get; private set; } = null!;
     public JsObject IteratorPrototype { get; private set; } = null!;
+    public JsObject GeneratorPrototype { get; private set; } = null!;
 
     public Realm()
     {
@@ -46,6 +47,46 @@ public sealed class Realm
         SetPrototype = new JsObject { Prototype = ObjectPrototype };
         PromisePrototype = new JsObject { Prototype = ObjectPrototype };
         IteratorPrototype = new JsObject { Prototype = ObjectPrototype };
+        GeneratorPrototype = new JsObject { Prototype = IteratorPrototype };
+
+        // Generator prototype methods: next, return, throw
+        GeneratorPrototype.DefineOwnProperty("next", PropertyDescriptor.Data(
+            JsFunction.CreateNative("next", (thisArg, args) =>
+            {
+                if (thisArg is not JsGeneratorObject gen)
+                    throw new Errors.JsTypeError("Method next called on incompatible receiver");
+                var sent = args.Length > 0 ? args[0] : JsValue.Undefined;
+                return gen.DoNext(sent);
+            }, 1), writable: true, enumerable: false, configurable: true));
+
+        GeneratorPrototype.DefineOwnProperty("return", PropertyDescriptor.Data(
+            JsFunction.CreateNative("return", (thisArg, args) =>
+            {
+                if (thisArg is not JsGeneratorObject gen)
+                    throw new Errors.JsTypeError("Method return called on incompatible receiver");
+                var value = args.Length > 0 ? args[0] : JsValue.Undefined;
+                return gen.DoReturn(value);
+            }, 1), writable: true, enumerable: false, configurable: true));
+
+        GeneratorPrototype.DefineOwnProperty("throw", PropertyDescriptor.Data(
+            JsFunction.CreateNative("throw", (thisArg, args) =>
+            {
+                if (thisArg is not JsGeneratorObject gen)
+                    throw new Errors.JsTypeError("Method throw called on incompatible receiver");
+                var error = args.Length > 0 ? args[0] : JsValue.Undefined;
+                return gen.DoThrow(error);
+            }, 1), writable: true, enumerable: false, configurable: true));
+
+        // Symbol.iterator on generator prototype returns self
+        GeneratorPrototype.DefineSymbolProperty(JsSymbol.Iterator,
+            PropertyDescriptor.Data(
+                JsFunction.CreateNative("[Symbol.iterator]", static (self, _) => self, 0),
+                writable: false, enumerable: false, configurable: true));
+
+        // Symbol.toStringTag
+        GeneratorPrototype.DefineSymbolProperty(JsSymbol.ToStringTag,
+            PropertyDescriptor.Data(new JsString("Generator"),
+                writable: false, enumerable: false, configurable: true));
 
         // Object constructor
         ObjectConstructorFn = JsFunction.CreateNative("Object", (_, args) =>

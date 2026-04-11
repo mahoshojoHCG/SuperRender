@@ -53,6 +53,9 @@ public sealed class BrowserChrome
     public bool AddressBarFocused { get; set; }
     public string AddressText { get; set; } = "";
     public int CursorPosition { get; set; }
+    public int SelectionStart { get; set; } = -1;
+    public int SelectionEnd { get; set; } = -1;
+    public bool HasAddressSelection => SelectionStart >= 0 && SelectionEnd >= 0 && SelectionStart != SelectionEnd;
 
     public BrowserChrome(ITextMeasurer measurer)
     {
@@ -197,6 +200,23 @@ public sealed class BrowserChrome
         // Address text
         var displayText = AddressText;
         if (displayText.Length > 80) displayText = displayText[..80] + "...";
+
+        // Selection highlight (before text so it renders behind)
+        if (AddressBarFocused && HasAddressSelection)
+        {
+            int selStart = Math.Min(SelectionStart, SelectionEnd);
+            int selEnd = Math.Max(SelectionStart, SelectionEnd);
+            selStart = Math.Clamp(selStart, 0, AddressText.Length);
+            selEnd = Math.Clamp(selEnd, 0, AddressText.Length);
+            float selXStart = btnX + 6 + _measurer.MeasureWidth(AddressText[..selStart], 13);
+            float selXEnd = btnX + 6 + _measurer.MeasureWidth(AddressText[..selEnd], 13);
+            list.Add(new FillRectCommand
+            {
+                Rect = new RectF(selXStart, btnY + 2, selXEnd - selXStart, btnH - 4),
+                Color = Color.FromRgba(0, 123, 255, 77), // blue highlight
+            });
+        }
+
         list.Add(new DrawTextCommand
         {
             Text = displayText,

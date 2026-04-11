@@ -88,7 +88,7 @@ public sealed class Tab : IDisposable
     {
         IsLoading = true;
         CurrentUri = uri;
-        Title = uri.Host;
+        Title = uri.Scheme == "sr" ? uri.AbsolutePath.TrimStart('/') : uri.Host;
         Scroll.ScrollToTop();
 
         try

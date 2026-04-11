@@ -1,7 +1,7 @@
 namespace SuperRender.Browser.Networking;
 
 /// <summary>
-/// HTTP resource loader with cross-origin checking support.
+/// Resource loader supporting HTTP(S), file://, and sr:// (embedded test pages) URIs.
 /// </summary>
 public sealed class ResourceLoader : IDisposable
 {
@@ -21,10 +21,22 @@ public sealed class ResourceLoader : IDisposable
     {
         try
         {
+            if (uri.Scheme == "sr")
+            {
+                var content = LoadEmbeddedResource(uri);
+                return content is not null ? (content, uri) : null;
+            }
+
+            if (uri.Scheme == "file")
+            {
+                var html = await File.ReadAllTextAsync(uri.LocalPath).ConfigureAwait(false);
+                return (html, uri);
+            }
+
             var response = await _httpClient.GetAsync(uri).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
-            var html = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-            return (html, response.RequestMessage?.RequestUri ?? uri);
+            var text = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            return (text, response.RequestMessage?.RequestUri ?? uri);
         }
         catch (Exception ex)
         {
@@ -40,6 +52,15 @@ public sealed class ResourceLoader : IDisposable
     {
         try
         {
+            if (uri.Scheme == "sr")
+                return LoadEmbeddedResource(uri);
+
+            if (uri.Scheme == "file")
+            {
+                // file:// resources are always allowed from file:// origins
+                return await File.ReadAllTextAsync(uri.LocalPath).ConfigureAwait(false);
+            }
+
             var response = await _httpClient.GetAsync(uri).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
@@ -65,6 +86,15 @@ public sealed class ResourceLoader : IDisposable
     {
         try
         {
+            if (uri.Scheme == "sr")
+                return LoadEmbeddedResource(uri);
+
+            if (uri.Scheme == "file")
+            {
+                // file:// resources are always allowed from file:// origins
+                return await File.ReadAllTextAsync(uri.LocalPath).ConfigureAwait(false);
+            }
+
             var response = await _httpClient.GetAsync(uri).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
@@ -81,6 +111,13 @@ public sealed class ResourceLoader : IDisposable
             Console.WriteLine($"[Network] Failed to fetch JS {uri}: {ex.Message}");
             return null;
         }
+    }
+
+    private static string? LoadEmbeddedResource(Uri uri)
+    {
+        var filename = TestPages.GetFilenameFromUri(uri);
+        if (filename is null) return null;
+        return TestPages.Load(filename);
     }
 
     public void Dispose()

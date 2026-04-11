@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 13 - Timers</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+            font-size: 16px;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+        .result-box {
+            padding: 15px;
+            border: 2px solid #999999;
+            background-color: #ffffff;
+            min-height: 40px;
+            margin-top: 8px;
+        }
+        #timeout-box {
+            background-color: #ffdddd;
+        }
+        #interval-counter {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333333;
+        }
+        #raf-mover {
+            width: 60px;
+            height: 60px;
+            background-color: #3333cc;
+            color: #ffffff;
+            padding: 5px;
+            font-size: 11px;
+            position: relative;
+            left: 0px;
+        }
+        #raf-container {
+            width: 500px;
+            height: 80px;
+            border: 2px solid #999999;
+            background-color: #eeeeee;
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 13: Timers</h1>
+    <p><a href="index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 13a: setTimeout (2 second delay)</div>
+        <p>After page load, this box will change color from red to green after 2 seconds.</p>
+        <div class="result-box" id="timeout-box">Waiting for setTimeout (2 seconds)...</div>
+        <div class="info">EXPECT: Box starts red with "Waiting..." text. After ~2 seconds, it turns green and text changes to "Done!".</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 13b: setInterval (1 second interval)</div>
+        <p>A counter increments every second:</p>
+        <div class="result-box">
+            Counter: <span id="interval-counter">0</span>
+        </div>
+        <div class="info">EXPECT: The number increments by 1 every second (0, 1, 2, 3, ...). It stops at 10.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 13c: requestAnimationFrame (smooth animation)</div>
+        <p>A blue box moves from left to right inside the grey container:</p>
+        <div id="raf-container">
+            <div id="raf-mover">rAF</div>
+        </div>
+        <div class="info">EXPECT: Blue box slides smoothly from left to right, then resets and repeats. Movement should be smooth (frame-by-frame).</div>
+    </div>
+
+    <script>
+        // Test 13a: setTimeout
+        setTimeout(function() {
+            var box = document.getElementById("timeout-box");
+            box.style.backgroundColor = "#ddffdd";
+            box.textContent = "setTimeout fired! Background is now GREEN. Done!";
+        }, 2000);
+
+        // Test 13b: setInterval
+        var count = 0;
+        var counterEl = document.getElementById("interval-counter");
+        var intervalId = setInterval(function() {
+            count = count + 1;
+            counterEl.textContent = String(count);
+            if (count >= 10) {
+                clearInterval(intervalId);
+                counterEl.textContent = count + " (stopped)";
+            }
+        }, 1000);
+
+        // Test 13c: requestAnimationFrame
+        var mover = document.getElementById("raf-mover");
+        var posX = 0;
+        var direction = 1;
+        var maxX = 430;
+
+        function animate() {
+            posX = posX + 2 * direction;
+            if (posX >= maxX) {
+                direction = -1;
+            }
+            if (posX <= 0) {
+                direction = 1;
+            }
+            mover.style.left = posX + "px";
+            requestAnimationFrame(animate);
+        }
+        requestAnimationFrame(animate);
+    </script>
+</body>
+</html>

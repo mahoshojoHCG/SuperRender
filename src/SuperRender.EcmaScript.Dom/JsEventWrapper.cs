@@ -41,8 +41,8 @@ internal sealed class JsEventWrapper : JsObject
         // MouseEvent properties
         if (evt is MouseEvent me)
         {
-            DefineOwnProperty("clientX", PropertyDescriptor.Data(JsNumber.Create(me.ClientX)));
-            DefineOwnProperty("clientY", PropertyDescriptor.Data(JsNumber.Create(me.ClientY)));
+            DefineOwnProperty("clientX", PropertyDescriptor.Data(JsNumber.Create(Math.Round(me.ClientX))));
+            DefineOwnProperty("clientY", PropertyDescriptor.Data(JsNumber.Create(Math.Round(me.ClientY))));
             DefineOwnProperty("button", PropertyDescriptor.Data(JsNumber.Create(me.Button)));
             DefineOwnProperty("ctrlKey", PropertyDescriptor.Data(me.CtrlKey ? True : False));
             DefineOwnProperty("shiftKey", PropertyDescriptor.Data(me.ShiftKey ? True : False));

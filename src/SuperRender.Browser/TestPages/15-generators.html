@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 15 - Generators</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+            font-size: 16px;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+        .result-box {
+            padding: 10px;
+            background-color: #ffffff;
+            border: 2px solid #999999;
+            font-family: monospace;
+            font-size: 13px;
+            white-space: pre;
+            min-height: 40px;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 15: Generators</h1>
+    <p><a href="index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 15a: Basic generator (function* / yield)</div>
+        <div class="result-box" id="result-a">Running...</div>
+        <div class="info">EXPECT: Shows values yielded one by one: 1, 2, 3, done=true at end.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 15b: Fibonacci generator</div>
+        <div class="result-box" id="result-b">Running...</div>
+        <div class="info">EXPECT: First 10 Fibonacci numbers: 0, 1, 1, 2, 3, 5, 8, 13, 21, 34</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 15c: for-of over generator</div>
+        <div class="result-box" id="result-c">Running...</div>
+        <div class="info">EXPECT: Iterates over range(1, 6) producing: 1, 2, 3, 4, 5</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 15d: Generator with return value</div>
+        <div class="result-box" id="result-d">Running...</div>
+        <div class="info">EXPECT: Yields "a", "b", then .return("early") causes done=true with value="early".</div>
+    </div>
+
+    <script>
+        // Test 15a: Basic generator
+        function* simpleGen() {
+            yield 1;
+            yield 2;
+            yield 3;
+        }
+
+        var resultA = "";
+        var gen = simpleGen();
+        var step = gen.next();
+        while (!step.done) {
+            resultA = resultA + "value: " + step.value + ", done: " + step.done + "\n";
+            step = gen.next();
+        }
+        resultA = resultA + "final: value: " + step.value + ", done: " + step.done;
+        document.getElementById("result-a").textContent = resultA;
+
+        // Test 15b: Fibonacci generator
+        function* fibonacci() {
+            var a = 0;
+            var b = 1;
+            while (true) {
+                yield a;
+                var temp = a;
+                a = b;
+                b = temp + b;
+            }
+        }
+
+        var resultB = "First 10 Fibonacci numbers:\n";
+        var fib = fibonacci();
+        for (var i = 0; i < 10; i++) {
+            var val = fib.next().value;
+            if (i > 0) {
+                resultB = resultB + ", ";
+            }
+            resultB = resultB + val;
+        }
+        document.getElementById("result-b").textContent = resultB;
+
+        // Test 15c: for-of over generator
+        function* range(start, end) {
+            for (var i = start; i < end; i++) {
+                yield i;
+            }
+        }
+
+        var resultC = "for-of range(1, 6):\n";
+        var values = [];
+        for (var val of range(1, 6)) {
+            values.push(val);
+        }
+        resultC = resultC + values.join(", ");
+        document.getElementById("result-c").textContent = resultC;
+
+        // Test 15d: Generator with .return()
+        function* abcGen() {
+            yield "a";
+            yield "b";
+            yield "c";
+        }
+
+        var resultD = "";
+        var gen2 = abcGen();
+        var s1 = gen2.next();
+        resultD = resultD + "next(): value=" + s1.value + ", done=" + s1.done + "\n";
+        var s2 = gen2.next();
+        resultD = resultD + "next(): value=" + s2.value + ", done=" + s2.done + "\n";
+        var s3 = gen2.return("early");
+        resultD = resultD + "return('early'): value=" + s3.value + ", done=" + s3.done;
+        document.getElementById("result-d").textContent = resultD;
+    </script>
+</body>
+</html>

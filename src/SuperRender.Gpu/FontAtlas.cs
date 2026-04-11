@@ -6,13 +6,18 @@ public sealed class FontAtlas : IDisposable
     public int AtlasHeight { get; }
     public byte[] PixelData { get; }
     public Dictionary<char, GlyphInfo> Glyphs { get; }
+    public Dictionary<char, GlyphInfo> BoldGlyphs { get; }
+    public Dictionary<char, GlyphInfo> MonospaceGlyphs { get; }
 
     public FontAtlas(float contentScale = 1.0f)
     {
         AtlasWidth = FontAtlasGenerator.AtlasWidth;
         AtlasHeight = FontAtlasGenerator.AtlasHeight;
-        PixelData = FontAtlasGenerator.GenerateAtlas(out var glyphs, contentScale);
+        PixelData = FontAtlasGenerator.GenerateAtlas(
+            out var glyphs, out var boldGlyphs, out var monoGlyphs, contentScale);
         Glyphs = glyphs;
+        BoldGlyphs = boldGlyphs;
+        MonospaceGlyphs = monoGlyphs;
     }
 
     public void Dispose()

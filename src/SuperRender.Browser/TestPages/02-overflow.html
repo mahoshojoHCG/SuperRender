@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 02 - Overflow</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 10px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+
+        .overflow-hidden {
+            overflow: hidden;
+            height: 80px;
+            width: 300px;
+            background-color: #ffdddd;
+            border: 2px solid #cc3333;
+            padding: 10px;
+        }
+        .overflow-ellipsis {
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            width: 250px;
+            background-color: #ddddff;
+            border: 2px solid #3333cc;
+            padding: 10px;
+        }
+        .overflow-visible {
+            overflow: visible;
+            height: 60px;
+            width: 300px;
+            background-color: #ddffdd;
+            border: 2px solid #33cc33;
+            padding: 10px;
+            margin-bottom: 80px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 02: Overflow</h1>
+    <p><a href="index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 2a: overflow: hidden with fixed height (80px)</div>
+        <div class="overflow-hidden">
+            This container has overflow:hidden and a fixed height of 80px.
+            This text is intentionally long so that it overflows the container.
+            You should NOT see this sentence because the container clips content.
+            This line is definitely beyond the 80px height limit.
+            And this line too. All of this should be invisible if overflow:hidden works.
+        </div>
+        <div class="info">EXPECT: Text is clipped at the bottom of the red-bordered box. No content visible below the 80px boundary.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 2b: overflow: hidden + white-space: nowrap + text-overflow: ellipsis (width: 250px)</div>
+        <div class="overflow-ellipsis">
+            This is a very long line of text that should be truncated with an ellipsis character at the end because the container is only 250px wide and white-space is nowrap.
+        </div>
+        <div class="info">EXPECT: Single line of text truncated with "..." at the right edge of the blue-bordered box.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 2c: overflow: visible (default) with fixed height (60px)</div>
+        <div class="overflow-visible">
+            This container has overflow:visible and a fixed height of 60px.
+            The text content exceeds the height.
+            This text should bleed out below the green border.
+            You should be able to read this even though it is outside the container.
+        </div>
+        <div class="info">EXPECT: Text overflows past the green border and is visible below the box. Content bleeds out.</div>
+    </div>
+</body>
+</html>

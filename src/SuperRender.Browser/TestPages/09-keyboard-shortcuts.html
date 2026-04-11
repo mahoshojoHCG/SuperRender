@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 09 - Keyboard Shortcuts Reference</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        h2 {
+            color: #555555;
+            margin-top: 24px;
+            border-bottom: 1px solid #dddddd;
+            padding-bottom: 4px;
+        }
+        .shortcut-table {
+            margin-bottom: 20px;
+        }
+        .shortcut-row {
+            padding: 6px 10px;
+            margin-bottom: 2px;
+        }
+        .row-even {
+            background-color: #f5f5f5;
+        }
+        .row-odd {
+            background-color: #ffffff;
+        }
+        .key {
+            display: inline-block;
+            background-color: #eeeeee;
+            border: 1px solid #cccccc;
+            padding: 2px 8px;
+            font-family: monospace;
+            font-size: 13px;
+            min-width: 120px;
+        }
+        .desc {
+            display: inline-block;
+            margin-left: 20px;
+        }
+        .note {
+            background-color: #ffffdd;
+            border: 1px solid #cccc33;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 09: Keyboard Shortcuts Reference</h1>
+    <p><a href="index.html">Back to index</a></p>
+
+    <div class="note">
+        <strong>Note:</strong> This page is a reference for the tester. The shortcuts are browser-level and not page-level, so they cannot be tested interactively from this page. Test each shortcut manually. On macOS, "Cmd" is the Command key. On Windows/Linux, use "Ctrl" instead.
+    </div>
+
+    <h2>Tab Management</h2>
+    <div class="shortcut-table">
+        <div class="shortcut-row row-odd">
+            <span class="key">Cmd+T</span>
+            <span class="desc">Open a new tab</span>
+        </div>
+        <div class="shortcut-row row-even">
+            <span class="key">Cmd+W</span>
+            <span class="desc">Close the current tab</span>
+        </div>
+        <div class="shortcut-row row-odd">
+            <span class="key">Cmd+Tab</span>
+            <span class="desc">Switch to the next tab</span>
+        </div>
+        <div class="shortcut-row row-even">
+            <span class="key">Cmd+Shift+Tab</span>
+            <span class="desc">Switch to the previous tab</span>
+        </div>
+    </div>
+
+    <h2>Navigation</h2>
+    <div class="shortcut-table">
+        <div class="shortcut-row row-odd">
+            <span class="key">Cmd+L</span>
+            <span class="desc">Focus the address bar (select all text)</span>
+        </div>
+        <div class="shortcut-row row-even">
+            <span class="key">Cmd+R / F5</span>
+            <span class="desc">Reload the current page</span>
+        </div>
+        <div class="shortcut-row row-odd">
+            <span class="key">Cmd+[</span>
+            <span class="desc">Go back in history</span>
+        </div>
+        <div class="shortcut-row row-even">
+            <span class="key">Cmd+]</span>
+            <span class="desc">Go forward in history</span>
+        </div>
+        <div class="shortcut-row row-odd">
+            <span class="key">Escape</span>
+            <span class="desc">Unfocus address bar / dismiss</span>
+        </div>
+    </div>
+
+    <h2>Content Scrolling</h2>
+    <div class="shortcut-table">
+        <div class="shortcut-row row-odd">
+            <span class="key">Up Arrow</span>
+            <span class="desc">Scroll up by a small step</span>
+        </div>
+        <div class="shortcut-row row-even">
+            <span class="key">Down Arrow</span>
+            <span class="desc">Scroll down by a small step</span>
+        </div>
+        <div class="shortcut-row row-odd">
+            <span class="key">Page Up</span>
+            <span class="desc">Scroll up by one page</span>
+        </div>
+        <div class="shortcut-row row-even">
+            <span class="key">Page Down</span>
+            <span class="desc">Scroll down by one page</span>
+        </div>
+        <div class="shortcut-row row-odd">
+            <span class="key">Space</span>
+            <span class="desc">Scroll down by one page</span>
+        </div>
+        <div class="shortcut-row row-even">
+            <span class="key">Home</span>
+            <span class="desc">Jump to the top of the page</span>
+        </div>
+        <div class="shortcut-row row-odd">
+            <span class="key">End</span>
+            <span class="desc">Jump to the bottom of the page</span>
+        </div>
+    </div>
+
+    <h2>Developer Tools</h2>
+    <div class="shortcut-table">
+        <div class="shortcut-row row-odd">
+            <span class="key">F12</span>
+            <span class="desc">Toggle Developer Tools window</span>
+        </div>
+        <div class="shortcut-row row-even">
+            <span class="key">Cmd+Shift+I</span>
+            <span class="desc">Toggle Developer Tools window (alternative)</span>
+        </div>
+    </div>
+
+    <h2>Test Checklist</h2>
+    <p>Verify each shortcut works by performing the action and observing the result:</p>
+    <ul>
+        <li>Open 3 tabs with Cmd+T, switch between them with Cmd+Tab</li>
+        <li>Close a tab with Cmd+W</li>
+        <li>Focus address bar with Cmd+L, type a URL, press Enter</li>
+        <li>Navigate to a page, then use Cmd+R to reload</li>
+        <li>Navigate through links, use Cmd+[ and Cmd+] for back/forward</li>
+        <li>Load the scrolling test (07), test all scroll keys</li>
+        <li>Press F12 to open/close DevTools</li>
+    </ul>
+</body>
+</html>

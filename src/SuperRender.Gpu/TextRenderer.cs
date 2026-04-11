@@ -39,21 +39,24 @@ public sealed class TextRenderer
         return (vertices.ToArray(), indices.ToArray());
     }
 
-    private void EmitTextQuads(
+    public void EmitTextQuads(
         List<TextVertex> verts, List<uint> idx, DrawTextCommand cmd)
     {
         float scale = cmd.FontSize / FontAtlasGenerator.AtlasRenderSize;
         var color = new Vector4(cmd.Color.R, cmd.Color.G, cmd.Color.B, cmd.Color.A);
+
+        // Select glyph set based on font properties
+        var glyphs = SelectGlyphs(cmd.FontFamily, cmd.FontWeight);
 
         float cursorX = cmd.X;
         float baselineY = cmd.Y;
 
         foreach (char c in cmd.Text)
         {
-            if (!_fontAtlas.Glyphs.TryGetValue(c, out var glyph))
+            if (!glyphs.TryGetValue(c, out var glyph))
             {
                 // Try fallback '?', or skip entirely
-                if (!_fontAtlas.Glyphs.TryGetValue('?', out glyph))
+                if (!glyphs.TryGetValue('?', out glyph))
                 {
                     cursorX += cmd.FontSize * 0.6f; // rough advance for unknown
                     continue;
@@ -102,5 +105,20 @@ public sealed class TextRenderer
 
             cursorX += glyph.AdvanceX * scale;
         }
+    }
+
+    private Dictionary<char, GlyphInfo> SelectGlyphs(string fontFamily, int fontWeight)
+    {
+        bool isMono = !string.IsNullOrEmpty(fontFamily)
+            && (fontFamily.Contains("monospace", StringComparison.OrdinalIgnoreCase)
+             || fontFamily.Contains("Menlo", StringComparison.OrdinalIgnoreCase)
+             || fontFamily.Contains("Courier", StringComparison.OrdinalIgnoreCase)
+             || fontFamily.Contains("Consolas", StringComparison.OrdinalIgnoreCase));
+
+        if (isMono)
+            return _fontAtlas.MonospaceGlyphs;
+        if (fontWeight >= 700)
+            return _fontAtlas.BoldGlyphs;
+        return _fontAtlas.Glyphs;
     }
 }

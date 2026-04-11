@@ -104,6 +104,7 @@ public static class UserAgentStylesheet
             margin-top: 16px;
             margin-bottom: 16px;
             font-family: monospace;
+            white-space: pre;
         }
         code {
             font-family: monospace;

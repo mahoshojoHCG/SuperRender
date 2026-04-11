@@ -360,7 +360,7 @@ public static class PromiseConstructor
         realm.InstallGlobal("Promise", ctor);
     }
 
-    private static void ResolvePromise(JsPromiseObject promise, JsValue value, Realm realm)
+    internal static void ResolvePromise(JsPromiseObject promise, JsValue value, Realm realm)
     {
         if (promise.State != JsPromiseObject.PromiseState.Pending)
         {
@@ -390,7 +390,7 @@ public static class PromiseConstructor
         TriggerReactions(promise);
     }
 
-    private static void RejectPromise(JsPromiseObject promise, JsValue reason)
+    internal static void RejectPromise(JsPromiseObject promise, JsValue reason)
     {
         if (promise.State != JsPromiseObject.PromiseState.Pending)
         {
@@ -402,7 +402,7 @@ public static class PromiseConstructor
         TriggerReactions(promise);
     }
 
-    private static JsPromiseObject PromiseThen(JsPromiseObject promise, JsFunction? onFulfilled, JsFunction? onRejected, Realm realm)
+    internal static JsPromiseObject PromiseThen(JsPromiseObject promise, JsFunction? onFulfilled, JsFunction? onRejected, Realm realm)
     {
         var resultPromise = new JsPromiseObject { Prototype = realm.PromisePrototype };
 

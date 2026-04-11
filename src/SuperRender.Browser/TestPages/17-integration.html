@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 17 - Cross-Feature Integration</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+            margin-bottom: 20px;
+        }
+
+        /* Card component */
+        .card {
+            position: relative;
+            box-sizing: border-box;
+            width: 400px;
+            min-height: 200px;
+            padding: 0px;
+            border: 2px solid #999999;
+            background-color: #ffffff;
+            margin-bottom: 30px;
+        }
+        .card-header {
+            box-sizing: border-box;
+            width: 400px;
+            padding: 12px 16px;
+            background-color: #333333;
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .card-body {
+            box-sizing: border-box;
+            padding: 16px;
+            overflow: hidden;
+        }
+        .card-badge {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background-color: #cc3333;
+            color: #ffffff;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 2;
+        }
+
+        /* Tag pills using inline-block */
+        .tag {
+            display: inline-block;
+            padding: 3px 10px;
+            background-color: #ddddff;
+            border: 1px solid #9999cc;
+            margin-right: 4px;
+            margin-bottom: 4px;
+            font-size: 12px;
+        }
+
+        /* Status bar with overflow ellipsis */
+        .status-bar {
+            box-sizing: border-box;
+            width: 400px;
+            padding: 8px 12px;
+            background-color: #f5f5f5;
+            border-top: 1px solid #cccccc;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 12px;
+            color: #666666;
+        }
+
+        /* Two-column layout with inline-block */
+        .column-container {
+            width: 600px;
+            margin-bottom: 30px;
+        }
+        .column-left {
+            display: inline-block;
+            box-sizing: border-box;
+            width: 290px;
+            min-height: 150px;
+            padding: 15px;
+            background-color: #ffdddd;
+            border: 2px solid #cc3333;
+        }
+        .column-right {
+            display: inline-block;
+            box-sizing: border-box;
+            width: 290px;
+            min-height: 150px;
+            padding: 15px;
+            background-color: #ddddff;
+            border: 2px solid #3333cc;
+            margin-left: 10px;
+        }
+
+        /* Positioned overlay */
+        .overlay-container {
+            position: relative;
+            width: 400px;
+            height: 200px;
+            background-color: #eeeeee;
+            border: 2px solid #999999;
+            overflow: hidden;
+        }
+        .overlay-content {
+            padding: 15px;
+        }
+        .overlay-banner {
+            position: absolute;
+            bottom: 0px;
+            left: 0px;
+            width: 400px;
+            box-sizing: border-box;
+            padding: 10px 15px;
+            background-color: #333333;
+            color: #ffffff;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 17: Cross-Feature Integration</h1>
+    <p><a href="index.html">Back to index</a></p>
+
+    <h2>Card Component</h2>
+    <p>Combines: position:relative/absolute, box-sizing:border-box, overflow:hidden, inline-block tags, text-overflow:ellipsis</p>
+
+    <div class="card">
+        <div class="card-badge">NEW</div>
+        <div class="card-header">Card Title: Feature Overview</div>
+        <div class="card-body">
+            <p>This card uses <strong>position:relative</strong> on the container and <strong>position:absolute</strong> for the red badge in the top-right corner.</p>
+            <p>Tags using <strong>display:inline-block</strong>:</p>
+            <span class="tag">CSS</span>
+            <span class="tag">Layout</span>
+            <span class="tag">Positioning</span>
+            <span class="tag">Box Model</span>
+            <span class="tag">Overflow</span>
+        </div>
+        <div class="status-bar">Status: This is a very long status message that should be truncated with an ellipsis because the container has overflow:hidden and text-overflow:ellipsis set along with white-space:nowrap</div>
+    </div>
+    <div class="info">EXPECT: Card with dark header, white body, red "NEW" badge overlapping the top-right corner (positioned absolutely). Tags are inline-block pills. Status bar at bottom truncates with "...".</div>
+
+    <h2>Two-Column Layout</h2>
+    <p>Combines: inline-block columns, box-sizing:border-box, min-height</p>
+
+    <div class="column-container">
+        <div class="column-left">
+            <strong>Left Column (290px)</strong>
+            <p>Uses box-sizing:border-box so the border and padding are included in the 290px width.</p>
+            <p>Has min-height:150px to ensure a minimum size.</p>
+        </div>
+        <div class="column-right">
+            <strong>Right Column (290px)</strong>
+            <p>Also box-sizing:border-box. Sits next to the left column via inline-block.</p>
+            <p>The 10px margin-left creates a gap between columns.</p>
+        </div>
+    </div>
+    <div class="info">EXPECT: Two columns side by side. Red on the left, blue on the right. Total width ~600px. Each column is 290px with border-box sizing.</div>
+
+    <h2>Overlay Banner with Overflow Clipping</h2>
+    <p>Combines: position:absolute, overflow:hidden, box-sizing:border-box</p>
+
+    <div class="overlay-container">
+        <div class="overlay-content">
+            <p>This container has overflow:hidden and a fixed height of 200px.</p>
+            <p>Content that exceeds the height will be clipped.</p>
+            <p>The dark banner at the bottom is absolutely positioned.</p>
+            <p>Extra text to fill space. Extra text to fill space. Extra text to fill space.</p>
+            <p>This line might be partially or fully clipped by the overflow.</p>
+        </div>
+        <div class="overlay-banner">Overlay Banner (absolute positioned at bottom)</div>
+    </div>
+    <div class="info">EXPECT: Grey container with text content. A dark banner pinned to the bottom via position:absolute. Content that exceeds the container height is clipped by overflow:hidden.</div>
+</body>
+</html>

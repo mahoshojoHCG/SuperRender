@@ -17,6 +17,7 @@ public sealed class DevToolsWindow : IDisposable
     private VulkanRenderer? _renderer;
     private DevToolsPanel? _panel;
     private ITextMeasurer? _measurer;
+    private IInputContext? _inputContext;
     private float _contentScale = 1.0f;
     private bool _disposed;
 
@@ -43,6 +44,8 @@ public sealed class DevToolsWindow : IDisposable
     public void Open()
     {
         if (_window is not null) return;
+
+        _disposed = false;
 
         var opts = WindowOptions.DefaultVulkan with
         {
@@ -116,13 +119,13 @@ public sealed class DevToolsWindow : IDisposable
         _panel.InputFocused = true;
 
         // Input handling
-        var input = _window.CreateInput();
-        foreach (var kb in input.Keyboards)
+        _inputContext = _window.CreateInput();
+        foreach (var kb in _inputContext.Keyboards)
         {
             kb.KeyDown += OnKeyDown;
             kb.KeyChar += OnKeyChar;
         }
-        foreach (var mouse in input.Mice)
+        foreach (var mouse in _inputContext.Mice)
         {
             mouse.MouseDown += OnMouseDown;
             mouse.Scroll += OnMouseScroll;
@@ -283,6 +286,11 @@ public sealed class DevToolsWindow : IDisposable
 
     private void DisposeResources()
     {
+        if (_inputContext is not null)
+        {
+            try { _inputContext.Dispose(); } catch { /* may already be disposed */ }
+            _inputContext = null;
+        }
         _renderer?.Dispose();
         _renderer = null;
         _panel = null;

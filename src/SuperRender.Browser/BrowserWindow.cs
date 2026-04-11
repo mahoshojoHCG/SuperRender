@@ -126,6 +126,12 @@ public sealed class BrowserWindow : IDisposable
             float scrollY = activeTab?.Scroll.ScrollY ?? 0;
             float contentOffset = BrowserChrome.TotalChromeHeight - scrollY;
 
+            // Clip content to below chrome area
+            combined.Add(new PushClipCommand
+            {
+                Rect = new RectF(0, BrowserChrome.TotalChromeHeight, logicalWidth, contentHeight),
+            });
+
             // Selection highlights render behind text (quads drawn before text in Vulkan pipeline)
             if (activeTab?.Selection.HasSelection == true && activeTab.LayoutRoot is not null)
             {
@@ -140,7 +146,9 @@ public sealed class BrowserWindow : IDisposable
                 combined.Add(OffsetCommand(cmd, contentOffset));
             }
 
-            // Scrollbar
+            combined.Add(new PopClipCommand());
+
+            // Scrollbar (outside clip so it renders over chrome border)
             var scrollGeo = activeTab?.Scroll.GetScrollBarGeometry(BrowserChrome.TotalChromeHeight);
             if (scrollGeo.HasValue)
             {
@@ -437,6 +445,13 @@ public sealed class BrowserWindow : IDisposable
                 Y = t.Y + offsetY,
                 FontSize = t.FontSize,
                 Color = t.Color,
+                FontWeight = t.FontWeight,
+                FontStyle = t.FontStyle,
+                FontFamily = t.FontFamily,
+            },
+            PushClipCommand c => new PushClipCommand
+            {
+                Rect = new RectF(c.Rect.X, c.Rect.Y + offsetY, c.Rect.Width, c.Rect.Height),
             },
             _ => cmd,
         };

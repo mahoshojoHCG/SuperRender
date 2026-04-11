@@ -8,6 +8,7 @@
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using SuperRender.EcmaScript.Ast;
+using SuperRender.EcmaScript.Builtins;
 using SuperRender.EcmaScript.Errors;
 using SuperRender.EcmaScript.Runtime;
 using Environment = SuperRender.EcmaScript.Runtime.Environment;
@@ -31,6 +32,7 @@ public sealed class JsCompiler
     private LabelTarget? _returnLabel;
     private LabelTarget? _breakLabel;
     private LabelTarget? _continueLabel;
+    private ParameterExpression? _coroutineParam;
 
     public JsCompiler(Realm realm)
     {
@@ -145,8 +147,8 @@ public sealed class JsCompiler
         SequenceExpression seq => CompileSequence(seq),
         ClassExpression clsExpr => CompileClassExpr(clsExpr),
         ChainExpression chain => CompileChain(chain),
-        YieldExpression => throw new NotImplementedException("Generators are not yet supported"),
-        AwaitExpression => throw new NotImplementedException("Async/await is not yet supported"),
+        YieldExpression ye => CompileYield(ye),
+        AwaitExpression ae => CompileAwait(ae),
 
         _ => throw new JsSyntaxError($"Unsupported AST node: {node.GetType().Name}")
     };
@@ -287,7 +289,63 @@ public sealed class JsCompiler
 
     private Expr CompileForOf(ForOfStatement node)
     {
-        return CompileForInOf(node.Left, node.Right, node.Body, isForOf: true);
+        return CompileForOfIterator(node.Left, node.Right, node.Body);
+    }
+
+    private Expr CompileForOfIterator(SyntaxNode left, SyntaxNode right, SyntaxNode body)
+    {
+        var prevBreak = _breakLabel;
+        var prevContinue = _continueLabel;
+        var breakLbl = Expr.Label(typeof(JsValue), "forOfBreak");
+        var continueLbl = Expr.Label("forOfContinue");
+        _breakLabel = breakLbl;
+        _continueLabel = continueLbl;
+
+        try
+        {
+            var objExpr = CompileNode(right);
+            var iterVar = Expr.Parameter(typeof(JsValue), "iter");
+            var resultVar = Expr.Parameter(typeof(JsValue), "iterResult");
+
+            var exprs = new List<Expr>
+            {
+                Expr.Assign(iterVar, Expr.Call(
+                    typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.GetIterator))!,
+                    EnsureJsValue(objExpr)))
+            };
+
+            var bodyExprs = new List<Expr>
+            {
+                // Call iterator.next() and check done
+                Expr.Assign(resultVar, Expr.Call(
+                    typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.IteratorNext))!,
+                    iterVar)),
+
+                Expr.IfThen(
+                    Expr.Call(
+                        typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.IteratorComplete))!,
+                        resultVar),
+                    Expr.Break(breakLbl, Expr.Constant(JsValue.Undefined, typeof(JsValue))))
+            };
+
+            var currentValue = Expr.Call(
+                typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.IteratorValue))!,
+                resultVar);
+
+            bodyExprs.Add(CompileForInOfAssignment(left, currentValue));
+            bodyExprs.Add(CompileNode(body));
+            bodyExprs.Add(Expr.Label(continueLbl));
+
+            var loopBody = Expr.Block(typeof(void), bodyExprs.Select(ToVoid));
+            exprs.Add(Expr.Loop(loopBody, breakLbl));
+
+            return Expr.Block(typeof(JsValue), [iterVar, resultVar], exprs);
+        }
+        finally
+        {
+            _breakLabel = prevBreak;
+            _continueLabel = prevContinue;
+        }
     }
 
     private Expr CompileForInOf(SyntaxNode left, SyntaxNode right, SyntaxNode body, bool isForOf)
@@ -543,6 +601,11 @@ public sealed class JsCompiler
             var exParam = Expr.Parameter(typeof(Exception), "ex");
 
             var catchExprs = new List<Expr>();
+
+            // Re-throw GeneratorReturnException so generator.return() bypasses catch blocks
+            catchExprs.Add(Expr.IfThen(
+                Expr.TypeIs(exParam, typeof(GeneratorReturnException)),
+                Expr.Rethrow()));
 
             if (node.Handler.Param is not null)
             {
@@ -1320,31 +1383,24 @@ public sealed class JsCompiler
             parameters: node.Params,
             body: node.Body,
             isExpression: node.IsExpression,
-            isArrow: true);
+            isArrow: true,
+            isAsync: node.IsAsync);
     }
 
     private Expr CompileFunctionExpr(FunctionExpression node)
     {
-        if (node.IsGenerator)
-        {
-            throw new NotImplementedException("Generators are not yet supported");
-        }
-
         return CompileFunctionBody(
             name: node.Id?.Name ?? "",
             parameters: node.Params,
             body: node.Body,
             isExpression: false,
-            isArrow: false);
+            isArrow: false,
+            isGenerator: node.IsGenerator,
+            isAsync: node.IsAsync);
     }
 
     private Expr CompileFunctionDecl(FunctionDeclaration node)
     {
-        if (node.IsGenerator)
-        {
-            throw new NotImplementedException("Generators are not yet supported");
-        }
-
         // Function declarations are hoisted in HoistFunctions
         return Expr.Constant(JsValue.Undefined, typeof(JsValue));
     }
@@ -1765,7 +1821,9 @@ public sealed class JsCompiler
         IReadOnlyList<SyntaxNode> parameters,
         SyntaxNode body,
         bool isExpression,
-        bool isArrow)
+        bool isArrow,
+        bool isGenerator = false,
+        bool isAsync = false)
     {
         // Save current state
         var outerEnv = _envParam;
@@ -1773,6 +1831,7 @@ public sealed class JsCompiler
         var outerReturn = _returnLabel;
         var outerBreak = _breakLabel;
         var outerContinue = _continueLabel;
+        var outerCoroutine = _coroutineParam;
 
         // New parameters for the function body
         var fnThisParam = Expr.Parameter(typeof(JsValue), "fnThis");
@@ -1785,6 +1844,18 @@ public sealed class JsCompiler
         _returnLabel = returnLabel;
         _breakLabel = null;
         _continueLabel = null;
+
+        // Set up coroutine parameter for generators/async
+        ParameterExpression? coroutineParam = null;
+        if (isGenerator || isAsync)
+        {
+            coroutineParam = Expr.Parameter(typeof(GeneratorCoroutine), "co");
+            _coroutineParam = coroutineParam;
+        }
+        else
+        {
+            _coroutineParam = null;
+        }
 
         try
         {
@@ -1927,8 +1998,49 @@ public sealed class JsCompiler
                     closureEnvCapture)),
                 fnBody);
 
-            var callTarget = Expr.Lambda<Func<JsValue, JsValue[], JsValue>>(
-                fullBody, fnThisParam, fnArgsParam);
+            // Create the CallTarget based on function kind
+            Expr callTarget;
+
+            if (isGenerator || isAsync)
+            {
+                // Generator/async: create a 3-parameter inner lambda (this, args, coroutine)
+                var innerLambda = Expr.Lambda<Func<JsValue, JsValue[], GeneratorCoroutine, JsValue>>(
+                    fullBody, fnThisParam, fnArgsParam, coroutineParam!);
+
+                // The outer CallTarget wraps the inner lambda
+                var wrapperThis = Expr.Parameter(typeof(JsValue), "wrapThis");
+                var wrapperArgs = Expr.Parameter(typeof(JsValue[]), "wrapArgs");
+
+                Expr wrapperBody;
+                if (isGenerator)
+                {
+                    wrapperBody = Expr.Call(
+                        typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CreateGeneratorObject))!,
+                        innerLambda,
+                        wrapperThis,
+                        wrapperArgs,
+                        Expr.Constant(_realm.GeneratorPrototype, typeof(JsObject)));
+                }
+                else
+                {
+                    wrapperBody = Expr.Call(
+                        typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.RunAsyncFunction))!,
+                        innerLambda,
+                        wrapperThis,
+                        wrapperArgs,
+                        Expr.Constant(_realm.PromisePrototype, typeof(JsObject)),
+                        Expr.Constant(_realm, typeof(Realm)));
+                }
+
+                callTarget = Expr.Lambda<Func<JsValue, JsValue[], JsValue>>(
+                    wrapperBody, wrapperThis, wrapperArgs);
+            }
+            else
+            {
+                // Normal function: 2-parameter lambda
+                callTarget = Expr.Lambda<Func<JsValue, JsValue[], JsValue>>(
+                    fullBody, fnThisParam, fnArgsParam);
+            }
 
             // Create JsFunction
             var fnVar = Expr.Parameter(typeof(JsFunction), "fn");
@@ -1943,9 +2055,9 @@ public sealed class JsCompiler
                     Expr.Constant(_realm.FunctionPrototype, typeof(JsObject)))
             };
 
-            if (!isArrow)
+            if (!isArrow && !isGenerator && !isAsync)
             {
-                // Non-arrow functions get a prototype object for construction
+                // Non-arrow, non-generator, non-async functions get a prototype object for construction
                 var protoObj = Expr.Parameter(typeof(JsObject), "fnProto");
                 createFn.Add(Expr.Block(typeof(void), [protoObj],
                     Expr.Assign(protoObj, Expr.New(typeof(JsObject))),
@@ -1966,7 +2078,52 @@ public sealed class JsCompiler
             _returnLabel = outerReturn;
             _breakLabel = outerBreak;
             _continueLabel = outerContinue;
+            _coroutineParam = outerCoroutine;
         }
+    }
+
+    // ───────────────────────── Generators / Async ─────────────────────────
+
+    private Expr CompileYield(YieldExpression ye)
+    {
+        if (_coroutineParam is null)
+        {
+            throw new JsSyntaxError("yield is only valid in generator functions");
+        }
+
+        if (ye.Delegate)
+        {
+            // yield* iterable — delegate to another iterator
+            var iterable = CompileNode(ye.Argument!);
+            return Expr.Call(
+                typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.YieldStar))!,
+                _coroutineParam,
+                EnsureJsValue(iterable));
+        }
+
+        var value = ye.Argument is not null
+            ? CompileNode(ye.Argument)
+            : Expr.Constant(JsValue.Undefined, typeof(JsValue));
+
+        return Expr.Call(
+            typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.GeneratorYield))!,
+            _coroutineParam,
+            EnsureJsValue(value));
+    }
+
+    private Expr CompileAwait(AwaitExpression ae)
+    {
+        if (_coroutineParam is null)
+        {
+            throw new JsSyntaxError("await is only valid in async functions");
+        }
+
+        var value = CompileNode(ae.Argument);
+
+        return Expr.Call(
+            typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.GeneratorYield))!,
+            _coroutineParam,
+            EnsureJsValue(value));
     }
 
     // ───────────────────────── Destructuring ─────────────────────────
@@ -2131,17 +2288,14 @@ public sealed class JsCompiler
         {
             if (stmt is FunctionDeclaration fd && fd.Id is not null)
             {
-                if (fd.IsGenerator)
-                {
-                    continue;
-                }
-
                 var fnExpr = CompileFunctionBody(
                     name: fd.Id.Name,
                     parameters: fd.Params,
                     body: fd.Body,
                     isExpression: false,
-                    isArrow: false);
+                    isArrow: false,
+                    isGenerator: fd.IsGenerator,
+                    isAsync: fd.IsAsync);
 
                 exprs.Add(CallEnvMethod("CreateAndInitializeBinding",
                     Expr.Constant(fd.Id.Name),
@@ -2625,14 +2779,27 @@ internal static class RuntimeHelpers
                 target.Push(new JsString(c.ToString()));
             }
         }
-        else if (source is JsObject obj)
+        else if (source is JsObject obj
+            && obj.TryGetSymbolProperty(JsSymbol.Iterator, out var iterFn)
+            && iterFn is JsFunction fn)
         {
-            // Try to iterate using numeric keys
+            // Iterator protocol — supports generators, Sets, Maps, etc.
+            var iterator = fn.Call(source, []);
+            while (true)
+            {
+                var result = CallFunction(GetMember(iterator, "next"), iterator, []);
+                if (GetMember(result, "done").ToBoolean()) break;
+                target.Push(GetMember(result, "value"));
+            }
+        }
+        else if (source is JsObject genObj)
+        {
+            // Fallback: iterate using numeric keys
             for (int i = 0; ; i++)
             {
                 var idx = i.ToString(CultureInfo.InvariantCulture);
-                if (!obj.HasProperty(idx)) break;
-                target.Push(obj.Get(idx));
+                if (!genObj.HasProperty(idx)) break;
+                target.Push(genObj.Get(idx));
             }
         }
     }
@@ -2651,6 +2818,18 @@ internal static class RuntimeHelpers
             foreach (char c in str.Value)
             {
                 list.Add(new JsString(c.ToString()));
+            }
+        }
+        else if (source is JsObject obj
+            && obj.TryGetSymbolProperty(JsSymbol.Iterator, out var iterFn)
+            && iterFn is JsFunction fn)
+        {
+            var iterator = fn.Call(source, []);
+            while (true)
+            {
+                var result = CallFunction(GetMember(iterator, "next"), iterator, []);
+                if (GetMember(result, "done").ToBoolean()) break;
+                list.Add(GetMember(result, "value"));
             }
         }
     }
@@ -2892,9 +3071,19 @@ internal static class RuntimeHelpers
 
     public static JsValue ExceptionToJsValue(Exception ex)
     {
+        if (ex is JsThrownValueException jtv)
+        {
+            return jtv.ThrownValue;
+        }
+
         if (ex is JsErrorBase jsErr)
         {
             var errObj = new JsObject();
+            if (CurrentRealm?.ErrorPrototype is not null)
+            {
+                errObj.Prototype = CurrentRealm.ErrorPrototype;
+            }
+
             errObj.Set("message", new JsString(jsErr.Message));
             errObj.Set("name", new JsString(ex.GetType().Name switch
             {
@@ -2908,6 +3097,11 @@ internal static class RuntimeHelpers
         }
 
         var obj = new JsObject();
+        if (CurrentRealm?.ErrorPrototype is not null)
+        {
+            obj.Prototype = CurrentRealm.ErrorPrototype;
+        }
+
         obj.Set("message", new JsString(ex.Message));
         obj.Set("name", new JsString("Error"));
         return obj;
@@ -2935,5 +3129,194 @@ internal static class RuntimeHelpers
         }
 
         return (uint)(long)n;
+    }
+
+    // ───────────────────────── Generator / Async helpers ─────────────────────────
+
+    public static JsValue GeneratorYield(GeneratorCoroutine coroutine, JsValue value) =>
+        coroutine.Yield(value);
+
+    public static JsValue CreateGeneratorObject(
+        Func<JsValue, JsValue[], GeneratorCoroutine, JsValue> body,
+        JsValue thisArg,
+        JsValue[] args,
+        JsObject generatorPrototype)
+    {
+        var coroutine = new GeneratorCoroutine();
+        // Defer starting the body until the first next() call
+        Action startAction = () => coroutine.Start(co => body(thisArg, args, co));
+        return new JsGeneratorObject(coroutine, startAction, generatorPrototype);
+    }
+
+    public static JsValue RunAsyncFunction(
+        Func<JsValue, JsValue[], GeneratorCoroutine, JsValue> body,
+        JsValue thisArg,
+        JsValue[] args,
+        JsObject promisePrototype,
+        Realm realm)
+    {
+        var outerPromise = new JsPromiseObject { Prototype = promisePrototype };
+        var coroutine = new GeneratorCoroutine();
+
+        void Advance(JsValue sent, bool isThrow)
+        {
+            while (true)
+            {
+                (JsValue value, bool done) result;
+                try
+                {
+                    result = isThrow ? coroutine.Throw(sent) : coroutine.Next(sent);
+                }
+                catch (Exception ex)
+                {
+                    Builtins.PromiseConstructor.RejectPromise(outerPromise, ExceptionToJsValue(ex));
+                    return;
+                }
+
+                if (result.done)
+                {
+                    Builtins.PromiseConstructor.ResolvePromise(outerPromise, result.value, realm);
+                    return;
+                }
+
+                // The yielded value is what was awaited
+                if (result.value is JsPromiseObject promise)
+                {
+                    Builtins.PromiseConstructor.PromiseThen(promise,
+                        JsFunction.CreateNative("", (_, a) =>
+                        {
+                            Advance(a.Length > 0 ? a[0] : JsValue.Undefined, false);
+                            return JsValue.Undefined;
+                        }, 1),
+                        JsFunction.CreateNative("", (_, a) =>
+                        {
+                            Advance(a.Length > 0 ? a[0] : JsValue.Undefined, true);
+                            return JsValue.Undefined;
+                        }, 1),
+                        realm);
+                    return;
+                }
+
+                // Not a promise — resume immediately with the value
+                sent = result.value;
+                isThrow = false;
+            }
+        }
+
+        coroutine.Start(co => body(thisArg, args, co));
+
+        (JsValue Value, bool Done) initial;
+        try
+        {
+            initial = coroutine.GetInitialResult();
+        }
+        catch (Exception ex)
+        {
+            Builtins.PromiseConstructor.RejectPromise(outerPromise, ExceptionToJsValue(ex));
+            return outerPromise;
+        }
+
+        if (initial.Done)
+        {
+            Builtins.PromiseConstructor.ResolvePromise(outerPromise, initial.Value, realm);
+        }
+        else if (initial.Value is JsPromiseObject initPromise)
+        {
+            Builtins.PromiseConstructor.PromiseThen(initPromise,
+                JsFunction.CreateNative("", (_, a) =>
+                {
+                    Advance(a.Length > 0 ? a[0] : JsValue.Undefined, false);
+                    return JsValue.Undefined;
+                }, 1),
+                JsFunction.CreateNative("", (_, a) =>
+                {
+                    Advance(a.Length > 0 ? a[0] : JsValue.Undefined, true);
+                    return JsValue.Undefined;
+                }, 1),
+                realm);
+        }
+        else
+        {
+            // Non-promise initial value — resume immediately
+            Advance(initial.Value, false);
+        }
+
+        return outerPromise;
+    }
+
+    public static JsValue YieldStar(GeneratorCoroutine coroutine, JsValue iterable)
+    {
+        var iterator = GetIterator(iterable);
+        var nextFn = GetMember(iterator, "next");
+
+        var result = CallFunction(nextFn, iterator, []);
+        while (!GetMember(result, "done").ToBoolean())
+        {
+            var innerValue = GetMember(result, "value");
+            var sent = coroutine.Yield(innerValue);
+            result = CallFunction(nextFn, iterator, [sent]);
+        }
+
+        return GetMember(result, "value");
+    }
+
+    // ───────────────────────── Iterator protocol ─────────────────────────
+
+    public static JsValue GetIterator(JsValue obj)
+    {
+        if (obj is JsNull or JsUndefined)
+        {
+            throw new JsTypeError($"Cannot read properties of {obj.TypeOf}");
+        }
+
+        // Check for Symbol.iterator on JsObject (includes arrays, generators, etc.)
+        if (obj is JsObject jsObj
+            && jsObj.TryGetSymbolProperty(JsSymbol.Iterator, out var iterFn)
+            && iterFn is JsFunction fn)
+        {
+            var iterator = fn.Call(obj, []);
+            if (iterator is JsObject)
+            {
+                return iterator;
+            }
+
+            throw new JsTypeError("Result of the Symbol.iterator method is not an object");
+        }
+
+        // Autoboxing for primitives: check prototype for Symbol.iterator
+        JsObject? proto = null;
+        if (obj is JsString)
+        {
+            proto = CurrentRealm?.StringPrototype;
+        }
+
+        if (proto is not null
+            && proto.TryGetSymbolProperty(JsSymbol.Iterator, out var primIterFn)
+            && primIterFn is JsFunction primFn)
+        {
+            var iterator = primFn.Call(obj, []);
+            if (iterator is JsObject)
+            {
+                return iterator;
+            }
+        }
+
+        throw new JsTypeError(obj.TypeOf + " is not iterable");
+    }
+
+    public static JsValue IteratorNext(JsValue iterator)
+    {
+        var nextFn = GetMember(iterator, "next");
+        return CallFunction(nextFn, iterator, []);
+    }
+
+    public static bool IteratorComplete(JsValue result)
+    {
+        return GetMember(result, "done").ToBoolean();
+    }
+
+    public static JsValue IteratorValue(JsValue result)
+    {
+        return GetMember(result, "value");
     }
 }

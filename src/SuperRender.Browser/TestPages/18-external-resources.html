@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 18 - External Resources</title>
+    <link rel="stylesheet" href="18-style.css">
+</head>
+<body>
+    <h1>Test 18: External CSS and JS Resources</h1>
+    <p><a href="index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 18a: External CSS</div>
+        <p>This page loads <code>18-style.css</code> via a link tag. The stylesheet sets:</p>
+        <ul>
+            <li>Body text color to dark green (#224422)</li>
+            <li>Background color for .test-section to light yellow</li>
+            <li>Border on .label elements</li>
+        </ul>
+        <div class="info">EXPECT: Body text is dark green. Test sections have yellow backgrounds. Labels have a bottom border. All styling comes from the external CSS file.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 18b: External JS</div>
+        <p>This page loads <code>18-script.js</code> via a script tag. The script will modify the element below:</p>
+        <div id="js-target" class="result-box">This text should be replaced by the external script.</div>
+        <div class="info">EXPECT: The box above shows "External JS loaded successfully!" with a green background, set by the external script file.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 18c: Combined external CSS + JS</div>
+        <p>The external CSS styles apply to elements created/modified by the external JS. Both files work together.</p>
+        <div id="dynamic-container"></div>
+        <div class="info">EXPECT: A new element appears in the container above, created by JS and styled by the external CSS class .dynamic-item.</div>
+    </div>
+
+    <script src="18-script.js"></script>
+</body>
+</html>

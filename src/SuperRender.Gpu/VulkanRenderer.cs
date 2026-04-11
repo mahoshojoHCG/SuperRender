@@ -90,17 +90,40 @@ public sealed unsafe class VulkanRenderer : IDisposable
 
         vk.ResetFences(_ctx.Device, 1, in _inFlightFences[_currentFrame]);
 
-        // Build GPU data from paint list
-        var (quadVerts, quadIndices) = QuadRenderer.BuildQuadBatch(paintList);
-        var (textVerts, textIndices) = _textRenderer.BuildTextBatch(paintList);
+        // Build draw segments from paint list (respects command order and clip rects)
+        var segments = BuildDrawSegments(paintList);
 
-        _buffers.UploadQuads(quadVerts, quadIndices);
-        _buffers.UploadTextQuads(textVerts, textIndices);
+        // Collect all quad and text data across segments into single buffers
+        var allQuadVerts = new List<QuadVertex>();
+        var allQuadIdx = new List<uint>();
+        var allTextVerts = new List<TextVertex>();
+        var allTextIdx = new List<uint>();
+
+        foreach (var seg in segments)
+        {
+            seg.QuadIndexOffset = (uint)allQuadIdx.Count;
+            seg.QuadVertexOffset = (uint)allQuadVerts.Count;
+            seg.TextIndexOffset = (uint)allTextIdx.Count;
+            seg.TextVertexOffset = (uint)allTextVerts.Count;
+
+            // Adjust quad indices to account for vertex offset
+            uint qBase = (uint)allQuadVerts.Count;
+            foreach (var idx in seg.QuadIndices) allQuadIdx.Add(idx + qBase);
+            allQuadVerts.AddRange(seg.QuadVertices);
+
+            // Adjust text indices
+            uint tBase = (uint)allTextVerts.Count;
+            foreach (var idx in seg.TextIndices) allTextIdx.Add(idx + tBase);
+            allTextVerts.AddRange(seg.TextVertices);
+        }
+
+        _buffers.UploadQuads(allQuadVerts.ToArray(), allQuadIdx.ToArray());
+        _buffers.UploadTextQuads(allTextVerts.ToArray(), allTextIdx.ToArray());
 
         // Record command buffer
         var cmd = _commandBuffers[_currentFrame];
         vk.ResetCommandBuffer(cmd, 0);
-        RecordCommandBuffer(cmd, imageIndex);
+        RecordCommandBuffer(cmd, imageIndex, segments);
 
         // Submit
         var waitSemaphore = _imageAvailableSemaphores[_currentFrame];
@@ -153,7 +176,7 @@ public sealed unsafe class VulkanRenderer : IDisposable
         _framebufferResized = true;
     }
 
-    private void RecordCommandBuffer(CommandBuffer cmd, uint imageIndex)
+    private void RecordCommandBuffer(CommandBuffer cmd, uint imageIndex, List<DrawSegment> segments)
     {
         var vk = _ctx.Vk;
 
@@ -177,48 +200,169 @@ public sealed unsafe class VulkanRenderer : IDisposable
 
         vk.CmdBeginRenderPass(cmd, in renderPassBegin, SubpassContents.Inline);
 
-        // Push projection matrix (orthographic, top-left origin, Y-down)
         // HiDPI: layout uses logical (CSS) pixels; projection maps them to physical framebuffer pixels.
-        // Dividing extent by ContentScale gives logical dimensions.
         float logicalWidth = _swapchain.Extent.Width / ContentScale;
         float logicalHeight = _swapchain.Extent.Height / ContentScale;
         var projection = Matrix4x4.CreateOrthographicOffCenter(
             0, logicalWidth, 0, logicalHeight, -1, 1);
 
-        // Draw quads
-        if (_pipelines.QuadPipeline.Handle != 0 && _buffers.QuadIndexCount > 0)
+        // Draw each segment in order with its scissor rect
+        foreach (var seg in segments)
         {
-            vk.CmdBindPipeline(cmd, PipelineBindPoint.Graphics, _pipelines.QuadPipeline);
-            vk.CmdPushConstants(cmd, _pipelines.QuadPipelineLayout,
-                ShaderStageFlags.VertexBit, 0, 64, &projection);
+            // Set scissor (in physical pixels)
+            var scissor = new Rect2D
+            {
+                Offset = new Offset2D(
+                    (int)(seg.ScissorX * ContentScale),
+                    (int)(seg.ScissorY * ContentScale)),
+                Extent = new Extent2D(
+                    (uint)(seg.ScissorW * ContentScale),
+                    (uint)(seg.ScissorH * ContentScale)),
+            };
 
-            var vbuf = _buffers.QuadVertexBuffer;
-            ulong offset = 0;
-            vk.CmdBindVertexBuffers(cmd, 0, 1, &vbuf, &offset);
-            vk.CmdBindIndexBuffer(cmd, _buffers.QuadIndexBuffer, 0, IndexType.Uint32);
-            vk.CmdDrawIndexed(cmd, _buffers.QuadIndexCount, 1, 0, 0, 0);
-        }
+            // Draw quads for this segment
+            if (_pipelines.QuadPipeline.Handle != 0 && seg.QuadIndexCount > 0)
+            {
+                vk.CmdBindPipeline(cmd, PipelineBindPoint.Graphics, _pipelines.QuadPipeline);
+                vk.CmdSetScissor(cmd, 0, 1, &scissor);
+                vk.CmdPushConstants(cmd, _pipelines.QuadPipelineLayout,
+                    ShaderStageFlags.VertexBit, 0, 64, &projection);
 
-        // Draw text
-        if (_pipelines.TextPipeline.Handle != 0 && _buffers.TextIndexCount > 0)
-        {
-            vk.CmdBindPipeline(cmd, PipelineBindPoint.Graphics, _pipelines.TextPipeline);
-            vk.CmdPushConstants(cmd, _pipelines.TextPipelineLayout,
-                ShaderStageFlags.VertexBit, 0, 64, &projection);
+                var vbuf = _buffers.QuadVertexBuffer;
+                ulong offset = 0;
+                vk.CmdBindVertexBuffers(cmd, 0, 1, &vbuf, &offset);
+                vk.CmdBindIndexBuffer(cmd, _buffers.QuadIndexBuffer, 0, IndexType.Uint32);
+                vk.CmdDrawIndexed(cmd, seg.QuadIndexCount, 1, seg.QuadIndexOffset, 0, 0);
+            }
 
-            var descSet = _textDescriptorSet;
-            vk.CmdBindDescriptorSets(cmd, PipelineBindPoint.Graphics,
-                _pipelines.TextPipelineLayout, 0, 1, &descSet, 0, null);
+            // Draw text for this segment
+            if (_pipelines.TextPipeline.Handle != 0 && seg.TextIndexCount > 0)
+            {
+                vk.CmdBindPipeline(cmd, PipelineBindPoint.Graphics, _pipelines.TextPipeline);
+                vk.CmdSetScissor(cmd, 0, 1, &scissor);
+                vk.CmdPushConstants(cmd, _pipelines.TextPipelineLayout,
+                    ShaderStageFlags.VertexBit, 0, 64, &projection);
 
-            var vbuf = _buffers.TextVertexBuffer;
-            ulong offset = 0;
-            vk.CmdBindVertexBuffers(cmd, 0, 1, &vbuf, &offset);
-            vk.CmdBindIndexBuffer(cmd, _buffers.TextIndexBuffer, 0, IndexType.Uint32);
-            vk.CmdDrawIndexed(cmd, _buffers.TextIndexCount, 1, 0, 0, 0);
+                var descSet = _textDescriptorSet;
+                vk.CmdBindDescriptorSets(cmd, PipelineBindPoint.Graphics,
+                    _pipelines.TextPipelineLayout, 0, 1, &descSet, 0, null);
+
+                var vbuf = _buffers.TextVertexBuffer;
+                ulong offset = 0;
+                vk.CmdBindVertexBuffers(cmd, 0, 1, &vbuf, &offset);
+                vk.CmdBindIndexBuffer(cmd, _buffers.TextIndexBuffer, 0, IndexType.Uint32);
+                vk.CmdDrawIndexed(cmd, seg.TextIndexCount, 1, seg.TextIndexOffset, 0, 0);
+            }
         }
 
         vk.CmdEndRenderPass(cmd);
         vk.EndCommandBuffer(cmd);
+    }
+
+    /// <summary>
+    /// A draw segment: a batch of quads and text commands that share the same scissor rect.
+    /// Segments are rendered in order to preserve paint command z-ordering and clipping.
+    /// </summary>
+    private sealed class DrawSegment
+    {
+        public List<QuadVertex> QuadVertices { get; } = [];
+        public List<uint> QuadIndices { get; } = [];
+        public List<TextVertex> TextVertices { get; } = [];
+        public List<uint> TextIndices { get; } = [];
+
+        // Scissor rect in logical pixels
+        public float ScissorX, ScissorY, ScissorW, ScissorH;
+
+        // Offsets into the combined buffer (set during upload)
+        public uint QuadIndexOffset;
+        public uint QuadVertexOffset;
+        public uint TextIndexOffset;
+        public uint TextVertexOffset;
+
+        public uint QuadIndexCount => (uint)QuadIndices.Count;
+        public uint TextIndexCount => (uint)TextIndices.Count;
+    }
+
+    private List<DrawSegment> BuildDrawSegments(PaintList paintList)
+    {
+        float logicalWidth = _swapchain.Extent.Width / ContentScale;
+        float logicalHeight = _swapchain.Extent.Height / ContentScale;
+
+        var segments = new List<DrawSegment>();
+        var clipStack = new Stack<(float x, float y, float w, float h)>();
+        clipStack.Push((0, 0, logicalWidth, logicalHeight));
+
+        var current = new DrawSegment();
+        var (cx, cy, cw, ch) = clipStack.Peek();
+        current.ScissorX = cx; current.ScissorY = cy;
+        current.ScissorW = cw; current.ScissorH = ch;
+
+        foreach (var cmd in paintList.Commands)
+        {
+            switch (cmd)
+            {
+                case PushClipCommand clip:
+                {
+                    // Flush current segment if it has content
+                    if (current.QuadIndices.Count > 0 || current.TextIndices.Count > 0)
+                    {
+                        segments.Add(current);
+                        current = new DrawSegment();
+                    }
+
+                    // Intersect new clip with current clip
+                    var (px, py, pw, ph) = clipStack.Peek();
+                    float nx = Math.Max(px, clip.Rect.X);
+                    float ny = Math.Max(py, clip.Rect.Y);
+                    float nr = Math.Min(px + pw, clip.Rect.X + clip.Rect.Width);
+                    float nb = Math.Min(py + ph, clip.Rect.Y + clip.Rect.Height);
+                    float nw = Math.Max(0, nr - nx);
+                    float nh = Math.Max(0, nb - ny);
+
+                    clipStack.Push((nx, ny, nw, nh));
+                    current.ScissorX = nx; current.ScissorY = ny;
+                    current.ScissorW = nw; current.ScissorH = nh;
+                    break;
+                }
+
+                case PopClipCommand:
+                {
+                    // Flush current segment
+                    if (current.QuadIndices.Count > 0 || current.TextIndices.Count > 0)
+                    {
+                        segments.Add(current);
+                        current = new DrawSegment();
+                    }
+
+                    if (clipStack.Count > 1) clipStack.Pop();
+                    var (rx, ry, rw, rh) = clipStack.Peek();
+                    current.ScissorX = rx; current.ScissorY = ry;
+                    current.ScissorW = rw; current.ScissorH = rh;
+                    break;
+                }
+
+                case FillRectCommand fill:
+                    QuadRenderer.AddFilledRect(current.QuadVertices, current.QuadIndices,
+                        fill.Rect.X, fill.Rect.Y, fill.Rect.Width, fill.Rect.Height, fill.Color);
+                    break;
+
+                case StrokeRectCommand stroke:
+                    QuadRenderer.AddStrokeRect(current.QuadVertices, current.QuadIndices,
+                        stroke.Rect.X, stroke.Rect.Y, stroke.Rect.Width, stroke.Rect.Height,
+                        stroke.LineWidth, stroke.Color);
+                    break;
+
+                case DrawTextCommand text:
+                    _textRenderer.EmitTextQuads(current.TextVertices, current.TextIndices, text);
+                    break;
+            }
+        }
+
+        // Add final segment
+        if (current.QuadIndices.Count > 0 || current.TextIndices.Count > 0)
+            segments.Add(current);
+
+        return segments;
     }
 
     private void CreateFontAtlasTexture()

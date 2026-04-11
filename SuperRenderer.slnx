@@ -8,6 +8,7 @@
     <File Path=".gitignore" />
     <File Path="TODO.md" />
     <File Path="LICENSE" />
+    <File Path="MANUAL_TESTS_PLAN.md" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/SuperRender.Core/SuperRender.Core.csproj" />
@@ -21,5 +22,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/SuperRender.Tests/SuperRender.Tests.csproj" />
     <Project Path="tests/SuperRender.EcmaScript.Tests/SuperRender.EcmaScript.Tests.csproj" />
+    <Project Path="tests/SuperRender.Browser.Tests/SuperRender.Browser.Tests.csproj" />
   </Folder>
 </Solution>

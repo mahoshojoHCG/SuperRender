@@ -17,13 +17,16 @@ public static class TextHitTester
 
     private static void CollectTextRunsRecursive(LayoutBox box, List<TextRun> runs)
     {
-        if (box.TextRuns is not null)
+        if (box.TextRuns is not null && box.TextRuns.Count > 0)
         {
             foreach (var run in box.TextRuns)
             {
                 if (!string.IsNullOrEmpty(run.Text))
                     runs.Add(run);
             }
+            // Don't recurse into children — this box's TextRuns already include them
+            // (inline elements collect their children's text runs into their own list)
+            return;
         }
 
         foreach (var child in box.Children)

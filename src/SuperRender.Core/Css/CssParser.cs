@@ -155,6 +155,11 @@ public sealed class CssParser
             return ExpandBorderShorthand(trimmed, important);
         }
 
+        if (property is "border-top" or "border-right" or "border-bottom" or "border-left")
+        {
+            return ExpandPerSideBorderShorthand(property, trimmed, important);
+        }
+
         // Parse single value
         var value = ParseValueTokens(trimmed);
         return
@@ -292,6 +297,67 @@ public sealed class CssParser
             declarations.Add(new Declaration { Property = "border-style", Value = style, Important = important });
         if (color != null)
             declarations.Add(new Declaration { Property = "border-color", Value = color, Important = important });
+
+        return declarations;
+    }
+
+    private static List<Declaration> ExpandPerSideBorderShorthand(string property, List<CssToken> valueTokens, bool important)
+    {
+        // border-top: <width> <style> <color>
+        // → border-top-width, border-top-style, border-top-color
+        var side = property["border-".Length..]; // "top", "right", "bottom", "left"
+        var parts = SplitByWhitespace(valueTokens);
+        var declarations = new List<Declaration>();
+
+        CssValue? width = null;
+        CssValue? style = null;
+        CssValue? color = null;
+
+        var borderStyles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "none", "hidden", "dotted", "dashed", "solid", "double", "groove", "ridge", "inset", "outset"
+        };
+
+        foreach (var part in parts)
+        {
+            var val = ParseValueTokens(part);
+
+            if (val.Type is CssValueType.Length or CssValueType.Number or CssValueType.Percentage)
+            {
+                width ??= val;
+            }
+            else if (val.Type == CssValueType.Color)
+            {
+                color ??= val;
+            }
+            else if (val.Type == CssValueType.Keyword)
+            {
+                if (Core.Color.TryFromName(val.Raw, out _) && color == null)
+                {
+                    color = new CssValue
+                    {
+                        Type = CssValueType.Color,
+                        Raw = val.Raw,
+                        ColorValue = Core.Color.FromName(val.Raw)
+                    };
+                }
+                else if (borderStyles.Contains(val.Raw))
+                {
+                    style ??= val;
+                }
+                else
+                {
+                    style ??= val;
+                }
+            }
+        }
+
+        if (width != null)
+            declarations.Add(new Declaration { Property = $"border-{side}-width", Value = width, Important = important });
+        if (style != null)
+            declarations.Add(new Declaration { Property = $"border-{side}-style", Value = style, Important = important });
+        if (color != null)
+            declarations.Add(new Declaration { Property = $"border-{side}-color", Value = color, Important = important });
 
         return declarations;
     }

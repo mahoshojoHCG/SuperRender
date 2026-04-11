@@ -188,10 +188,18 @@ public sealed class InputHandler
                     return;
                 case Key.L:
                     _chrome.AddressBarFocused = true;
+                    _chrome.SelectionStart = 0;
+                    _chrome.SelectionEnd = _chrome.AddressText.Length;
                     _chrome.CursorPosition = _chrome.AddressText.Length;
                     return;
                 case Key.R:
                     ReloadActiveTab();
+                    return;
+                case Key.LeftBracket:
+                    _goBackCallback();
+                    return;
+                case Key.RightBracket:
+                    _goForwardCallback();
                     return;
             }
         }
@@ -319,6 +327,17 @@ public sealed class InputHandler
     {
         if (!_chrome.AddressBarFocused) return;
         if (char.IsControl(c)) return;
+
+        // If there's a selection, replace it
+        if (_chrome.HasAddressSelection)
+        {
+            int selStart = Math.Min(_chrome.SelectionStart, _chrome.SelectionEnd);
+            int selEnd = Math.Max(_chrome.SelectionStart, _chrome.SelectionEnd);
+            _chrome.AddressText = _chrome.AddressText[..selStart] + _chrome.AddressText[selEnd..];
+            _chrome.CursorPosition = selStart;
+            _chrome.SelectionStart = -1;
+            _chrome.SelectionEnd = -1;
+        }
 
         _chrome.AddressText = _chrome.AddressText.Insert(_chrome.CursorPosition, c.ToString());
         _chrome.CursorPosition++;
@@ -508,6 +527,8 @@ public sealed class InputHandler
             Action = () =>
             {
                 _chrome.AddressBarFocused = true;
+                _chrome.SelectionStart = 0;
+                _chrome.SelectionEnd = _chrome.AddressText.Length;
                 _chrome.CursorPosition = _chrome.AddressText.Length;
             },
         });

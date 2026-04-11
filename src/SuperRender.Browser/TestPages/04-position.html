@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 04 - Positioning</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 10px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+
+        /* Test 4a: relative */
+        .relative-box {
+            position: relative;
+            left: 50px;
+            top: 20px;
+            width: 200px;
+            padding: 10px;
+            background-color: #ffdddd;
+            border: 2px solid #cc3333;
+        }
+        .sibling-box {
+            width: 200px;
+            padding: 10px;
+            background-color: #ddddff;
+            border: 2px solid #3333cc;
+        }
+
+        /* Test 4b: absolute inside relative */
+        .rel-container {
+            position: relative;
+            width: 400px;
+            height: 200px;
+            background-color: #eeeeee;
+            border: 2px solid #999999;
+        }
+        .abs-topleft {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 120px;
+            padding: 8px;
+            background-color: #ffdddd;
+            border: 2px solid #cc3333;
+        }
+        .abs-bottomright {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            width: 120px;
+            padding: 8px;
+            background-color: #ddddff;
+            border: 2px solid #3333cc;
+        }
+
+        /* Test 4c: z-index */
+        .zindex-container {
+            position: relative;
+            width: 300px;
+            height: 150px;
+        }
+        .z-back {
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            width: 200px;
+            height: 100px;
+            background-color: #cc3333;
+            color: #ffffff;
+            padding: 10px;
+            z-index: 1;
+        }
+        .z-front {
+            position: absolute;
+            top: 30px;
+            left: 60px;
+            width: 200px;
+            height: 100px;
+            background-color: #3333cc;
+            color: #ffffff;
+            padding: 10px;
+            z-index: 2;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 04: Positioning</h1>
+    <p><a href="index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 4a: position: relative (left: 50px, top: 20px)</div>
+        <div class="sibling-box">Sibling BEFORE (blue) - normal position</div>
+        <div class="relative-box">RELATIVE: Shifted right 50px, down 20px from normal position</div>
+        <div class="sibling-box">Sibling AFTER (blue) - should NOT be affected by the relative offset above</div>
+        <div class="info">EXPECT: The red box is offset 50px right and 20px down from where it would normally be. The two blue siblings are positioned as if the red box were NOT offset (original space is preserved).</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 4b: position: absolute inside position: relative container</div>
+        <div class="rel-container">
+            <div class="abs-topleft">ABSOLUTE: top:10, left:10</div>
+            <div class="abs-bottomright">ABSOLUTE: bottom:10, right:10</div>
+        </div>
+        <div class="info">EXPECT: Grey container (400x200). Red box pinned to top-left corner (10px inset). Blue box pinned to bottom-right corner (10px inset).</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 4c: z-index stacking order</div>
+        <div class="zindex-container">
+            <div class="z-back">z-index: 1 (RED, behind)</div>
+            <div class="z-front">z-index: 2 (BLUE, in front)</div>
+        </div>
+        <div class="info">EXPECT: The BLUE box (z-index:2) overlaps and is ON TOP of the RED box (z-index:1). The blue box is offset 30px down and 60px right. Where they overlap, blue should be visible, not red.</div>
+    </div>
+</body>
+</html>

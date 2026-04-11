@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 16 - Async/Await</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+            font-size: 16px;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+        .result-box {
+            padding: 10px;
+            background-color: #ffffff;
+            border: 2px solid #999999;
+            font-family: monospace;
+            font-size: 13px;
+            white-space: pre;
+            min-height: 40px;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 16: Async/Await</h1>
+    <p><a href="index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 16a: Basic async function with Promise.resolve</div>
+        <div class="result-box" id="result-a">Waiting for async result...</div>
+        <div class="info">EXPECT: After a brief moment, shows "Result: Hello from async!" and "Status: resolved".</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 16b: Multiple sequential awaits</div>
+        <div class="result-box" id="result-b">Waiting for sequential awaits...</div>
+        <div class="info">EXPECT: Shows three steps completed in order: step1=10, step2=20, step3=30, total=60.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 16c: Async/await with error handling (try/catch)</div>
+        <div class="result-box" id="result-c">Waiting for error handling test...</div>
+        <div class="info">EXPECT: Shows "Caught error: Something went wrong!" demonstrating try/catch with rejected promise.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 16d: Async with setTimeout (real delay)</div>
+        <div class="result-box" id="result-d">Waiting for delayed async (1 second)...</div>
+        <div class="info">EXPECT: After ~1 second, shows "Delayed result received!" The box should update after the timeout fires.</div>
+    </div>
+
+    <script>
+        // Test 16a: Basic async function
+        async function basicAsync() {
+            var result = await Promise.resolve("Hello from async!");
+            return result;
+        }
+
+        basicAsync().then(function(val) {
+            var el = document.getElementById("result-a");
+            el.textContent = "Result: " + val + "\nStatus: resolved";
+        });
+
+        // Test 16b: Multiple sequential awaits
+        function makeValue(n) {
+            return Promise.resolve(n);
+        }
+
+        async function sequentialAwaits() {
+            var step1 = await makeValue(10);
+            var step2 = await makeValue(20);
+            var step3 = await makeValue(30);
+            return { step1: step1, step2: step2, step3: step3, total: step1 + step2 + step3 };
+        }
+
+        sequentialAwaits().then(function(result) {
+            var el = document.getElementById("result-b");
+            var text = "step1 = " + result.step1 + "\n";
+            text = text + "step2 = " + result.step2 + "\n";
+            text = text + "step3 = " + result.step3 + "\n";
+            text = text + "total = " + result.total;
+            el.textContent = text;
+        });
+
+        // Test 16c: Error handling
+        async function failingAsync() {
+            try {
+                var ok = await Promise.resolve("first OK");
+                var bad = await Promise.reject("Something went wrong!");
+                return "should not reach here";
+            } catch (err) {
+                return "Caught error: " + err;
+            }
+        }
+
+        failingAsync().then(function(val) {
+            document.getElementById("result-c").textContent = val;
+        });
+
+        // Test 16d: Async with real delay via setTimeout
+        function delay(ms) {
+            return new Promise(function(resolve) {
+                setTimeout(function() {
+                    resolve("Delayed result received!");
+                }, ms);
+            });
+        }
+
+        async function delayedAsync() {
+            var msg = await delay(1000);
+            return msg;
+        }
+
+        delayedAsync().then(function(val) {
+            document.getElementById("result-d").textContent = val;
+        });
+    </script>
+</body>
+</html>

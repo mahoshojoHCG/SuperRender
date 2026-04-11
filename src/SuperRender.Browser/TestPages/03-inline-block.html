@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 03 - Inline-Block</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 10px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+
+        /* Nav bar */
+        .nav {
+            background-color: #333333;
+            padding: 0px;
+            margin: 0px;
+        }
+        .nav-item {
+            display: inline-block;
+            padding: 10px 20px;
+            color: #ffffff;
+            background-color: #555555;
+            margin-right: 2px;
+        }
+
+        /* Varying sizes */
+        .iblock-small {
+            display: inline-block;
+            width: 80px;
+            height: 40px;
+            background-color: #ffdddd;
+            border: 1px solid #cc3333;
+            margin: 4px;
+            padding: 4px;
+        }
+        .iblock-medium {
+            display: inline-block;
+            width: 120px;
+            height: 60px;
+            background-color: #ddddff;
+            border: 1px solid #3333cc;
+            margin: 4px;
+            padding: 4px;
+        }
+        .iblock-large {
+            display: inline-block;
+            width: 150px;
+            height: 80px;
+            background-color: #ddffdd;
+            border: 1px solid #33cc33;
+            margin: 4px;
+            padding: 4px;
+        }
+
+        /* Inline-block next to text */
+        .iblock-badge {
+            display: inline-block;
+            background-color: #cc3333;
+            color: #ffffff;
+            padding: 2px 8px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .wrapper {
+            width: 500px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 03: Inline-Block Layout</h1>
+    <p><a href="index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 3a: Navigation bar with inline-block items</div>
+        <div class="nav">
+            <span class="nav-item">Home</span>
+            <span class="nav-item">About</span>
+            <span class="nav-item">Services</span>
+            <span class="nav-item">Contact</span>
+        </div>
+        <div class="info">EXPECT: Four grey items side by side in a horizontal row on a dark background. Each item has padding.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 3b: Inline-block boxes of varying sizes (wrapping)</div>
+        <div class="wrapper">
+            <div class="iblock-small">Small 80x40</div>
+            <div class="iblock-medium">Medium 120x60</div>
+            <div class="iblock-large">Large 150x80</div>
+            <div class="iblock-small">Small 80x40</div>
+            <div class="iblock-medium">Medium 120x60</div>
+            <div class="iblock-small">Small 80x40</div>
+            <div class="iblock-large">Large 150x80</div>
+            <div class="iblock-medium">Medium 120x60</div>
+        </div>
+        <div class="info">EXPECT: Boxes laid out left to right, wrapping to new lines when the 500px container width is exceeded. Red=small, blue=medium, green=large.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 3c: Inline-block next to text</div>
+        <p>
+            This is regular text with an inline-block badge
+            <span class="iblock-badge">NEW</span>
+            appearing right next to the text on the same line.
+        </p>
+        <div class="info">EXPECT: The red "NEW" badge appears inline with the text, on the same baseline.</div>
+    </div>
+</body>
+</html>

@@ -5,7 +5,7 @@ namespace SuperRender.Gpu;
 public static class FontAtlasGenerator
 {
     public const int AtlasWidth = 1024;
-    public const int AtlasHeight = 1024;
+    public const int AtlasHeight = 2048; // Increased to fit regular + bold + monospace
     public const float BaseFontSize = 32f;
 
     private const int FirstChar = 32;
@@ -49,9 +49,15 @@ public static class FontAtlasGenerator
         ["/usr/share/fonts/truetype/freefont/FreeSans.ttf"],
     ];
 
-    public static byte[] GenerateAtlas(out Dictionary<char, GlyphInfo> glyphs, float contentScale = 1.0f)
+    public static byte[] GenerateAtlas(
+        out Dictionary<char, GlyphInfo> glyphs,
+        out Dictionary<char, GlyphInfo> boldGlyphs,
+        out Dictionary<char, GlyphInfo> monoGlyphs,
+        float contentScale = 1.0f)
     {
         glyphs = new Dictionary<char, GlyphInfo>();
+        boldGlyphs = new Dictionary<char, GlyphInfo>();
+        monoGlyphs = new Dictionary<char, GlyphInfo>();
         float renderSize = BaseFontSize * Math.Max(contentScale, 1.0f);
         var pixels = new byte[AtlasWidth * AtlasHeight];
 
@@ -61,128 +67,132 @@ public static class FontAtlasGenerator
         if (fontPath == null)
         {
             Console.WriteLine("Warning: No system font found. Using fallback bitmap font.");
-            return GenerateFallbackAtlas(out glyphs);
+            var fallback = GenerateFallbackAtlas(out glyphs);
+            boldGlyphs = glyphs;
+            monoGlyphs = glyphs;
+            return fallback;
         }
 
         Console.WriteLine($"Using system font: {fontPath}");
 
-        // Track the font ascent (max bearingY across all glyphs)
-        float maxAscent = 0;
+        // Generate regular glyphs in top portion of atlas
+        int nextRowY = GenerateVariantGlyphs(lib, fontPath, renderSize, pixels, glyphs, 0);
 
-        unsafe
-        {
-            FT_FaceRec_* facePtr;
-            fixed (byte* pPath = System.Text.Encoding.UTF8.GetBytes(fontPath + "\0"))
-            {
-                var error = FT.FT_New_Face(lib.Native, pPath, 0, &facePtr);
-                if (error != FT_Error.FT_Err_Ok)
-                {
-                    Console.WriteLine($"FreeType error loading font: {error}");
-                    return GenerateFallbackAtlas(out glyphs);
-                }
-            }
+        // Generate bold glyphs
+        var boldPath = FindBoldFont() ?? fontPath;
+        Console.WriteLine($"Using bold font: {boldPath}");
+        nextRowY = GenerateVariantGlyphs(lib, boldPath, renderSize, pixels, boldGlyphs, nextRowY + Padding);
+        if (boldGlyphs.Count == 0) boldGlyphs = glyphs;
 
-            // Set pixel size (scaled for HiDPI)
-            FT.FT_Set_Pixel_Sizes(facePtr, 0, (uint)renderSize);
-
-            // --- Pass 1: measure all glyphs to find max ascent ---
-            for (int i = 0; i < GlyphCount; i++)
-            {
-                char c = (char)(FirstChar + i);
-                var glyphIndex = FT.FT_Get_Char_Index(facePtr, c);
-                if (FT.FT_Load_Glyph(facePtr, glyphIndex, FT_LOAD.FT_LOAD_DEFAULT) != FT_Error.FT_Err_Ok)
-                    continue;
-                float bearingY = facePtr->glyph->metrics.horiBearingY / 64f;
-                if (bearingY > maxAscent) maxAscent = bearingY;
-            }
-
-            // --- Pass 2: render glyphs and build atlas ---
-            int cursorX = Padding;
-            int cursorY = Padding;
-            int rowHeight = 0;
-
-            for (int i = 0; i < GlyphCount; i++)
-            {
-                char c = (char)(FirstChar + i);
-
-                var glyphIndex = FT.FT_Get_Char_Index(facePtr, c);
-                var err = FT.FT_Load_Glyph(facePtr, glyphIndex, FT_LOAD.FT_LOAD_DEFAULT);
-                if (err != FT_Error.FT_Err_Ok) continue;
-
-                err = FT.FT_Render_Glyph(facePtr->glyph, FT_Render_Mode_.FT_RENDER_MODE_NORMAL);
-                if (err != FT_Error.FT_Err_Ok) continue;
-
-                var glyph = facePtr->glyph;
-                var bitmap = glyph->bitmap;
-                int bmpW = (int)bitmap.width;
-                int bmpH = (int)bitmap.rows;
-                int bearingX = glyph->bitmap_left;
-                int bearingY = glyph->bitmap_top;
-                float advance = glyph->advance.x / 64f;
-
-                // Cell size includes padding
-                int cellW = bmpW + Padding * 2;
-                int cellH = bmpH + Padding * 2;
-
-                // Wrap to next row if needed
-                if (cursorX + cellW > AtlasWidth)
-                {
-                    cursorX = Padding;
-                    cursorY += rowHeight + Padding;
-                    rowHeight = 0;
-                }
-
-                if (cursorY + cellH > AtlasHeight)
-                    break; // Atlas full
-
-                rowHeight = Math.Max(rowHeight, cellH);
-
-                // Copy glyph bitmap into atlas
-                if (bmpW > 0 && bmpH > 0 && bitmap.buffer != null)
-                {
-                    for (int row = 0; row < bmpH; row++)
-                    {
-                        for (int col = 0; col < bmpW; col++)
-                        {
-                            int srcIdx = row * bitmap.pitch + col;
-                            int dstX = cursorX + Padding + col;
-                            int dstY = cursorY + Padding + row;
-                            if (dstX < AtlasWidth && dstY < AtlasHeight)
-                                pixels[dstY * AtlasWidth + dstX] = bitmap.buffer[srcIdx];
-                        }
-                    }
-                }
-
-                // Store glyph info
-                float u0 = (cursorX + Padding) / (float)AtlasWidth;
-                float v0 = (cursorY + Padding) / (float)AtlasHeight;
-                float u1 = (cursorX + Padding + bmpW) / (float)AtlasWidth;
-                float v1 = (cursorY + Padding + bmpH) / (float)AtlasHeight;
-
-                glyphs[c] = new GlyphInfo
-                {
-                    U0 = u0,
-                    V0 = v0,
-                    U1 = u1,
-                    V1 = v1,
-                    Width = bmpW,
-                    Height = bmpH,
-                    AdvanceX = advance > 0 ? advance : BaseFontSize * 0.3f,
-                    OffsetX = bearingX,
-                    OffsetY = maxAscent - bearingY,
-                };
-
-                cursorX += cellW;
-            }
-
-            FT.FT_Done_Face(facePtr);
-        }
+        // Generate monospace glyphs
+        var monoPath = FindMonospaceFont() ?? fontPath;
+        Console.WriteLine($"Using monospace font: {monoPath}");
+        GenerateVariantGlyphs(lib, monoPath, renderSize, pixels, monoGlyphs, nextRowY + Padding);
+        if (monoGlyphs.Count == 0) monoGlyphs = glyphs;
 
         lib.Dispose();
         AtlasRenderSize = renderSize;
-        Ascent = maxAscent;
-        Console.WriteLine($"Font atlas generated: {glyphs.Count} glyphs, renderSize={renderSize:F0}, ascent={maxAscent:F1}");
+        Console.WriteLine($"Font atlas generated: {glyphs.Count}+{boldGlyphs.Count}+{monoGlyphs.Count} glyphs, renderSize={renderSize:F0}");
         return pixels;
+    }
+
+    private static unsafe int GenerateVariantGlyphs(
+        FreeTypeLibrary lib, string fontPath, float renderSize,
+        byte[] pixels, Dictionary<char, GlyphInfo> glyphs, int startY)
+    {
+        FT_FaceRec_* facePtr;
+        fixed (byte* pPath = System.Text.Encoding.UTF8.GetBytes(fontPath + "\0"))
+        {
+            var error = FT.FT_New_Face(lib.Native, pPath, 0, &facePtr);
+            if (error != FT_Error.FT_Err_Ok)
+                return startY;
+        }
+
+        FT.FT_Set_Pixel_Sizes(facePtr, 0, (uint)renderSize);
+
+        // Pass 1: measure max ascent
+        float maxAscent = 0;
+        for (int i = 0; i < GlyphCount; i++)
+        {
+            char c = (char)(FirstChar + i);
+            var glyphIndex = FT.FT_Get_Char_Index(facePtr, c);
+            if (FT.FT_Load_Glyph(facePtr, glyphIndex, FT_LOAD.FT_LOAD_DEFAULT) != FT_Error.FT_Err_Ok)
+                continue;
+            float bearingY = facePtr->glyph->metrics.horiBearingY / 64f;
+            if (bearingY > maxAscent) maxAscent = bearingY;
+        }
+
+        if (maxAscent > Ascent) Ascent = maxAscent;
+
+        // Pass 2: render and pack
+        int cursorX = Padding;
+        int cursorY = startY + Padding;
+        int rowHeight = 0;
+
+        for (int i = 0; i < GlyphCount; i++)
+        {
+            char c = (char)(FirstChar + i);
+            var glyphIndex = FT.FT_Get_Char_Index(facePtr, c);
+            if (FT.FT_Load_Glyph(facePtr, glyphIndex, FT_LOAD.FT_LOAD_DEFAULT) != FT_Error.FT_Err_Ok)
+                continue;
+            if (FT.FT_Render_Glyph(facePtr->glyph, FT_Render_Mode_.FT_RENDER_MODE_NORMAL) != FT_Error.FT_Err_Ok)
+                continue;
+
+            var glyph = facePtr->glyph;
+            var bitmap = glyph->bitmap;
+            int bmpW = (int)bitmap.width;
+            int bmpH = (int)bitmap.rows;
+            int bearingX = glyph->bitmap_left;
+            int bearingY = glyph->bitmap_top;
+            float advance = glyph->advance.x / 64f;
+
+            int cellW = bmpW + Padding * 2;
+            int cellH = bmpH + Padding * 2;
+
+            if (cursorX + cellW > AtlasWidth)
+            {
+                cursorX = Padding;
+                cursorY += rowHeight + Padding;
+                rowHeight = 0;
+            }
+
+            if (cursorY + cellH > AtlasHeight) break;
+            rowHeight = Math.Max(rowHeight, cellH);
+
+            if (bmpW > 0 && bmpH > 0 && bitmap.buffer != null)
+            {
+                for (int row = 0; row < bmpH; row++)
+                {
+                    for (int col = 0; col < bmpW; col++)
+                    {
+                        int srcIdx = row * bitmap.pitch + col;
+                        int dstX = cursorX + Padding + col;
+                        int dstY = cursorY + Padding + row;
+                        if (dstX < AtlasWidth && dstY < AtlasHeight)
+                            pixels[dstY * AtlasWidth + dstX] = bitmap.buffer[srcIdx];
+                    }
+                }
+            }
+
+            float u0 = (cursorX + Padding) / (float)AtlasWidth;
+            float v0 = (cursorY + Padding) / (float)AtlasHeight;
+            float u1 = (cursorX + Padding + bmpW) / (float)AtlasWidth;
+            float v1 = (cursorY + Padding + bmpH) / (float)AtlasHeight;
+
+            glyphs[c] = new GlyphInfo
+            {
+                U0 = u0, V0 = v0, U1 = u1, V1 = v1,
+                Width = bmpW, Height = bmpH,
+                AdvanceX = advance > 0 ? advance : BaseFontSize * 0.3f,
+                OffsetX = bearingX,
+                OffsetY = maxAscent - bearingY,
+            };
+
+            cursorX += cellW;
+        }
+
+        FT.FT_Done_Face(facePtr);
+        return cursorY + rowHeight;
     }
 
     /// <summary>
@@ -228,6 +238,91 @@ public static class FontAtlasGenerator
                 return file;
         }
 
+        return null;
+    }
+
+    private static string? FindBoldFont()
+    {
+        if (OperatingSystem.IsMacOS())
+        {
+            // Try common bold variants
+            foreach (var path in new[]
+            {
+                "/System/Library/Fonts/Helvetica.ttc", // face index 1 is often bold; for now use same file
+                "/Library/Fonts/Arial Bold.ttf",
+                "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+            })
+            {
+                if (File.Exists(path)) return path;
+            }
+        }
+        else if (OperatingSystem.IsWindows())
+        {
+            foreach (var path in new[]
+            {
+                @"C:\Windows\Fonts\segoeuib.ttf",
+                @"C:\Windows\Fonts\arialbd.ttf",
+                @"C:\Windows\Fonts\verdanab.ttf",
+            })
+            {
+                if (File.Exists(path)) return path;
+            }
+        }
+        else // Linux
+        {
+            foreach (var path in new[]
+            {
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+                "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
+            })
+            {
+                if (File.Exists(path)) return path;
+            }
+        }
+        return null;
+    }
+
+    private static string? FindMonospaceFont()
+    {
+        if (OperatingSystem.IsMacOS())
+        {
+            foreach (var path in new[]
+            {
+                "/System/Library/Fonts/Menlo.ttc",
+                "/System/Library/Fonts/Monaco.ttf",
+                "/System/Library/Fonts/SFMono-Regular.otf",
+                "/System/Library/Fonts/Courier.ttc",
+                "/Library/Fonts/Courier New.ttf",
+            })
+            {
+                if (File.Exists(path)) return path;
+            }
+        }
+        else if (OperatingSystem.IsWindows())
+        {
+            foreach (var path in new[]
+            {
+                @"C:\Windows\Fonts\consola.ttf",
+                @"C:\Windows\Fonts\cour.ttf",
+                @"C:\Windows\Fonts\lucon.ttf",
+            })
+            {
+                if (File.Exists(path)) return path;
+            }
+        }
+        else // Linux
+        {
+            foreach (var path in new[]
+            {
+                "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+                "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
+                "/usr/share/fonts/truetype/noto/NotoSansMono-Regular.ttf",
+            })
+            {
+                if (File.Exists(path)) return path;
+            }
+        }
         return null;
     }
 

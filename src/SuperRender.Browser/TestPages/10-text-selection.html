@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 10 - Text Selection</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .instructions {
+            background-color: #ffffdd;
+            border: 2px solid #cccc33;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 10px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 10: Text Selection</h1>
+    <p><a href="index.html">Back to index</a></p>
+
+    <div class="instructions">
+        <p><strong>How to test text selection:</strong></p>
+        <ul>
+            <li>Click and drag across text to select it</li>
+            <li>Selected text should appear with a blue highlight background</li>
+            <li>Right-click on selected text to see the "Copy" option in the context menu</li>
+            <li>Try selecting across paragraph boundaries</li>
+            <li>Try selecting text in different sections</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 10a: Single paragraph selection</div>
+        <p>The quick brown fox jumps over the lazy dog. This is a classic pangram that contains every letter of the English alphabet. Try selecting any portion of this sentence by clicking and dragging your mouse from left to right.</p>
+        <div class="info">EXPECT: Blue highlight appears behind the selected characters. Selection follows the mouse cursor position.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 10b: Multiple paragraphs</div>
+        <p>First paragraph: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+        <p>Second paragraph: Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+        <p>Third paragraph: Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</p>
+        <div class="info">EXPECT: Selection can span across multiple paragraphs. Start in the first paragraph and drag down to the third.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 10c: Mixed formatting</div>
+        <p>Normal text, then <strong>bold text</strong>, then <em>italic text</em>, then <u>underlined text</u>, and back to normal.</p>
+        <p>Try selecting across the different formatting styles. The selection highlight should cover all text uniformly.</p>
+        <div class="info">EXPECT: Selection highlight works consistently across bold, italic, underlined, and normal text.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 10d: Different font sizes</div>
+        <h2>This is a heading (larger text)</h2>
+        <p>This is normal body text. Try selecting from the heading down into this paragraph.</p>
+        <div class="info">EXPECT: Selection works across different font sizes without visual glitches.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 10e: Long text for precision testing</div>
+        <p>ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789</p>
+        <p>Try selecting exactly 5 characters. The selection should be character-accurate, not word-based.</p>
+        <div class="info">EXPECT: Character-level precision when selecting. Each character boundary is individually selectable.</div>
+    </div>
+</body>
+</html>

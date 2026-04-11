@@ -63,7 +63,7 @@ public sealed class LayoutEngine
 
         if (node is TextNode textNode)
         {
-            var text = CollapseWhitespace(textNode.Data);
+            var text = ProcessWhitespace(textNode.Data, style.WhiteSpace);
             if (string.IsNullOrEmpty(text))
             {
                 return new LayoutBox
@@ -84,9 +84,12 @@ public sealed class LayoutEngine
             };
         }
 
-        var boxType = style.Display == DisplayType.Inline
-            ? LayoutBoxType.Inline
-            : LayoutBoxType.Block;
+        var boxType = style.Display switch
+        {
+            DisplayType.Inline => LayoutBoxType.Inline,
+            DisplayType.InlineBlock => LayoutBoxType.InlineBlock,
+            _ => LayoutBoxType.Block,
+        };
 
         var box = new LayoutBox
         {
@@ -104,15 +107,26 @@ public sealed class LayoutEngine
 
             var childBox = BuildBox(child, styles);
 
-            // Skip empty text nodes
+            // Skip empty text nodes in block context (unless white-space preserves them)
             if (childBox.TextContent != null && string.IsNullOrWhiteSpace(childBox.TextContent) &&
-                box.BoxType == LayoutBoxType.Block && box.Children.Count == 0)
+                box.BoxType == LayoutBoxType.Block && box.Children.Count == 0 &&
+                style.WhiteSpace != WhiteSpaceType.Pre && style.WhiteSpace != WhiteSpaceType.PreWrap)
                 continue;
 
             box.Children.Add(childBox);
         }
 
         return box;
+    }
+
+    internal static string ProcessWhitespace(string text, WhiteSpaceType whiteSpace)
+    {
+        return whiteSpace switch
+        {
+            WhiteSpaceType.Pre or WhiteSpaceType.PreWrap => text, // preserve all whitespace
+            WhiteSpaceType.PreLine => CollapseSpacesOnly(text), // collapse spaces, keep newlines
+            _ => CollapseWhitespace(text), // Normal, Nowrap: collapse all whitespace
+        };
     }
 
     private static string CollapseWhitespace(string text)
@@ -123,6 +137,38 @@ public sealed class LayoutEngine
         foreach (var c in text)
         {
             if (char.IsWhiteSpace(c))
+            {
+                if (!lastWasSpace)
+                {
+                    sb.Append(' ');
+                    lastWasSpace = true;
+                }
+            }
+            else
+            {
+                sb.Append(c);
+                lastWasSpace = false;
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    private static string CollapseSpacesOnly(string text)
+    {
+        // Collapse spaces and tabs to single space, but preserve newlines
+        var sb = new System.Text.StringBuilder(text.Length);
+        bool lastWasSpace = false;
+
+        foreach (var c in text)
+        {
+            if (c == '\n' || c == '\r')
+            {
+                if (c == '\r') continue; // skip \r, \n will handle it
+                sb.Append('\n');
+                lastWasSpace = false;
+            }
+            else if (c == ' ' || c == '\t')
             {
                 if (!lastWasSpace)
                 {

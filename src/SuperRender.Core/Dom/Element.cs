@@ -56,6 +56,7 @@ public sealed class Element : Node
         set
         {
             Children.Clear();
+            MarkDirty();
             if (!string.IsNullOrEmpty(value))
             {
                 var textNode = new TextNode(value) { OwnerDocument = OwnerDocument };

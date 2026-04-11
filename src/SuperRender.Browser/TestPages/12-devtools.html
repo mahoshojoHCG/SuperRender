@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 12 - Developer Tools</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+            font-size: 16px;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 12: Developer Tools</h1>
+    <p><a href="index.html">Back to index</a></p>
+
+    <script>
+        console.log("DevTools test: This is a LOG message");
+        console.warn("DevTools test: This is a WARN message");
+        console.error("DevTools test: This is an ERROR message");
+        console.log("DevTools test: Object output:", { name: "test", value: 42 });
+        console.log("DevTools test: Array output:", [1, 2, 3, 4, 5]);
+    </script>
+
+    <div class="test-section">
+        <div class="label">Test 12a: Opening DevTools</div>
+        <p>Open the Developer Tools using any of these methods:</p>
+        <ul>
+            <li>Press <strong>F12</strong></li>
+            <li>Press <strong>Cmd+Shift+I</strong> (macOS) or <strong>Ctrl+Shift+I</strong></li>
+            <li>Right-click the page and select "Developer Tools" from the context menu</li>
+        </ul>
+        <div class="info">EXPECT: A separate DevTools window opens. It should have a console area showing the log messages from this page's script.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 12b: Console Output</div>
+        <p>After opening DevTools, check that the console displays:</p>
+        <ol>
+            <li>A LOG message (normal text)</li>
+            <li>A WARN message (may have yellow/warning styling)</li>
+            <li>An ERROR message (may have red/error styling)</li>
+            <li>An object: { name: "test", value: 42 }</li>
+            <li>An array: [1, 2, 3, 4, 5]</li>
+        </ol>
+        <div class="info">EXPECT: All 5 console outputs are visible in the DevTools console. Different log levels may have different visual styling.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 12c: Console Input (JS Execution)</div>
+        <p>In the DevTools console input area, try typing and executing these commands:</p>
+        <ol>
+            <li><code>1 + 1</code> -- should output 2</li>
+            <li><code>document.title</code> -- should output "Test 12 - Developer Tools"</li>
+            <li><code>document.body.childNodes.length</code> -- should output a number</li>
+            <li><code>var x = 42; x * 2</code> -- should output 84</li>
+        </ol>
+        <div class="info">EXPECT: Each expression is evaluated and the result is displayed in the console.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 12d: Console DOM Manipulation</div>
+        <p>Try executing DOM manipulation in the DevTools console:</p>
+        <ol>
+            <li><code>document.getElementById("target").textContent = "Modified by DevTools!"</code></li>
+        </ol>
+        <p id="target">This text should be changed by the DevTools command above.</p>
+        <div class="info">EXPECT: After running the command, the text above changes to "Modified by DevTools!" and the page re-renders.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 12e: Toggle DevTools</div>
+        <p>Press F12 again (or Cmd+Shift+I) to close the DevTools window. Press it once more to reopen.</p>
+        <div class="info">EXPECT: DevTools window toggles open/closed. Console history may be preserved across toggles.</div>
+    </div>
+</body>
+</html>

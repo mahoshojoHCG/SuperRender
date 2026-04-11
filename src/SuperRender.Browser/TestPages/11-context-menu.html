@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 11 - Context Menus</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+            font-size: 16px;
+        }
+        .steps {
+            background-color: #ffffff;
+            padding: 10px;
+            border: 1px solid #dddddd;
+            margin-top: 8px;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 11: Context Menus</h1>
+    <p><a href="index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 11a: Address Bar Context Menu</div>
+        <div class="steps">
+            <p><strong>Steps:</strong></p>
+            <ol>
+                <li>Click on the address bar at the top of the browser window</li>
+                <li>Type some text into the address bar</li>
+                <li>Right-click inside the address bar</li>
+            </ol>
+            <p><strong>Expected context menu items:</strong></p>
+            <ul>
+                <li>Cut - cuts selected text from address bar</li>
+                <li>Copy - copies selected text to clipboard</li>
+                <li>Paste - pastes from clipboard into address bar</li>
+                <li>Select All - selects all text in address bar</li>
+            </ul>
+        </div>
+        <div class="info">EXPECT: A context menu appears near the mouse cursor with the items listed above. Each item is clickable and performs its action.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 11b: Content Area Context Menu (no selection)</div>
+        <div class="steps">
+            <p><strong>Steps:</strong></p>
+            <ol>
+                <li>Make sure no text is selected on this page</li>
+                <li>Right-click anywhere on this page content</li>
+            </ol>
+            <p><strong>Expected context menu items:</strong></p>
+            <ul>
+                <li>Select All - selects all text on the page</li>
+                <li>View Source - shows the page HTML source</li>
+                <li>Developer Tools - opens the DevTools window</li>
+            </ul>
+        </div>
+        <div class="info">EXPECT: Context menu appears without a "Copy" option (nothing is selected). "Select All", "View Source", and "Developer Tools" are present.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 11c: Content Area Context Menu (with selection)</div>
+        <div class="steps">
+            <p><strong>Steps:</strong></p>
+            <ol>
+                <li>Select some text on this page by clicking and dragging</li>
+                <li>Right-click on the selected text</li>
+            </ol>
+            <p><strong>Expected context menu items:</strong></p>
+            <ul>
+                <li>Copy - copies the selected text to the clipboard</li>
+                <li>Select All - selects all text on the page</li>
+                <li>View Source - shows the page HTML source</li>
+                <li>Developer Tools - opens the DevTools window</li>
+            </ul>
+        </div>
+        <p>Here is some text you can select for testing: The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs.</p>
+        <div class="info">EXPECT: Context menu includes "Copy" at the top because text is selected. Clicking "Copy" copies the selected text.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 11d: Context Menu Behavior</div>
+        <div class="steps">
+            <p><strong>Additional checks:</strong></p>
+            <ul>
+                <li>Context menu items highlight on hover (different background color)</li>
+                <li>Clicking a menu item performs the action and closes the menu</li>
+                <li>Clicking outside the context menu closes it without performing any action</li>
+                <li>Only one context menu is visible at a time (right-clicking again replaces it)</li>
+            </ul>
+        </div>
+        <div class="info">EXPECT: Menu has hover highlighting, closes on click or click-away, and only one menu is visible at a time.</div>
+    </div>
+</body>
+</html>

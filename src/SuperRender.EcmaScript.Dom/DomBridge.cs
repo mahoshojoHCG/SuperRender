@@ -34,6 +34,20 @@ public sealed class DomBridge
 
         _engine.SetValue("document", _documentWrapper);
         _engine.SetValue("window", _windowWrapper);
+
+        // Forward browser APIs from window to the global scope so scripts
+        // can call setTimeout(...) directly without window. prefix
+        foreach (var name in new[]
+        {
+            "setTimeout", "clearTimeout",
+            "setInterval", "clearInterval",
+            "requestAnimationFrame", "cancelAnimationFrame",
+            "alert",
+        })
+        {
+            if (_windowWrapper.HasProperty(name))
+                _engine.SetValue(name, _windowWrapper.Get(name));
+        }
     }
 
     /// <summary>

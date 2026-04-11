@@ -11,14 +11,15 @@ A complete HTML+CSS rendering engine built with C# (.NET 10), using Silk.NET + V
 - `src/SuperRender.EcmaScript.Console/` — Interactive JS console (Node.js-style REPL)
 - `src/SuperRender.Browser/` — Browser application with tabs, address bar, networking, CORS, HiDPI
 - `src/SuperRender.Demo/` — Minimal Vulkan demo app (uses Gpu library)
-- `tests/SuperRender.Tests/` — xUnit tests for Core (98 tests)
-- `tests/SuperRender.EcmaScript.Tests/` — xUnit tests for EcmaScript (421 tests)
+- `tests/SuperRender.Tests/` — xUnit tests for Core (140 tests)
+- `tests/SuperRender.EcmaScript.Tests/` — xUnit tests for EcmaScript (430 tests)
+- `tests/SuperRender.Browser.Tests/` — xUnit tests for Browser + DOM bindings (140 tests)
 
 ## Build & Run
 
 ```bash
 dotnet build              # Build all projects (warnings are errors)
-dotnet test               # Run all unit tests (519 total)
+dotnet test               # Run all unit tests (710 total)
 dotnet run --project src/SuperRender.Demo  # Launch the demo window (requires Vulkan)
 dotnet run --project src/SuperRender.Browser  # Launch the browser (requires Vulkan)
 dotnet run --project src/SuperRender.EcmaScript.Console  # Launch the JS console REPL
@@ -32,9 +33,9 @@ dotnet run --project src/SuperRender.EcmaScript.Console  # Launch the JS console
 - `RenderPipeline` — orchestrator with dirty-flag optimization
 - `HtmlParser` — state-machine tokenizer + tree builder
 - `CssParser` — tokenizer + parser with shorthand expansion (margin/padding/border)
-- `StyleResolver` — cascade, specificity, `!important`, inherited properties (color, font-size, font-family, font-weight, font-style, text-align, line-height)
-- `LayoutEngine` — block layout, inline layout with word-wrap, anonymous block wrapping
-- `Painter` — generates FillRect/DrawText commands from layout tree, text-decoration rendering (underline, line-through, overline)
+- `StyleResolver` — cascade, specificity, `!important`, inherited properties (color, font-size, font-family, font-weight, font-style, text-align, line-height, white-space), `hidden` attribute, box-sizing, min/max constraints, overflow, z-index
+- `LayoutEngine` — block layout, inline layout with word-wrap, anonymous block wrapping (style-isolated), inline-block layout with shrink-to-fit and vertical alignment, position:relative/absolute with shrink-to-fit, white-space modes (normal/pre/nowrap/pre-wrap/pre-line)
+- `Painter` — generates FillRect/DrawText/PushClip/PopClip commands from layout tree, text-decoration rendering (underline, line-through, overline), z-index ordering for positioned elements, overflow:hidden clipping, list markers (bullets for ul, numbers for ol)
 - `SelectionPainter` — generates highlight FillRect commands for text selection ranges
 - `TextHitTester` — hit-tests mouse coordinates against laid-out TextRuns to find character positions
 - `LayoutBoxHitTester` — hit-tests layout boxes by coordinate to find clicked DOM elements, walks to `<a>` ancestors for link navigation
@@ -43,7 +44,7 @@ dotnet run --project src/SuperRender.EcmaScript.Console  # Launch the JS console
 - `DomMutationApi` — runtime DOM modification with automatic re-layout
 - `DomEvent` / `MouseEvent` / `KeyboardEvent` — DOM event classes with capture/target/bubble propagation
 - `EventListener` — registered event handler on a DOM node (type, handler, capture flag)
-- `UserAgentStylesheet` — default browser CSS styles (body margin, heading sizes/bold, list indent, text-level semantics: bold, italic, underline, strikethrough, monospace, link styling)
+- `UserAgentStylesheet` — default browser CSS styles (body margin, heading sizes/bold, list indent, text-level semantics: bold, italic, underline, strikethrough, monospace, link styling, pre white-space:pre)
 
 ## EcmaScript Engine
 
@@ -55,11 +56,13 @@ dotnet run --project src/SuperRender.EcmaScript.Console  # Launch the JS console
 - `JsCompiler` — AST-to-DLR Expression tree compiler with `RuntimeHelpers` for JS semantics
 - `JsValue` hierarchy — `IDynamicMetaObjectProvider` base, JsObject with prototype chain, JsFunction with closures
 - `Environment` — lexical scope chain with TDZ and const enforcement
-- `Realm` — global object + 15 intrinsic prototypes
+- `Realm` — global object + 15 intrinsic prototypes + GeneratorPrototype
 - `Builtins` — 20 standard library objects (Object, Array, String, Number, Math, JSON, Date, RegExp, Map, Set, Promise, Proxy, Reflect, etc.)
+- `GeneratorCoroutine` — thread-based coroutine for generator/async state machines
+- `JsGeneratorObject` — JS generator with next/return/throw, iterator protocol via Symbol.iterator
 - `JsEngine` — public API entry point, sandboxed .NET interop via `RegisterType<T>()`/`SetValue()`
 
-**Deferred features** tracked in `src/SuperRender.EcmaScript/es-2025-todos.md`: BigInt, generators/async runtime, WeakRef, SharedArrayBuffer, Intl, Temporal, decorators (26 items total).
+**Deferred features** tracked in `src/SuperRender.EcmaScript/es-2025-todos.md`: BigInt, WeakRef, SharedArrayBuffer, Intl, Temporal, decorators (24 items remaining — generators and async/await are now implemented).
 
 **Deferred CSS features** tracked in `src/SuperRender.Core/css-todos.md`: selectors level 4, flexbox, grid, custom properties, calc(), transforms, transitions, animations, media queries, container queries, CSS nesting, and more (34 sections).
 
@@ -115,9 +118,10 @@ A Vulkan-powered browser application with tabbed browsing support.
 - `NavigationHistory` — per-tab URI history stack with back/forward cursor
 - `ContextMenu` — reusable context menu: items with hover highlighting, hit-testing, PaintList rendering
 - `ClipboardHelper` — cross-platform clipboard access (pbcopy/pbpaste on macOS, xclip on Linux, PowerShell on Windows)
-- `ResourceLoader` — HTTP client for fetching HTML/CSS/JS resources
+- `ResourceLoader` — HTTP client for fetching HTML/CSS/JS resources, file:// URI support for local files, sr:// for embedded test pages
 - `SecurityPolicy` — same-origin checks + CORS header validation for sub-resources
-- `UrlResolver` — resolves relative URLs against base URI
+- `UrlResolver` — resolves relative URLs against base URI, normalizes address bar input (supports http/https/file/sr/about schemes, bare domain names, absolute file paths)
+- `TestPages` — provides access to embedded manual test page resources via `sr://test/{name}` protocol
 
 **HiDPI support:** Content scale derived from `FramebufferSize / Size`. Layout engine works in logical (CSS) pixels; projection matrix maps logical → physical coordinates. Font atlas is generated at `BaseFontSize * contentScale` for sharp text on Retina/HiDPI displays.
 
@@ -131,7 +135,7 @@ A Vulkan-powered browser application with tabbed browsing support.
 
 **Back/Forward history:** `NavigationHistory` per tab stores a list of URIs with a cursor index. `Tab.NavigateAsync()` pushes to history; `GoBackAsync()`/`GoForwardAsync()` move the cursor without pushing. Back/Forward chrome buttons call these methods. Address bar and window title update after history navigation.
 
-**Keyboard shortcuts:** Platform-aware (Cmd on macOS, Ctrl on Windows/Linux). Global: Cmd+T (new tab), Cmd+W (close), Cmd+Tab/Shift+Tab (switch), Cmd+L (focus address bar), Cmd+R/F5 (reload), F12/Cmd+Shift+I (toggle DevTools), Escape (unfocus). Content area: arrow keys (scroll step), Page Up/Down/Space (scroll page), Home/End (top/bottom).
+**Keyboard shortcuts:** Platform-aware (Cmd on macOS, Ctrl on Windows/Linux). Global: Cmd+T (new tab), Cmd+W (close), Cmd+Tab/Shift+Tab (switch), Cmd+L (focus+select address bar), Cmd+R/F5 (reload), Cmd+[ (back), Cmd+] (forward), F12/Cmd+Shift+I (toggle DevTools), Escape (unfocus). Content area: arrow keys (scroll step), Page Up/Down/Space (scroll page), Home/End (top/bottom).
 
 **DOM events:** `Node` has `AddEventListener`/`RemoveEventListener`/`DispatchEvent` with capture/target/bubble propagation. `DomEvent`, `MouseEvent`, `KeyboardEvent` in Core. `JsEventWrapper` bridges to JS. `InputHandler` dispatches `mousedown`/`mouseup`/`click` to hit DOM nodes. `DOMContentLoaded` and `load` fired after page load.
 
@@ -144,7 +148,7 @@ A Vulkan-powered browser application with tabbed browsing support.
 Bridges C# DOM objects to the JS runtime with correct Web API naming conventions.
 
 **Key components:**
-- `DomBridge` — entry point: installs `document` and `window` globals into JsEngine, owns `TimerScheduler`
+- `DomBridge` — entry point: installs `document` and `window` globals into JsEngine, owns `TimerScheduler`, forwards timer/event APIs (setTimeout, setInterval, requestAnimationFrame, etc.) to global scope
 - `JsNodeWrapper` — wraps Node: nodeType, parentNode, childNodes, appendChild, removeChild, insertBefore, addEventListener, removeEventListener, dispatchEvent
 - `JsElementWrapper` — wraps Element: tagName, id, className, classList, getAttribute/setAttribute, querySelector/querySelectorAll, innerHTML, style
 - `JsDocumentWrapper` — wraps Document: createElement, createTextNode, getElementById, getElementsByTagName/ClassName, body, head, title
@@ -163,7 +167,7 @@ Shared Vulkan rendering library used by both Demo and Browser.
 - `SwapchainManager` — swapchain, render pass, framebuffers
 - `PipelineManager` — quad pipeline (solid rects) + text pipeline (font atlas sampling)
 - `BufferManager` — GPU buffer allocation, vertex/index upload, texture creation
-- `VulkanRenderer` — frame loop orchestrator with HiDPI content scale support
-- `FontAtlasGenerator` — FreeType-based font atlas (1024x1024, BaseFontSize=32, HiDPI-scaled via `AtlasRenderSize`)
-- `QuadRenderer` / `TextRenderer` — PaintList → GPU vertex batch builders
+- `VulkanRenderer` — segment-based frame loop with per-segment scissor clipping, HiDPI content scale support
+- `FontAtlasGenerator` — FreeType-based multi-font atlas (1024x2048, BaseFontSize=32, HiDPI-scaled): regular + bold + monospace variants
+- `QuadRenderer` / `TextRenderer` — PaintList → GPU vertex batch builders, font variant selection (bold/monospace) via DrawTextCommand properties
 - `BitmapFontTextMeasurer` — ITextMeasurer implementation using font atlas metrics

@@ -5,6 +5,10 @@ namespace SuperRender.Core.Style;
 public enum TextAlign { Left, Right, Center, Justify }
 public enum PositionType { Static, Relative, Absolute }
 public enum FontStyleType { Normal, Italic, Oblique }
+public enum BoxSizingType { ContentBox, BorderBox }
+public enum OverflowType { Visible, Hidden, Scroll, Auto }
+public enum TextOverflowType { Clip, Ellipsis }
+public enum WhiteSpaceType { Normal, Pre, Nowrap, PreWrap, PreLine }
 
 [Flags]
 public enum TextDecorationLine
@@ -26,11 +30,28 @@ public sealed class ComputedStyle
     public EdgeSizes Padding { get; set; }
     public EdgeSizes BorderWidth { get; set; }
 
+    // Box sizing and constraints
+    public BoxSizingType BoxSizing { get; set; } = BoxSizingType.ContentBox;
+    public float MinWidth { get; set; }
+    public float MaxWidth { get; set; } = float.PositiveInfinity;
+    public float MinHeight { get; set; }
+    public float MaxHeight { get; set; } = float.PositiveInfinity;
+
+    // Overflow
+    public OverflowType Overflow { get; set; } = OverflowType.Visible;
+    public TextOverflowType TextOverflow { get; set; } = TextOverflowType.Clip;
+
     // Colors
     public Color Color { get; set; } = Color.Black;
     public Color BackgroundColor { get; set; } = Color.Transparent;
-    public Color BorderColor { get; set; } = Color.Black;
-    public string BorderStyle { get; set; } = "none";
+    public Color BorderTopColor { get; set; } = Color.Black;
+    public Color BorderRightColor { get; set; } = Color.Black;
+    public Color BorderBottomColor { get; set; } = Color.Black;
+    public Color BorderLeftColor { get; set; } = Color.Black;
+    public string BorderTopStyle { get; set; } = "none";
+    public string BorderRightStyle { get; set; } = "none";
+    public string BorderBottomStyle { get; set; } = "none";
+    public string BorderLeftStyle { get; set; } = "none";
 
     // Text
     public float FontSize { get; set; } = 16f;
@@ -41,6 +62,7 @@ public sealed class ComputedStyle
     public float LineHeight { get; set; } = 1.2f;
     public TextDecorationLine TextDecorationLine { get; set; } = TextDecorationLine.None;
     public Color? TextDecorationColor { get; set; }
+    public WhiteSpaceType WhiteSpace { get; set; } = WhiteSpaceType.Normal;
 
     // Position
     public PositionType Position { get; set; } = PositionType.Static;
@@ -48,6 +70,8 @@ public sealed class ComputedStyle
     public float Left { get; set; } = float.NaN;
     public float Right { get; set; } = float.NaN;
     public float Bottom { get; set; } = float.NaN;
+    public int ZIndex { get; set; }
+    public bool ZIndexIsAuto { get; set; } = true;
 
     public ComputedStyle Clone()
     {
@@ -59,10 +83,23 @@ public sealed class ComputedStyle
             Margin = Margin,
             Padding = Padding,
             BorderWidth = BorderWidth,
+            BoxSizing = BoxSizing,
+            MinWidth = MinWidth,
+            MaxWidth = MaxWidth,
+            MinHeight = MinHeight,
+            MaxHeight = MaxHeight,
+            Overflow = Overflow,
+            TextOverflow = TextOverflow,
             Color = Color,
             BackgroundColor = BackgroundColor,
-            BorderColor = BorderColor,
-            BorderStyle = BorderStyle,
+            BorderTopColor = BorderTopColor,
+            BorderRightColor = BorderRightColor,
+            BorderBottomColor = BorderBottomColor,
+            BorderLeftColor = BorderLeftColor,
+            BorderTopStyle = BorderTopStyle,
+            BorderRightStyle = BorderRightStyle,
+            BorderBottomStyle = BorderBottomStyle,
+            BorderLeftStyle = BorderLeftStyle,
             FontSize = FontSize,
             FontFamily = FontFamily,
             FontWeight = FontWeight,
@@ -71,11 +108,14 @@ public sealed class ComputedStyle
             LineHeight = LineHeight,
             TextDecorationLine = TextDecorationLine,
             TextDecorationColor = TextDecorationColor,
+            WhiteSpace = WhiteSpace,
             Position = Position,
             Top = Top,
             Left = Left,
             Right = Right,
             Bottom = Bottom,
+            ZIndex = ZIndex,
+            ZIndexIsAuto = ZIndexIsAuto,
         };
     }
 }

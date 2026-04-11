@@ -58,47 +58,42 @@ Implemented: `TimerScheduler` with monotonic Stopwatch clock. `setTimeout` with 
 - Remaining: microtask queue (`queueMicrotask`, `Promise.then()` scheduling)
 - *Details:* [browser-todos.md §9](src/SuperRender.Browser/browser-todos.md)
 
-### CSS — Positioning (apply in layout)
-`position: relative/absolute` and `top/left/right/bottom` are parsed but **not applied** in layout.
-- Relative offset calculation, absolute out-of-flow positioning
-- `z-index` and stacking contexts
+### CSS — Positioning (apply in layout) ~~DONE~~
+~~`position: relative/absolute` and `top/left/right/bottom` are parsed but **not applied** in layout.~~
+Implemented: Relative positioning applies visual offset without affecting siblings. Absolute positioning removes element from flow, positions relative to containing block. z-index sorts positioned elements during painting.
+- Remaining: `position: fixed`, `position: sticky`, stacking context edge cases
 - *Details:* [css-todos.md §8](src/SuperRender.Core/css-todos.md)
 
-### CSS — `inline-block` and `flow-root`
-Without `inline-block`, many common layout patterns break (buttons, inline containers, nav items).
-- `display: inline-block`, `display: flow-root`
+### CSS — `inline-block` and `flow-root` ~~DONE~~
+~~Without `inline-block`, many common layout patterns break (buttons, inline containers, nav items).~~
+Implemented: `display: inline-block` participates in inline flow with block-level internal layout. `display: flow-root` creates a new block formatting context.
 - *Details:* [css-todos.md §7](src/SuperRender.Core/css-todos.md)
 
-### CSS — `box-sizing: border-box`
-Nearly every modern site uses `* { box-sizing: border-box }`. Without it, all dimensions are wrong.
-- `box-sizing` property (content-box, border-box)
-- `min-width`, `max-width`, `min-height`, `max-height`
+### CSS — `box-sizing: border-box` ~~DONE~~
+~~Nearly every modern site uses `* { box-sizing: border-box }`. Without it, all dimensions are wrong.~~
+Implemented: `box-sizing: border-box` includes padding and border in specified width/height. `min-width`, `max-width`, `min-height`, `max-height` constraints applied in layout.
 - *Details:* [css-todos.md §6](src/SuperRender.Core/css-todos.md)
 
-### CSS — Overflow
-No overflow handling means content bleeds out of its container with no way to clip or scroll.
-- `overflow: hidden | scroll | auto` (visible is current default)
-- `text-overflow: ellipsis`
+### CSS — Overflow ~~DONE~~
+~~No overflow handling means content bleeds out of its container with no way to clip or scroll.~~
+Implemented: `overflow: hidden` clips content via PushClip/PopClip paint commands and clamps height. `text-overflow: ellipsis` parsed. `overflow: scroll | auto` parsed.
+- Remaining: scroll containers, CSS `overflow` per-element scrolling
 - *Details:* [css-todos.md §12](src/SuperRender.Core/css-todos.md)
 
-### HTML — User-agent stylesheet defaults
-Most text-level elements lack default styles: `<strong>` is not bold, `<em>` is not italic, `<code>` is not monospace, `<a>` is not blue/underlined.
-- Bold: `<strong>`, `<b>`, `<th>`
-- Italic: `<em>`, `<i>`, `<cite>`, `<var>`
-- Underline/strikethrough: `<u>`, `<ins>`, `<s>`, `<del>`
-- Monospace: `<code>`, `<kbd>`, `<samp>`, `<pre>`
-- Link styling: `<a>` blue + underline
-- Heading sizes/margins, `<blockquote>` indent, `<hr>` border
+### HTML — User-agent stylesheet defaults ~~DONE~~
+~~Most text-level elements lack default styles.~~
+Implemented: Full user-agent stylesheet with bold, italic, underline, strikethrough, monospace, link styling, heading sizes/margins, blockquote indent, hr border, pre white-space:pre, mark highlight, small size.
 - *Details:* [html-todos.md §5](src/SuperRender.Core/html-todos.md), [html-todos.md §4.2](src/SuperRender.Core/html-todos.md)
 
-### EcmaScript — Async/Await runtime
-`async`/`await` parses correctly but does not execute. Breaks most modern JS.
-- Continuation-passing transform in JsCompiler, microtask queue integration
+### EcmaScript — Async/Await runtime ~~DONE~~
+~~`async`/`await` parses correctly but does not execute. Breaks most modern JS.~~
+Implemented: Thread-based coroutine pattern. Async functions return Promises. `await` suspends and resumes on promise resolution/rejection. try/catch around await works. Multiple sequential awaits supported.
+- Remaining: microtask queue for spec-compliant scheduling
 - *Details:* [es-2025-todos.md — Async/Await](src/SuperRender.EcmaScript/es-2025-todos.md)
 
-### EcmaScript — Generator runtime
-`function*`/`yield` parses correctly but does not execute. Required by many transpiled codebases.
-- State machine compilation in JsCompiler
+### EcmaScript — Generator runtime ~~DONE~~
+~~`function*`/`yield` parses correctly but does not execute.~~
+Implemented: Thread-based coroutine for generator state machine. `next(value)` sends values, `return(value)` completes, `throw(error)` injects errors. `for-of` iteration, `yield*` delegation supported.
 - *Details:* [es-2025-todos.md — Generators](src/SuperRender.EcmaScript/es-2025-todos.md)
 
 ---
@@ -615,7 +610,7 @@ Customizable chrome colors, dark mode tab/address bar.
 
 | Priority | Count | Description |
 |----------|-------|-------------|
-| **P0** | 13 (6 done) | Critical blockers for basic browsing |
+| **P0** | 13 (13 done) | Critical blockers for basic browsing |
 | **P1** | 18 | High-priority for real-world site compatibility |
 | **P2** | 25 | Medium-priority quality and completeness |
 | **P3** | 27 | Low-priority polish and advanced specs |

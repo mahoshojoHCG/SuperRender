@@ -304,6 +304,15 @@ public sealed unsafe class PipelineManager : IDisposable
             PAttachments = &colorBlendAttachment,
         };
 
+        // Dynamic scissor so we can change clip rects per draw call
+        var dynamicState = DynamicState.Scissor;
+        var dynamicStateInfo = new PipelineDynamicStateCreateInfo
+        {
+            SType = StructureType.PipelineDynamicStateCreateInfo,
+            DynamicStateCount = 1,
+            PDynamicStates = &dynamicState,
+        };
+
         var pipelineInfo = new GraphicsPipelineCreateInfo
         {
             SType = StructureType.GraphicsPipelineCreateInfo,
@@ -315,6 +324,7 @@ public sealed unsafe class PipelineManager : IDisposable
             PRasterizationState = &rasterizer,
             PMultisampleState = &multisampling,
             PColorBlendState = &colorBlending,
+            PDynamicState = &dynamicStateInfo,
             Layout = pipelineLayout,
             RenderPass = renderPass,
             Subpass = 0,

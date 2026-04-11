@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 01 - Box Sizing and Min/Max</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 10px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+
+        .box-border {
+            box-sizing: border-box;
+            width: 300px;
+            padding: 20px;
+            border: 5px solid #cc3333;
+            background-color: #ffdddd;
+            margin-bottom: 10px;
+        }
+        .box-content {
+            box-sizing: content-box;
+            width: 300px;
+            padding: 20px;
+            border: 5px solid #3333cc;
+            background-color: #ddddff;
+            margin-bottom: 10px;
+        }
+        .box-maxwidth {
+            max-width: 200px;
+            background-color: #ddffdd;
+            border: 2px solid #33cc33;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .wide-container {
+            width: 500px;
+            background-color: #eeeeee;
+            border: 1px solid #999999;
+            padding: 10px;
+        }
+        .box-minheight {
+            min-height: 300px;
+            width: 200px;
+            background-color: #ffffdd;
+            border: 2px solid #cccc33;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 01: Box Sizing and Min/Max</h1>
+    <p><a href="index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 1a: box-sizing: border-box (width: 300px, padding: 20px, border: 5px)</div>
+        <div class="box-border">
+            BORDER-BOX: This div should be exactly 300px wide total.
+            The padding (20px each side) and border (5px each side) are included in the 300px.
+            Inner content area = 300 - 40 - 10 = 250px.
+        </div>
+        <div class="info">EXPECT: Total outer width = 300px. Red border, light red background.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 1b: box-sizing: content-box (width: 300px, padding: 20px, border: 5px)</div>
+        <div class="box-content">
+            CONTENT-BOX: This div should be 350px wide total.
+            The content area is 300px, plus padding (40px) and border (10px) = 350px.
+        </div>
+        <div class="info">EXPECT: Total outer width = 350px. Wider than the border-box div above. Blue border, light blue background.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 1c: max-width: 200px inside a 500px container</div>
+        <div class="wide-container">
+            <div class="box-maxwidth">
+                MAX-WIDTH: This div has max-width:200px. It should not exceed 200px wide even though its parent is 500px.
+            </div>
+        </div>
+        <div class="info">EXPECT: Inner green div is at most 200px wide. Grey container is 500px wide.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 1d: min-height: 300px with little content</div>
+        <div class="box-minheight">
+            MIN-HEIGHT: Short text.
+        </div>
+        <div class="info">EXPECT: Yellow div is at least 300px tall even though content is short. Should have lots of empty space below the text.</div>
+    </div>
+</body>
+</html>

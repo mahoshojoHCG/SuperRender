@@ -27,7 +27,15 @@ public sealed class DrawTextCommand : PaintCommand
     public required Color Color { get; init; }
     public int FontWeight { get; init; } = 400;
     public FontStyleType FontStyle { get; init; } = FontStyleType.Normal;
+    public string FontFamily { get; init; } = "";
 }
+
+public sealed class PushClipCommand : PaintCommand
+{
+    public required RectF Rect { get; init; }
+}
+
+public sealed class PopClipCommand : PaintCommand;
 
 public sealed class PaintList
 {
