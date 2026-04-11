@@ -20,6 +20,7 @@ public sealed class InputHandler
     private readonly Action _goForwardCallback;
     private readonly Action _onToggleDevTools;
     private bool _isDragging;
+    private bool _isAddressBarDragging;
     private float _mouseDownX;
     private float _mouseDownY;
     private Node? _mouseDownNode;
@@ -88,7 +89,11 @@ public sealed class InputHandler
 
                 case ChromeHitArea.AddressBar:
                     _chrome.AddressBarFocused = true;
-                    _chrome.CursorPosition = HitTestAddressBarCursor(x);
+                    int cursorPos = HitTestAddressBarCursor(x);
+                    _chrome.CursorPosition = cursorPos;
+                    _chrome.SelectionStart = cursorPos;
+                    _chrome.SelectionEnd = cursorPos;
+                    _isAddressBarDragging = true;
                     break;
 
                 case ChromeHitArea.GoButton:
@@ -196,9 +201,11 @@ public sealed class InputHandler
                     ReloadActiveTab();
                     return;
                 case Key.LeftBracket:
+                case Key.Left:
                     _goBackCallback();
                     return;
                 case Key.RightBracket:
+                case Key.Right:
                     _goForwardCallback();
                     return;
             }
@@ -379,6 +386,7 @@ public sealed class InputHandler
     {
         bool wasDragging = _isDragging;
         _isDragging = false;
+        _isAddressBarDragging = false;
 
         float scale = _getContentScale();
         float x = physicalX / scale;
@@ -447,11 +455,20 @@ public sealed class InputHandler
 
     public void OnMouseMove(float physicalX, float physicalY, float viewportWidth)
     {
-        if (!_isDragging) return;
-
         float scale = _getContentScale();
         float x = physicalX / scale;
         float y = physicalY / scale;
+
+        // Handle address bar drag selection
+        if (_isAddressBarDragging)
+        {
+            int pos = HitTestAddressBarCursor(x);
+            _chrome.SelectionEnd = pos;
+            _chrome.CursorPosition = pos;
+            return;
+        }
+
+        if (!_isDragging) return;
 
         var tab = _tabs.ActiveTab;
         if (tab?.LayoutRoot is null) return;

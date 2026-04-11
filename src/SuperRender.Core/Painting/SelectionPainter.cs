@@ -37,9 +37,9 @@ public static class SelectionPainter
             // Compute X offsets for the selection region within this run
             float startX = run.X;
             if (startChar > 0)
-                startX += measurer.MeasureWidth(text[..startChar], fontSize);
+                startX += measurer.MeasureWidth(text[..startChar], fontSize, run.Style.FontFamily, run.Style.FontWeight);
 
-            float endX = run.X + measurer.MeasureWidth(text[..endChar], fontSize);
+            float endX = run.X + measurer.MeasureWidth(text[..endChar], fontSize, run.Style.FontFamily, run.Style.FontWeight);
 
             list.Add(new FillRectCommand
             {

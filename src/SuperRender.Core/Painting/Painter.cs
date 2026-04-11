@@ -67,7 +67,8 @@ public sealed class Painter
             PaintBox(child, list);
         }
 
-        // Sort positioned children by z-index and paint
+        // Sort positioned children by z-index and paint in a new rendering segment
+        // (forces quads+text together so positioned elements render on top of normal flow)
         if (positioned.Count > 0)
         {
             positioned.Sort((a, b) =>
@@ -77,10 +78,18 @@ public sealed class Painter
                 return za.CompareTo(zb);
             });
 
+            // Push a full-viewport clip to start a new rendering segment
+            list.Add(new PushClipCommand
+            {
+                Rect = new RectF(-100000, -100000, 200000, 200000),
+            });
+
             foreach (var child in positioned)
             {
                 PaintBox(child, list);
             }
+
+            list.Add(new PopClipCommand());
         }
     }
 
@@ -88,6 +97,11 @@ public sealed class Painter
     {
         var bg = box.Style.BackgroundColor;
         if (bg.A <= 0) return;
+
+        // Skip box-level background for inline elements with text runs —
+        // their backgrounds are painted per-run in PaintTextRuns for tighter highlighting
+        if (box.Style.Display == DisplayType.Inline && box.TextRuns is { Count: > 0 })
+            return;
 
         var rect = box.Dimensions.BorderRect;
         if (rect.Width <= 0 || rect.Height <= 0) return;
@@ -153,6 +167,16 @@ public sealed class Painter
 
         foreach (var run in box.TextRuns)
         {
+            // Paint per-run inline background (e.g. <mark> yellow highlight)
+            if (run.Style.BackgroundColor.A > 0)
+            {
+                list.Add(new FillRectCommand
+                {
+                    Rect = new RectF(run.X, run.Y, run.Width, run.Style.FontSize),
+                    Color = run.Style.BackgroundColor,
+                });
+            }
+
             // Always paint text decoration (so underlines span spaces in links)
             PaintTextDecoration(run, list);
 
@@ -222,7 +246,7 @@ public sealed class Painter
 
         var dims = box.Dimensions;
         float fontSize = box.Style.FontSize;
-        float markerX = dims.X - fontSize; // Position marker to the left of content
+        float markerX = dims.X - fontSize * 1.2f; // Position marker to the left of content
         float markerY = dims.Y;
 
         if (ordered)
@@ -245,6 +269,8 @@ public sealed class Painter
                 Y = markerY,
                 FontSize = fontSize,
                 Color = box.Style.Color,
+                FontFamilies = box.Style.FontFamilies,
+                FontWeight = box.Style.FontWeight,
             });
         }
         else
@@ -257,6 +283,8 @@ public sealed class Painter
                 Y = markerY,
                 FontSize = fontSize,
                 Color = box.Style.Color,
+                FontFamilies = box.Style.FontFamilies,
+                FontWeight = box.Style.FontWeight,
             });
         }
     }

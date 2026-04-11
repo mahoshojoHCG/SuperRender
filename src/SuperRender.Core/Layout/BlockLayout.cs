@@ -340,6 +340,18 @@ internal static class BlockLayout
             float contentRight = InlineLayout.ComputeContentRight(absChild);
             float shrunkWidth = Math.Max(0, contentRight - dims.X);
             dims.Width = shrunkWidth;
+
+            // Recalculate X when right positioning was used, since X was
+            // originally computed with the pre-shrink width
+            if (!float.IsNaN(style.Right) && float.IsNaN(style.Left))
+            {
+                dims.X = cbDims.X + cbDims.Width - style.Right - dims.Margin.Right
+                       - dims.Border.Right - dims.Padding.Right - shrunkWidth;
+                // Re-offset text runs and children to new X position
+                float dx = dims.X - contentX;
+                if (dx != 0)
+                    OffsetSubtree(absChild, dx, 0);
+            }
         }
 
         absChild.Dimensions = dims;

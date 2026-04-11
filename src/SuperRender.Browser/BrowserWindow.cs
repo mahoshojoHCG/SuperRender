@@ -116,36 +116,56 @@ public sealed class BrowserWindow : IDisposable
             contentPaintList = activeTab.Render(contentWidth, contentHeight);
         }
 
-        // Combine: chrome + offset content
+        // Combine: content first, then chrome on top (so chrome always covers any content bleed)
         var combined = new PaintList();
-        foreach (var cmd in chromePaintList.Commands)
-            combined.Add(cmd);
 
         if (contentPaintList is not null)
         {
             float scrollY = activeTab?.Scroll.ScrollY ?? 0;
             float contentOffset = BrowserChrome.TotalChromeHeight - scrollY;
 
-            // Clip content to below chrome area
+            // Two-pass rendering: quads first, then selection highlights, then text.
+            // This ensures selection is always between backgrounds and text even when
+            // the content has nested clip segments (overflow:hidden, positioned elements).
+
+            // Pass 1: content quads (backgrounds, borders) with clip structure
             combined.Add(new PushClipCommand
             {
                 Rect = new RectF(0, BrowserChrome.TotalChromeHeight, logicalWidth, contentHeight),
             });
+            foreach (var cmd in contentPaintList.Commands)
+            {
+                var offset = OffsetCommand(cmd, contentOffset);
+                if (offset is not DrawTextCommand)
+                    combined.Add(offset);
+            }
+            combined.Add(new PopClipCommand());
 
-            // Selection highlights render behind text (quads drawn before text in Vulkan pipeline)
+            // Selection highlights (between backgrounds and text)
             if (activeTab?.Selection.HasSelection == true && activeTab.LayoutRoot is not null)
             {
+                combined.Add(new PushClipCommand
+                {
+                    Rect = new RectF(0, BrowserChrome.TotalChromeHeight, logicalWidth, contentHeight),
+                });
                 var allRuns = TextHitTester.CollectTextRuns(activeTab.LayoutRoot);
                 var highlights = SelectionPainter.BuildHighlights(activeTab.Selection, allRuns, _measurer);
                 foreach (var cmd in highlights.Commands)
                     combined.Add(OffsetCommand(cmd, contentOffset));
+                combined.Add(new PopClipCommand());
             }
 
+            // Pass 2: content text with clip structure
+            combined.Add(new PushClipCommand
+            {
+                Rect = new RectF(0, BrowserChrome.TotalChromeHeight, logicalWidth, contentHeight),
+            });
             foreach (var cmd in contentPaintList.Commands)
             {
-                combined.Add(OffsetCommand(cmd, contentOffset));
+                var offset = OffsetCommand(cmd, contentOffset);
+                if (offset is DrawTextCommand or PushClipCommand or PopClipCommand)
+                    combined.Add(offset);
             }
-
             combined.Add(new PopClipCommand());
 
             // Scrollbar (outside clip so it renders over chrome border)
@@ -155,30 +175,45 @@ public sealed class BrowserWindow : IDisposable
                 var (trackY, trackHeight, thumbY, thumbHeight) = scrollGeo.Value;
                 float barX = logicalWidth - ScrollState.BarWidth;
 
-                // Track background
+                // Track background (opaque light gray)
                 combined.Add(new FillRectCommand
                 {
                     Rect = new RectF(barX, trackY, ScrollState.BarWidth, trackHeight),
-                    Color = Color.FromRgba(0, 0, 0, 20),
+                    Color = Color.FromRgb(240, 240, 240),
                 });
 
-                // Thumb
+                // Thumb (opaque medium gray)
                 combined.Add(new FillRectCommand
                 {
                     Rect = new RectF(barX + 1, thumbY, ScrollState.BarWidth - 2, thumbHeight),
-                    Color = Color.FromRgba(0, 0, 0, 80),
+                    Color = Color.FromRgb(180, 180, 180),
                 });
             }
         }
 
+        // Chrome on top of content — in its own segment so chrome text stays above content
+        combined.Add(new PushClipCommand
+        {
+            Rect = new RectF(0, 0, logicalWidth, BrowserChrome.TotalChromeHeight),
+        });
+        foreach (var cmd in chromePaintList.Commands)
+            combined.Add(cmd);
+        combined.Add(new PopClipCommand());
+
         _lastCombinedPaintList = combined;
 
-        // Context menu renders on top of everything
+        // Context menu renders on top of everything — wrapped in its own clip segment
+        // so quads and text are rendered together, above all prior content
         if (_contextMenu is { IsVisible: true })
         {
+            combined.Add(new PushClipCommand
+            {
+                Rect = new RectF(0, 0, logicalWidth, logicalHeight),
+            });
             var menuPaintList = _contextMenu.BuildPaintList();
             foreach (var cmd in menuPaintList.Commands)
                 combined.Add(cmd);
+            combined.Add(new PopClipCommand());
         }
 
         _renderer.RenderFrame(_lastCombinedPaintList);

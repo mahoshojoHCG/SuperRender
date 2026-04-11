@@ -8,7 +8,7 @@
     <File Path=".gitignore" />
     <File Path="TODO.md" />
     <File Path="LICENSE" />
-    <File Path="MANUAL_TESTS_PLAN.md" />
+    <File Path="MANUAL_TESTS_P0.md" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/SuperRender.Core/SuperRender.Core.csproj" />

@@ -91,6 +91,50 @@ public class InlineBlockLayoutTests
         Assert.Equal(80f, box!.Dimensions.Height, 0.1f);
     }
 
+    [Fact]
+    public void InlineBlock_WrapsToNewLineWhenExceedsWidth()
+    {
+        // Mimics test 3b: inline-block boxes of varying sizes wrapping in a 500px container
+        var root = LayoutHtml(@"
+            <html><head><style>
+                .wrapper { width: 500px; }
+                .box { display: inline-block; width: 80px; height: 40px; margin: 4px; padding: 4px; border: 1px solid black; }
+                .med { display: inline-block; width: 120px; height: 60px; margin: 4px; padding: 4px; border: 1px solid black; }
+                .big { display: inline-block; width: 150px; height: 80px; margin: 4px; padding: 4px; border: 1px solid black; }
+            </style></head><body>
+                <div class='wrapper'>
+                    <div class='box'>A</div>
+                    <div class='med'>B</div>
+                    <div class='big'>C</div>
+                    <div class='box'>D</div>
+                </div>
+            </body></html>", 800);
+
+        var boxes = FindAllBoxesByClass(root, "box");
+        var medBoxes = FindAllBoxesByClass(root, "med");
+        var bigBoxes = FindAllBoxesByClass(root, "big");
+
+        Assert.Single(medBoxes);
+        Assert.Single(bigBoxes);
+        Assert.Equal(2, boxes.Count);
+
+        var a = boxes[0]; // first .box
+        var b = medBoxes[0]; // .med
+        var c = bigBoxes[0]; // .big
+        var d = boxes[1]; // second .box
+
+        // A, B, C should share the same line (bottom-aligned, so same MarginRect.Bottom)
+        float lineBottom = c.Dimensions.MarginRect.Bottom;
+        Assert.Equal(lineBottom, a.Dimensions.MarginRect.Bottom, 1f);
+        Assert.Equal(lineBottom, b.Dimensions.MarginRect.Bottom, 1f);
+
+        // B should be to the right of A
+        Assert.True(b.Dimensions.X > a.Dimensions.X);
+
+        // D should be on a new line (would exceed 500px with A+B+C+D)
+        Assert.True(d.Dimensions.MarginRect.Y >= lineBottom - 1, "D should wrap to a new line");
+    }
+
     private static LayoutBox? FindBoxByClass(LayoutBox box, string className)
     {
         if (box.DomNode is Element e && e.ClassList.Contains(className))

@@ -298,7 +298,7 @@ sr://test/13-timers.html
 | 2c | overflow:visible bleeds | | Passed | |
 | 3a | inline-block nav bar | `sr://test/03-inline-block.html` | Passed |  |
 | 3b | inline-block wrapping | | Passed | |
-| 3c | inline-block next to text | | Warning | Some spaces under the NEW are also highlighted |
+| 3c | inline-block next to text | | Passed |  |
 | 4a | position:relative | `sr://test/04-position.html` | Passed |  |
 | 4b | position:absolute | | Passed |  |
 | 4c | z-index stacking | | Passed |  |
@@ -307,9 +307,9 @@ sr://test/13-timers.html
 | 5c | white-space:nowrap | | Passed | |
 | 5d | white-space:pre-wrap | | Passed | |
 | 5e | white-space:pre-line | | Passed | |
-| 5f | `<pre>` tag | | Failed | monospaced font seems not set |
-| 6a-m | UA stylesheet elements | `sr://test/06-ua-stylesheet.html` | Failed | Strong text and B tag failed, monospaced failed; pre monospace font failed; highlight should only mark the content of characher, but some spaces under the characters are also highlighted; ul and ol bullets and numbers not shown. Others passed |
-| 7a | wheel scroll | `sr://test/07-scrolling.html` | Warning | Scroll bar is completely black. When scrolling up, the page area covers the chrome area. |
+| 5f | `<pre>` tag | | Passed |  |
+| 6a-m | UA stylesheet elements | `sr://test/06-ua-stylesheet.html` | Passed |  |
+| 7a | wheel scroll | `sr://test/07-scrolling.html` | Passed |  |
 | 7b | arrow key scroll | | Passed | |
 | 7c | page/space scroll | | Passed | |
 | 7d | home/end scroll | | Passed | |
@@ -318,13 +318,13 @@ sr://test/13-timers.html
 | 8b | target=_blank | | Passed | |
 | 8c | back/forward history | | Passed |  |
 | 8d | link appearance | | Passed |  |
-| 9a-g | keyboard shortcuts | `sr://test/09-keyboard-shortcuts.html` | Partial | Cmd+Tab and Cmd+Shift+Tab conflicts with macOS system shortcuts. Go back and go forward not working. Others passed. |
-| 10a | single paragraph select | `sr://test/10-text-selection.html` | Failed | Can't selcet texts inside the box. |
-| 10b | multi-paragraph select | | Failed | Same. |
-| 10c | mixed formatting select | | Failed | Same. |
-| 10d | different sizes select | | Failed | Same. |
-| 10e | precision select | | Failed | Same. |
-| 11a | address bar menu | `sr://test/11-context-menu.html` | Failed | Texts in address bar can't select. Content menu shows under the texts of page area. |
+| 9a-g | keyboard shortcuts | `sr://test/09-keyboard-shortcuts.html` | Passed |  |
+| 10a | single paragraph select | `sr://test/10-text-selection.html` | Passed |  |
+| 10b | multi-paragraph select | | Passed |  |
+| 10c | mixed formatting select | | Passed |  |
+| 10d | different sizes select | | Passed |  |
+| 10e | precision select | | Passed |  |
+| 11a | address bar menu | `sr://test/11-context-menu.html` | Passed |  |
 | 11b | content menu (no sel) | | Passed |  |
 | 11c | content menu (with sel) | | Passed |  |
 | 11d | menu behavior | | Passed |  |
@@ -348,9 +348,9 @@ sr://test/13-timers.html
 | 16b | sequential awaits | | Passed | |
 | 16c | async try/catch | | Passed | |
 | 16d | async + setTimeout | | Passed | |
-| 17a | card component | `sr://test/17-integration.html` | Failed | The NEW should be right-top, but dieplayed left top instead. |
+| 17a | card component | `sr://test/17-integration.html` | Passed |  |
 | 17b | two-column layout | | Passed |  |
-| 17c | overlay banner | | Failed | The overlay banner is at the bottom but covering some texts. |
+| 17c | overlay banner | | Passed |  |
 | 18a | external CSS | `sr://test/18-external-resources.html` | Passed | |
 | 18b | external JS | | Passed | |
 | 18c | combined CSS+JS | | Passed | |

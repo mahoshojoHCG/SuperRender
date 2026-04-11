@@ -11,7 +11,7 @@ A complete HTML+CSS rendering engine built with C# (.NET 10), using Silk.NET + V
 - `src/SuperRender.EcmaScript.Console/` — Interactive JS console (Node.js-style REPL)
 - `src/SuperRender.Browser/` — Browser application with tabs, address bar, networking, CORS, HiDPI
 - `src/SuperRender.Demo/` — Minimal Vulkan demo app (uses Gpu library)
-- `tests/SuperRender.Tests/` — xUnit tests for Core (156 tests)
+- `tests/SuperRender.Tests/` — xUnit tests for Core (157 tests)
 - `tests/SuperRender.EcmaScript.Tests/` — xUnit tests for EcmaScript (430 tests)
 - `tests/SuperRender.Browser.Tests/` — xUnit tests for Browser + DOM bindings (140 tests)
 
@@ -19,7 +19,7 @@ A complete HTML+CSS rendering engine built with C# (.NET 10), using Silk.NET + V
 
 ```bash
 dotnet build              # Build all projects (warnings are errors)
-dotnet test               # Run all unit tests (726 total)
+dotnet test               # Run all unit tests (727 total)
 dotnet run --project src/SuperRender.Demo  # Launch the demo window (requires Vulkan)
 dotnet run --project src/SuperRender.Browser  # Launch the browser (requires Vulkan)
 dotnet run --project src/SuperRender.EcmaScript.Console  # Launch the JS console REPL
@@ -34,10 +34,10 @@ dotnet run --project src/SuperRender.EcmaScript.Console  # Launch the JS console
 - `HtmlParser` — state-machine tokenizer + tree builder
 - `CssParser` — tokenizer + parser with shorthand expansion (margin/padding/border)
 - `StyleResolver` — cascade, specificity, `!important`, inherited properties (color, font-size, font-family, font-weight, font-style, text-align, line-height, white-space), `hidden` attribute, box-sizing, min/max constraints, overflow, z-index, CSS font-family list parsing (comma-separated with fallback)
-- `LayoutEngine` — block layout, inline layout with word-wrap, anonymous block wrapping (style-isolated), inline-block layout with shrink-to-fit and vertical alignment, position:relative/absolute with shrink-to-fit, white-space modes (normal/pre/nowrap/pre-wrap/pre-line)
-- `Painter` — generates FillRect/DrawText/PushClip/PopClip commands from layout tree, text-decoration rendering (underline, line-through, overline), z-index ordering for positioned elements, overflow:hidden clipping, list markers (bullets for ul, numbers for ol)
-- `SelectionPainter` — generates highlight FillRect commands for text selection ranges
-- `TextHitTester` — hit-tests mouse coordinates against laid-out TextRuns to find character positions
+- `LayoutEngine` — block layout, inline layout with word-wrap, anonymous block wrapping (style-isolated), inline-block layout with shrink-to-fit and visual-height vertical alignment, position:relative/absolute with shrink-to-fit and right-positioning recalculation, white-space modes (normal/pre/nowrap/pre-wrap/pre-line). TextRun height uses fontSize (character height) for tight bounds; line-height used only for inter-line spacing.
+- `Painter` — generates FillRect/DrawText/PushClip/PopClip commands from layout tree, per-run inline background painting (for `<mark>` etc.), text-decoration rendering (underline, line-through, overline), z-index ordering for positioned elements with stacking-context clip segments, overflow:hidden clipping, list markers (bullets for ul, numbers for ol)
+- `SelectionPainter` — generates highlight FillRect commands for text selection ranges, font-aware width measurement
+- `TextHitTester` — hit-tests mouse coordinates against laid-out TextRuns to find character positions, font-aware measurement, respects overflow:hidden clip regions (clipped text cannot be selected)
 - `LayoutBoxHitTester` — hit-tests layout boxes by coordinate to find clicked DOM elements, walks to `<a>` ancestors for link navigation
 - `TextSelectionState` — tracks selection start/end as `TextPosition(RunIndex, CharOffset)`
 - `VulkanRenderer` — frame loop with quad pipeline (backgrounds/borders) + text pipeline (font atlas with alpha blending), HiDPI content scale support
@@ -125,7 +125,7 @@ A Vulkan-powered browser application with tabbed browsing support.
 
 **HiDPI support:** Content scale derived from `FramebufferSize / Size`. Layout engine works in logical (CSS) pixels; projection matrix maps logical → physical coordinates. Font atlas is generated at `BaseFontSize * contentScale` for sharp text on Retina/HiDPI displays.
 
-**Text selection:** Click-and-drag in the content area creates a text selection. `TextHitTester` maps mouse coordinates to `(runIndex, charOffset)` positions. `SelectionPainter` generates blue highlight rectangles behind selected text. `TextSelectionState` tracks start/end positions with ordered normalization.
+**Text selection:** Click-and-drag in the content area creates a text selection. `TextHitTester` maps mouse coordinates to `(runIndex, charOffset)` positions with font-aware measurement and overflow:hidden clip exclusion. `SelectionPainter` generates blue highlight rectangles behind selected text. `TextSelectionState` tracks start/end positions with ordered normalization. Address bar supports click-and-drag text selection.
 
 **Context menus:** Right-click the address bar for Cut/Copy/Paste/Select All. Right-click the content area for Copy (when text selected)/Select All/View Source/Developer Tools.
 
@@ -135,7 +135,7 @@ A Vulkan-powered browser application with tabbed browsing support.
 
 **Back/Forward history:** `NavigationHistory` per tab stores a list of URIs with a cursor index. `Tab.NavigateAsync()` pushes to history; `GoBackAsync()`/`GoForwardAsync()` move the cursor without pushing. Back/Forward chrome buttons call these methods. Address bar and window title update after history navigation.
 
-**Keyboard shortcuts:** Platform-aware (Cmd on macOS, Ctrl on Windows/Linux). Global: Cmd+T (new tab), Cmd+W (close), Cmd+Tab/Shift+Tab (switch), Cmd+L (focus+select address bar), Cmd+R/F5 (reload), Cmd+[ (back), Cmd+] (forward), F12/Cmd+Shift+I (toggle DevTools), Escape (unfocus). Content area: arrow keys (scroll step), Page Up/Down/Space (scroll page), Home/End (top/bottom).
+**Keyboard shortcuts:** Platform-aware (Cmd on macOS, Ctrl on Windows/Linux). Global: Cmd+T (new tab), Cmd+W (close), Cmd+Tab/Shift+Tab (switch), Cmd+L (focus+select address bar), Cmd+R/F5 (reload), Cmd+[/Cmd+Left (back), Cmd+]/Cmd+Right (forward), F12/Cmd+Shift+I (toggle DevTools), Escape (unfocus). Content area: arrow keys (scroll step), Page Up/Down/Space (scroll page), Home/End (top/bottom).
 
 **DOM events:** `Node` has `AddEventListener`/`RemoveEventListener`/`DispatchEvent` with capture/target/bubble propagation. `DomEvent`, `MouseEvent`, `KeyboardEvent` in Core. `JsEventWrapper` bridges to JS. `InputHandler` dispatches `mousedown`/`mouseup`/`click` to hit DOM nodes. `DOMContentLoaded` and `load` fired after page load.
 
@@ -167,10 +167,10 @@ Shared Vulkan rendering library used by both Demo and Browser.
 - `SwapchainManager` — swapchain, render pass, framebuffers
 - `PipelineManager` — quad pipeline (solid rects) + text pipeline (font atlas sampling)
 - `BufferManager` — GPU buffer allocation, vertex/index upload, texture creation and update
-- `VulkanRenderer` — segment-based frame loop with per-segment scissor clipping, HiDPI content scale support, dynamic atlas texture re-upload
+- `VulkanRenderer` — segment-based frame loop with per-segment scissor clipping, HiDPI content scale support, dynamic atlas texture re-upload. `BrowserWindow` uses two-pass content rendering (quads pass → selection highlights → text pass) to ensure correct z-ordering across clip segments.
 - `FontAtlas` — dynamic glyph atlas (2048x4096, BaseFontSize=32, HiDPI-scaled): pre-renders ASCII + common symbols at startup, renders additional glyphs (CJK, Unicode) on demand via FreeType. Regular + bold + monospace variants. CJK fallback font chain. `IsDirty` flag triggers GPU texture re-upload.
 - `FontAtlasGenerator` — static helpers for atlas generation with explicit font paths
-- `SystemFontLocator` — scans system font directories, uses FreeType to read family/style names from font files, builds case-insensitive family→path index. Handles `.ttf`, `.otf`, `.ttc` (multi-face collections). Resolves CSS font-family lists with generic family fallback.
+- `SystemFontLocator` — scans system font directories, uses FreeType to read family/style names from font files, builds case-insensitive family→path index. Handles `.ttf`, `.otf`, `.ttc` (multi-face collections with per-face index tracking for bold/italic variants). Resolves CSS font-family lists with generic family fallback.
 - `GenericFontFamilies` — maps CSS generic families (serif, sans-serif, monospace, cursive, fantasy, system-ui) to platform-specific real font family names. Provides CJK fallback font lists per platform.
 - `QuadRenderer` / `TextRenderer` — PaintList → GPU vertex batch builders, font variant selection (bold/monospace) via DrawTextCommand properties and font-family list walking
 - `BitmapFontTextMeasurer` — ITextMeasurer implementation using font atlas metrics, font-family-aware measurement (selects correct glyph set for monospace/bold)

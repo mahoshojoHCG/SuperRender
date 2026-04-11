@@ -7,21 +7,29 @@ public static class TextHitTester
 {
     /// <summary>
     /// Collects all TextRuns from a layout tree into a flat document-order list.
+    /// Runs clipped by overflow:hidden ancestors are excluded.
     /// </summary>
     public static List<TextRun> CollectTextRuns(LayoutBox root)
     {
         var runs = new List<TextRun>();
-        CollectTextRunsRecursive(root, runs);
+        CollectTextRunsRecursive(root, runs, null);
         return runs;
     }
 
-    private static void CollectTextRunsRecursive(LayoutBox box, List<TextRun> runs)
+    private static void CollectTextRunsRecursive(LayoutBox box, List<TextRun> runs, RectF? clipRect)
     {
+        // Update clip region for overflow:hidden boxes
+        if (box.Style.Overflow == Style.OverflowType.Hidden)
+        {
+            var paddingRect = box.Dimensions.PaddingRect;
+            clipRect = clipRect.HasValue ? Intersect(clipRect.Value, paddingRect) : paddingRect;
+        }
+
         if (box.TextRuns is not null && box.TextRuns.Count > 0)
         {
             foreach (var run in box.TextRuns)
             {
-                if (!string.IsNullOrEmpty(run.Text))
+                if (!string.IsNullOrEmpty(run.Text) && IsRunVisible(run, clipRect))
                     runs.Add(run);
             }
             // Don't recurse into children — this box's TextRuns already include them
@@ -30,7 +38,33 @@ public static class TextHitTester
         }
 
         foreach (var child in box.Children)
-            CollectTextRunsRecursive(child, runs);
+            CollectTextRunsRecursive(child, runs, clipRect);
+    }
+
+    /// <summary>
+    /// Checks whether a text run is at least partially within the clip rect.
+    /// </summary>
+    private static bool IsRunVisible(TextRun run, RectF? clipRect)
+    {
+        if (!clipRect.HasValue) return true;
+        var clip = clipRect.Value;
+        float runBottom = run.Y + run.Height;
+        float runRight = run.X + run.Width;
+        // Run must overlap the clip rect in both axes
+        return run.X < clip.Right && runRight > clip.X
+            && run.Y < clip.Bottom && runBottom > clip.Y;
+    }
+
+    /// <summary>
+    /// Intersects two rectangles, returning the overlapping region.
+    /// </summary>
+    private static RectF Intersect(RectF a, RectF b)
+    {
+        float x = Math.Max(a.X, b.X);
+        float y = Math.Max(a.Y, b.Y);
+        float right = Math.Min(a.Right, b.Right);
+        float bottom = Math.Min(a.Bottom, b.Bottom);
+        return new RectF(x, y, Math.Max(0, right - x), Math.Max(0, bottom - y));
     }
 
     /// <summary>
@@ -80,10 +114,10 @@ public static class TextHitTester
         string text = best.Text;
         for (int i = 1; i <= text.Length; i++)
         {
-            float w = measurer.MeasureWidth(text[..i], fontSize);
+            float w = measurer.MeasureWidth(text[..i], fontSize, best.Style.FontFamily, best.Style.FontWeight);
             if (w > relX)
             {
-                float prevW = i > 1 ? measurer.MeasureWidth(text[..(i - 1)], fontSize) : 0;
+                float prevW = i > 1 ? measurer.MeasureWidth(text[..(i - 1)], fontSize, best.Style.FontFamily, best.Style.FontWeight) : 0;
                 int offset = (relX - prevW < w - relX) ? i - 1 : i;
                 return (bestRun, offset);
             }

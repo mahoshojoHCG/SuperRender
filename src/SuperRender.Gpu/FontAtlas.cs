@@ -29,6 +29,9 @@ public sealed class FontAtlas : IDisposable
     private readonly string? _boldFontPath;
     private readonly string? _monoFontPath;
     private readonly string? _cjkFontPath;
+    private readonly long _regularFaceIndex;
+    private readonly long _boldFaceIndex;
+    private readonly long _monoFaceIndex;
     private readonly float _renderSize;
     private float _maxAscent;
 
@@ -64,9 +67,12 @@ public sealed class FontAtlas : IDisposable
         var sansEntry = locator.Resolve(["sans-serif"]);
         _regularFontPath = sansEntry?.RegularPath;
         _boldFontPath = sansEntry?.BoldPath ?? _regularFontPath;
+        _regularFaceIndex = sansEntry?.RegularFaceIndex ?? 0;
+        _boldFaceIndex = sansEntry?.BoldPath != null ? sansEntry.BoldFaceIndex : _regularFaceIndex;
 
         var monoEntry = locator.Resolve(["monospace"]);
         _monoFontPath = monoEntry?.RegularPath ?? _regularFontPath;
+        _monoFaceIndex = monoEntry?.RegularPath != null ? monoEntry.RegularFaceIndex : _regularFaceIndex;
 
         // Resolve CJK fallback font
         foreach (var cjkName in GenericFontFamilies.GetCjkFallbacks())
@@ -118,18 +124,18 @@ public sealed class FontAtlas : IDisposable
         if (_lib == null || _regularFontPath == null)
             return false;
 
-        var fontPath = variant switch
+        var (fontPath, faceIndex) = variant switch
         {
-            GlyphVariant.Bold => _boldFontPath,
-            GlyphVariant.Monospace => _monoFontPath,
-            _ => _regularFontPath,
+            GlyphVariant.Bold => (_boldFontPath, _boldFaceIndex),
+            GlyphVariant.Monospace => (_monoFontPath, _monoFaceIndex),
+            _ => (_regularFontPath, _regularFaceIndex),
         };
 
-        if (fontPath != null && TryRenderGlyph(c, fontPath, dict))
+        if (fontPath != null && TryRenderGlyph(c, fontPath, faceIndex, dict))
             return true;
 
         // Try CJK fallback
-        if (_cjkFontPath != null && TryRenderGlyph(c, _cjkFontPath, dict))
+        if (_cjkFontPath != null && TryRenderGlyph(c, _cjkFontPath, 0, dict))
             return true;
 
         return false;
@@ -160,17 +166,17 @@ public sealed class FontAtlas : IDisposable
         if (_lib == null) return;
 
         // Measure ascent from regular font first
-        MeasureAscent(_regularFontPath!);
+        MeasureAscent(_regularFontPath!, _regularFaceIndex);
 
         // Pre-render regular ASCII
         for (int c = 32; c <= 126; c++)
-            TryRenderGlyph((char)c, _regularFontPath!, Glyphs);
+            TryRenderGlyph((char)c, _regularFontPath!, _regularFaceIndex, Glyphs);
 
         // Pre-render bold ASCII
         if (_boldFontPath != null)
         {
             for (int c = 32; c <= 126; c++)
-                TryRenderGlyph((char)c, _boldFontPath, BoldGlyphs);
+                TryRenderGlyph((char)c, _boldFontPath, _boldFaceIndex, BoldGlyphs);
         }
         if (BoldGlyphs.Count == 0)
             foreach (var kv in Glyphs) BoldGlyphs[kv.Key] = kv.Value;
@@ -179,7 +185,7 @@ public sealed class FontAtlas : IDisposable
         if (_monoFontPath != null)
         {
             for (int c = 32; c <= 126; c++)
-                TryRenderGlyph((char)c, _monoFontPath, MonospaceGlyphs);
+                TryRenderGlyph((char)c, _monoFontPath, _monoFaceIndex, MonospaceGlyphs);
         }
         if (MonospaceGlyphs.Count == 0)
             foreach (var kv in Glyphs) MonospaceGlyphs[kv.Key] = kv.Value;
@@ -188,22 +194,22 @@ public sealed class FontAtlas : IDisposable
         char[] extraChars = ['\u2022', '\u2013', '\u2014', '\u2018', '\u2019', '\u201C', '\u201D', '\u2026'];
         foreach (char c in extraChars)
         {
-            TryRenderGlyph(c, _regularFontPath!, Glyphs);
-            if (_boldFontPath != null) TryRenderGlyph(c, _boldFontPath, BoldGlyphs);
+            TryRenderGlyph(c, _regularFontPath!, _regularFaceIndex, Glyphs);
+            if (_boldFontPath != null) TryRenderGlyph(c, _boldFontPath, _boldFaceIndex, BoldGlyphs);
         }
 
         // Don't mark initial render as dirty — the GPU texture will be created from PixelData
         IsDirty = false;
     }
 
-    private unsafe void MeasureAscent(string fontPath)
+    private unsafe void MeasureAscent(string fontPath, long faceIndex)
     {
         if (_lib == null) return;
 
         FT_FaceRec_* facePtr;
         fixed (byte* pPath = System.Text.Encoding.UTF8.GetBytes(fontPath + "\0"))
         {
-            if (FT.FT_New_Face(_lib.Native, pPath, 0, &facePtr) != FT_Error.FT_Err_Ok)
+            if (FT.FT_New_Face(_lib.Native, pPath, (nint)faceIndex, &facePtr) != FT_Error.FT_Err_Ok)
                 return;
         }
 
@@ -229,9 +235,10 @@ public sealed class FontAtlas : IDisposable
     // Cache of opened FreeType faces to avoid reopening for each glyph
     private readonly Dictionary<string, nint> _faceCache = new();
 
-    private unsafe nint GetOrOpenFace(string fontPath)
+    private unsafe nint GetOrOpenFace(string fontPath, long faceIndex)
     {
-        if (_faceCache.TryGetValue(fontPath, out var cached))
+        var key = $"{fontPath}:{faceIndex}";
+        if (_faceCache.TryGetValue(key, out var cached))
             return cached;
 
         if (_lib == null) return 0;
@@ -239,22 +246,22 @@ public sealed class FontAtlas : IDisposable
         FT_FaceRec_* facePtr;
         fixed (byte* pPath = System.Text.Encoding.UTF8.GetBytes(fontPath + "\0"))
         {
-            if (FT.FT_New_Face(_lib.Native, pPath, 0, &facePtr) != FT_Error.FT_Err_Ok)
+            if (FT.FT_New_Face(_lib.Native, pPath, (nint)faceIndex, &facePtr) != FT_Error.FT_Err_Ok)
                 return 0;
         }
 
         FT.FT_Set_Pixel_Sizes(facePtr, 0, (uint)_renderSize);
 
         var ptr = (nint)facePtr;
-        _faceCache[fontPath] = ptr;
+        _faceCache[key] = ptr;
         return ptr;
     }
 
-    private unsafe bool TryRenderGlyph(char c, string fontPath, Dictionary<char, GlyphInfo> dict)
+    private unsafe bool TryRenderGlyph(char c, string fontPath, long faceIndex, Dictionary<char, GlyphInfo> dict)
     {
         if (dict.ContainsKey(c)) return true;
 
-        var faceNative = GetOrOpenFace(fontPath);
+        var faceNative = GetOrOpenFace(fontPath, faceIndex);
         if (faceNative == 0) return false;
 
         var facePtr = (FT_FaceRec_*)faceNative;

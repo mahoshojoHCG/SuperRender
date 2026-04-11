@@ -12,7 +12,8 @@ internal static class InlineLayout
 
         float cursorX = dims.X;
         float cursorY = dims.Y;
-        float lineHeight = 0;
+        float lineHeight = 0;      // line-height based (for inter-line spacing)
+        float visualLineHeight = 0; // max of font sizes + inline-block heights (for alignment)
         float availableWidth = dims.Width;
         var whiteSpace = anonymousBlock.Style.WhiteSpace;
 
@@ -24,7 +25,10 @@ internal static class InlineLayout
             if (child.BoxType == LayoutBoxType.InlineBlock)
             {
                 LayoutInlineBlockChild(child, ref cursorX, ref cursorY, ref lineHeight,
-                    dims.X, availableWidth, measurer, currentLineRuns, whiteSpace);
+                    dims.X, availableWidth, measurer, currentLineRuns, currentLineBoxes, whiteSpace);
+                // Inline-block outer height contributes to both lineHeight and visual height
+                float outerH = child.Dimensions.MarginRect.Height;
+                visualLineHeight = Math.Max(visualLineHeight, outerH);
                 currentLineBoxes.Add(child);
             }
             else if (child.TextContent != null)
@@ -45,10 +49,11 @@ internal static class InlineLayout
                         if (word == "\n")
                         {
                             AlignLine(currentLineRuns, dims.X, availableWidth, child.Style.TextAlign);
-                            AlignLineBoxes(currentLineBoxes, cursorY, lineHeight);
+                            AlignLineBoxes(currentLineBoxes, cursorY, visualLineHeight);
                             cursorY += lineHeight > 0 ? lineHeight : lh;
                             cursorX = dims.X;
                             lineHeight = 0;
+                            visualLineHeight = 0;
                             currentLineRuns = [];
                             currentLineBoxes = [];
                             continue;
@@ -63,10 +68,11 @@ internal static class InlineLayout
                     {
                         // New line
                         AlignLine(currentLineRuns, dims.X, availableWidth, child.Style.TextAlign);
-                        AlignLineBoxes(currentLineBoxes, cursorY, lineHeight);
+                        AlignLineBoxes(currentLineBoxes, cursorY, visualLineHeight);
                         cursorY += lineHeight;
                         cursorX = dims.X;
                         lineHeight = 0;
+                        visualLineHeight = 0;
                         currentLineRuns = [];
                         currentLineBoxes = [];
                     }
@@ -77,7 +83,7 @@ internal static class InlineLayout
                         X = cursorX,
                         Y = cursorY,
                         Width = wordWidth,
-                        Height = lh,
+                        Height = fontSize,
                         Style = style,
                     };
 
@@ -86,6 +92,7 @@ internal static class InlineLayout
 
                     cursorX += wordWidth;
                     lineHeight = Math.Max(lineHeight, lh);
+                    visualLineHeight = Math.Max(visualLineHeight, fontSize);
                 }
             }
             else
@@ -97,10 +104,13 @@ internal static class InlineLayout
         }
 
         // Finish last line
-        AlignLineBoxes(currentLineBoxes, cursorY, lineHeight);
+        AlignLineBoxes(currentLineBoxes, cursorY, visualLineHeight);
         if (lineHeight > 0)
         {
-            cursorY += lineHeight;
+            // Use visual height for the last line so block content height
+            // is tight around characters (line-height only spaces between lines).
+            float lastLineHeight = visualLineHeight > 0 ? visualLineHeight : lineHeight;
+            cursorY += lastLineHeight;
         }
 
         dims.Height = cursorY - dims.Y;
@@ -149,7 +159,7 @@ internal static class InlineLayout
             if (child.BoxType == LayoutBoxType.InlineBlock)
             {
                 LayoutInlineBlockChild(child, ref cursorX, ref cursorY, ref lineHeight,
-                    lineStartX, availableWidth, measurer, currentLineRuns, style.WhiteSpace);
+                    lineStartX, availableWidth, measurer, currentLineRuns, [], style.WhiteSpace);
             }
             else if (child.TextContent != null)
             {
@@ -191,7 +201,7 @@ internal static class InlineLayout
                         X = cursorX,
                         Y = cursorY,
                         Width = wordWidth,
-                        Height = lh,
+                        Height = fontSize,
                         Style = style,
                     };
 
@@ -201,7 +211,7 @@ internal static class InlineLayout
 
                     cursorX += wordWidth;
                     lineHeight = Math.Max(lineHeight, lh);
-                    maxRunHeight = Math.Max(maxRunHeight, lh);
+                    maxRunHeight = Math.Max(maxRunHeight, fontSize);
                 }
             }
         }
@@ -221,7 +231,8 @@ internal static class InlineLayout
 
     private static void LayoutInlineBlockChild(LayoutBox child, ref float cursorX, ref float cursorY,
         ref float lineHeight, float lineStartX, float availableWidth,
-        ITextMeasurer measurer, List<TextRun> currentLineRuns, WhiteSpaceType parentWs)
+        ITextMeasurer measurer, List<TextRun> currentLineRuns, List<LayoutBox> currentLineBoxes,
+        WhiteSpaceType parentWs)
     {
         var style = child.Style;
         var marginLeft = float.IsNaN(style.Margin.Left) ? 0 : style.Margin.Left;
@@ -241,10 +252,12 @@ internal static class InlineLayout
             if (canWrap && cursorX - lineStartX + estimatedWidth > availableWidth && cursorX > lineStartX)
             {
                 AlignLine(currentLineRuns, lineStartX, availableWidth, child.Style.TextAlign);
+                AlignLineBoxes(currentLineBoxes, cursorY, lineHeight);
                 cursorY += lineHeight;
                 cursorX = lineStartX;
                 lineHeight = 0;
                 currentLineRuns.Clear();
+                currentLineBoxes.Clear();
             }
         }
 
@@ -289,10 +302,12 @@ internal static class InlineLayout
             {
                 // Wrap to next line and re-layout at the new position
                 AlignLine(currentLineRuns, lineStartX, availableWidth, child.Style.TextAlign);
+                AlignLineBoxes(currentLineBoxes, cursorY, lineHeight);
                 cursorY += lineHeight;
                 cursorX = lineStartX;
                 lineHeight = 0;
                 currentLineRuns.Clear();
+                currentLineBoxes.Clear();
 
                 containerWidth = availableWidth;
                 container = new BoxDimensions
@@ -368,7 +383,7 @@ internal static class InlineLayout
                     X = cursorX,
                     Y = cursorY,
                     Width = wordWidth,
-                    Height = lh,
+                    Height = fontSize,
                     Style = style,
                 });
 
@@ -376,7 +391,7 @@ internal static class InlineLayout
                 lineHeight = Math.Max(lineHeight, lh);
             }
 
-            if (lineHeight > 0) cursorY += lineHeight;
+            if (lineHeight > 0) cursorY += fontSize;
 
             var dims = box.Dimensions;
             dims.X = containingBlock.X;

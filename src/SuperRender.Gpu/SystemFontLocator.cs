@@ -14,7 +14,11 @@ public sealed class SystemFontLocator : IDisposable
         string? RegularPath,
         string? BoldPath,
         string? ItalicPath,
-        string? BoldItalicPath);
+        string? BoldItalicPath,
+        long RegularFaceIndex = 0,
+        long BoldFaceIndex = 0,
+        long ItalicFaceIndex = 0,
+        long BoldItalicFaceIndex = 0);
 
     private readonly Dictionary<string, MutableEntry> _families = new(StringComparer.OrdinalIgnoreCase);
     private FreeTypeLibrary? _lib;
@@ -119,7 +123,7 @@ public sealed class SystemFontLocator : IDisposable
             }
 
             long numFaces = facePtr->num_faces;
-            RegisterFaceInfo(facePtr, filePath);
+            RegisterFaceInfo(facePtr, filePath, 0);
             FT.FT_Done_Face(facePtr);
 
             // For TTC collections, scan additional faces
@@ -132,7 +136,7 @@ public sealed class SystemFontLocator : IDisposable
                         continue;
                 }
 
-                RegisterFaceInfo(facePtr, filePath);
+                RegisterFaceInfo(facePtr, filePath, i);
                 FT.FT_Done_Face(facePtr);
             }
         }
@@ -142,7 +146,7 @@ public sealed class SystemFontLocator : IDisposable
         }
     }
 
-    private unsafe void RegisterFaceInfo(FT_FaceRec_* facePtr, string filePath)
+    private unsafe void RegisterFaceInfo(FT_FaceRec_* facePtr, string filePath, long faceIndex)
     {
         var familyName = facePtr->family_name == null
             ? null
@@ -166,13 +170,25 @@ public sealed class SystemFontLocator : IDisposable
         }
 
         if (isBold && isItalic)
+        {
             entry.BoldItalicPath ??= filePath;
+            if (entry.BoldItalicPath == filePath) entry.BoldItalicFaceIndex = faceIndex;
+        }
         else if (isBold)
+        {
             entry.BoldPath ??= filePath;
+            if (entry.BoldPath == filePath) entry.BoldFaceIndex = faceIndex;
+        }
         else if (isItalic)
+        {
             entry.ItalicPath ??= filePath;
+            if (entry.ItalicPath == filePath) entry.ItalicFaceIndex = faceIndex;
+        }
         else
+        {
             entry.RegularPath ??= filePath;
+            if (entry.RegularPath == filePath) entry.RegularFaceIndex = faceIndex;
+        }
     }
 
     private static string[] GetSystemFontDirectories()
@@ -215,12 +231,20 @@ public sealed class SystemFontLocator : IDisposable
         public string? BoldPath { get; set; }
         public string? ItalicPath { get; set; }
         public string? BoldItalicPath { get; set; }
+        public long RegularFaceIndex { get; set; }
+        public long BoldFaceIndex { get; set; }
+        public long ItalicFaceIndex { get; set; }
+        public long BoldItalicFaceIndex { get; set; }
 
         public FontFamilyEntry ToRecord() => new(
             FamilyName,
             RegularPath,
             BoldPath,
             ItalicPath,
-            BoldItalicPath);
+            BoldItalicPath,
+            RegularFaceIndex,
+            BoldFaceIndex,
+            ItalicFaceIndex,
+            BoldItalicFaceIndex);
     }
 }
