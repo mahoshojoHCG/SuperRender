@@ -1,0 +1,138 @@
+namespace SuperRender.EcmaScript.Compiler.Lexing;
+
+public enum TokenType
+{
+    // Literals
+    NumericLiteral,
+    StringLiteral,
+    TemplateLiteral,
+    TemplateHead,
+    TemplateMiddle,
+    TemplateTail,
+    RegExpLiteral,
+    TrueLiteral,
+    FalseLiteral,
+    NullLiteral,
+
+    // Identifier
+    Identifier,
+
+    // Keywords
+    Var,
+    Let,
+    Const,
+    Function,
+    Return,
+    If,
+    Else,
+    For,
+    While,
+    Do,
+    Switch,
+    Case,
+    Default,
+    Break,
+    Continue,
+    Throw,
+    Try,
+    Catch,
+    Finally,
+    New,
+    Delete,
+    Typeof,
+    Void,
+    In,
+    Of,
+    Instanceof,
+    This,
+    Super,
+    Class,
+    Extends,
+    Import,
+    Export,
+    From,
+    As,
+    Yield,
+    Async,
+    Await,
+    Static,
+    Get,
+    Set,
+    Debugger,
+    With,
+
+    // Punctuation
+    LeftParen,
+    RightParen,
+    LeftBrace,
+    RightBrace,
+    LeftBracket,
+    RightBracket,
+    Semicolon,
+    Comma,
+    Dot,
+    Ellipsis,
+    QuestionDot,
+    Colon,
+    Arrow,
+    QuestionMark,
+    Hash,
+
+    // Arithmetic operators
+    Plus,
+    Minus,
+    Star,
+    StarStar,
+    Slash,
+    Percent,
+
+    // Increment/Decrement
+    PlusPlus,
+    MinusMinus,
+
+    // Bitwise operators
+    LeftShift,
+    RightShift,
+    UnsignedRightShift,
+    Ampersand,
+    Pipe,
+    Caret,
+    Tilde,
+
+    // Logical operators
+    Bang,
+    AmpersandAmpersand,
+    PipePipe,
+    QuestionQuestion,
+
+    // Comparison operators
+    LessThan,
+    GreaterThan,
+    LessThanEqual,
+    GreaterThanEqual,
+    EqualEqual,
+    BangEqual,
+    EqualEqualEqual,
+    BangEqualEqual,
+
+    // Assignment operators
+    Assign,
+    PlusAssign,
+    MinusAssign,
+    StarAssign,
+    SlashAssign,
+    PercentAssign,
+    StarStarAssign,
+    LeftShiftAssign,
+    RightShiftAssign,
+    UnsignedRightShiftAssign,
+    AmpersandAssign,
+    PipeAssign,
+    CaretAssign,
+    AmpersandAmpersandAssign,
+    PipePipeAssign,
+    QuestionQuestionAssign,
+
+    // Special
+    EndOfFile,
+}

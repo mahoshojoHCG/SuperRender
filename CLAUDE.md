@@ -4,14 +4,23 @@ A complete HTML+CSS rendering engine built with C# (.NET 10), using Silk.NET + V
 
 ## Project Structure
 
-- `src/SuperRender.Core/` — Core library (zero external deps): HTML/CSS parsers, DOM, style resolution, layout engine, painting, user-agent stylesheet
-- `src/SuperRender.Gpu/` — Shared Vulkan rendering infrastructure: GPU context, pipelines, font atlas, batch renderers
-- `src/SuperRender.EcmaScript/` — ECMAScript 2025 engine (DLR-based, zero external deps)
-- `src/SuperRender.EcmaScript.Dom/` — JS DOM API bindings: bridges C# DOM to JS runtime (document, element, window APIs)
-- `src/SuperRender.EcmaScript.Console/` — Interactive JS console (Node.js-style REPL)
-- `src/SuperRender.Browser/` — Browser application with tabs, address bar, networking, CORS, HiDPI
-- `src/SuperRender.Demo/` — Minimal Vulkan demo app (uses Gpu library)
-- `tests/SuperRender.Tests/` — xUnit tests for Core (157 tests)
+- `src/Document/`
+  - `SuperRender.Document/` — Document model: DOM (Node, Element, Document), HTML/CSS parsers, Stylesheet, Selector, Color, events, DomMutationApi (zero external deps)
+- `src/Render/`
+  - `SuperRender.Renderer.Rendering/` — Style resolution, layout engine, painting, RenderPipeline orchestrator
+  - `SuperRender.Renderer.Gpu/` — Shared Vulkan rendering infrastructure: GPU context, pipelines, font atlas, batch renderers
+- `src/EcmaScript/`
+  - `SuperRender.EcmaScript.Compiler/` — Lexer, Parser, AST, JsCompiler (DLR expression tree compiler)
+  - `SuperRender.EcmaScript.Runtime/` — JsValue types, Environment, Realm, Builtins (20 standard library objects), Errors
+  - `SuperRender.EcmaScript.Engine/` — JsEngine public API, .NET interop (TypeProxy, ObjectProxy)
+  - `SuperRender.EcmaScript.Repl/` — Interactive JS console (Node.js-style REPL)
+  - `SuperRender.EcmaScript.Dom/` — JS DOM API bindings: bridges C# DOM to JS runtime (document, element, window APIs)
+- `src/Browser/`
+  - `SuperRender.Browser/` — Browser application with tabs, address bar, networking, CORS, HiDPI
+- `src/Demo/`
+  - `SuperRender.Demo/` — Minimal Vulkan demo app (uses Gpu library)
+- `tests/SuperRender.Document.Tests/` — xUnit tests for Document (43 tests: HTML, CSS, DOM)
+- `tests/SuperRender.Renderer.Tests/` — xUnit tests for Renderer (114 tests: Style, Layout, Painting)
 - `tests/SuperRender.EcmaScript.Tests/` — xUnit tests for EcmaScript (430 tests)
 - `tests/SuperRender.Browser.Tests/` — xUnit tests for Browser + DOM bindings (140 tests)
 
@@ -20,9 +29,9 @@ A complete HTML+CSS rendering engine built with C# (.NET 10), using Silk.NET + V
 ```bash
 dotnet build              # Build all projects (warnings are errors)
 dotnet test               # Run all unit tests (727 total)
-dotnet run --project src/SuperRender.Demo  # Launch the demo window (requires Vulkan)
-dotnet run --project src/SuperRender.Browser  # Launch the browser (requires Vulkan)
-dotnet run --project src/SuperRender.EcmaScript.Console  # Launch the JS console REPL
+dotnet run --project src/Demo/SuperRender.Demo  # Launch the demo window (requires Vulkan)
+dotnet run --project src/Browser/SuperRender.Browser  # Launch the browser (requires Vulkan)
+dotnet run --project src/EcmaScript/SuperRender.EcmaScript.Repl  # Launch the JS console REPL
 ```
 
 ## Architecture
@@ -62,13 +71,13 @@ dotnet run --project src/SuperRender.EcmaScript.Console  # Launch the JS console
 - `JsGeneratorObject` — JS generator with next/return/throw, iterator protocol via Symbol.iterator
 - `JsEngine` — public API entry point, sandboxed .NET interop via `RegisterType<T>()`/`SetValue()`
 
-**Deferred features** tracked in `src/SuperRender.EcmaScript/es-2025-todos.md`: BigInt, WeakRef, SharedArrayBuffer, Intl, Temporal, decorators (24 items remaining — generators and async/await are now implemented).
+**Deferred features** tracked in `src/EcmaScript/SuperRender.EcmaScript.Compiler/es-2025-todos.md`: BigInt, WeakRef, SharedArrayBuffer, Intl, Temporal, decorators (24 items remaining — generators and async/await are now implemented).
 
-**Deferred CSS features** tracked in `src/SuperRender.Core/css-todos.md`: selectors level 4, flexbox, grid, custom properties, calc(), transforms, transitions, animations, media queries, container queries, CSS nesting, and more (34 sections).
+**Deferred CSS features** tracked in `src/Document/SuperRender.Document/css-todos.md`: selectors level 4, flexbox, grid, custom properties, calc(), transforms, transitions, animations, media queries, container queries, CSS nesting, and more (34 sections).
 
-**Deferred HTML features** tracked in `src/SuperRender.Core/html-todos.md`: full WHATWG tokenizer states, tree construction algorithm, adoption agency, forms, tables, embedded content, events, Shadow DOM, MutationObserver, user-agent stylesheet, and more (10 sections).
+**Deferred HTML features** tracked in `src/Document/SuperRender.Document/html-todos.md`: full WHATWG tokenizer states, tree construction algorithm, adoption agency, forms, tables, embedded content, events, Shadow DOM, MutationObserver, user-agent stylesheet, and more (10 sections).
 
-**Deferred browser features** tracked in `src/SuperRender.Browser/browser-todos.md`: navigation history, keyboard shortcuts, content scrolling, page zoom, cookies, HTTP caching, security hardening, DOM events, timers, images, form elements, find-in-page, dev tools, bookmarks, downloads, link navigation, fetch API, and more (25 sections + experimental ideas).
+**Deferred browser features** tracked in `src/Browser/SuperRender.Browser/browser-todos.md`: navigation history, keyboard shortcuts, content scrolling, page zoom, cookies, HTTP caching, security hardening, DOM events, timers, images, form elements, find-in-page, dev tools, bookmarks, downloads, link navigation, fetch API, and more (25 sections + experimental ideas).
 
 ## EcmaScript Console
 
@@ -95,14 +104,16 @@ Node.js-style interactive REPL powered by the EcmaScript engine.
 
 ## Development Guidelines
 
-- Core library must remain dependency-free (pure C#)
-- EcmaScript engine must remain dependency-free (pure C#, DLR ships with .NET)
-- EcmaScript Console has no dependencies beyond the EcmaScript engine
-- All Vulkan/GPU code stays in the Gpu project (shared by Demo and Browser)
+- Document project must remain dependency-free (pure C#)
+- EcmaScript.Compiler, Runtime, and Engine must remain dependency-free (pure C#, DLR ships with .NET)
+- EcmaScript.Repl has no dependencies beyond the EcmaScript.Engine project
+- All Vulkan/GPU code stays in the Renderer.Gpu project (shared by Demo and Browser)
 - `unsafe` is enabled globally (required by Silk.NET Vulkan bindings)
 - Tests use `MonospaceTextMeasurer` (deterministic, no GPU needed)
 - EcmaScript engine defaults to strict mode; no sloppy-mode support
 - .NET interop is sandboxed: only explicitly mounted types are accessible from JS
+- The `Document` class requires a `DomDocument` using alias in files under `SuperRender.Document.*` or `SuperRender.Renderer.*` namespaces due to namespace collision with the `SuperRender.Document` namespace segment
+- Embedded resource names are derived via reflection (`typeof(T).Assembly.GetName().Name`), never hardcoded — keeps resource lookup stable across project renames
 
 ### GPU-First Rendering
 
@@ -148,7 +159,7 @@ A Vulkan-powered browser application with tabbed browsing support.
 
 **Keyboard shortcuts:** Platform-aware (Cmd on macOS, Ctrl on Windows/Linux). Global: Cmd+T (new tab), Cmd+W (close), Cmd+Tab/Shift+Tab (switch), Cmd+L (focus+select address bar), Cmd+R/F5 (reload), Cmd+[/Cmd+Left (back), Cmd+]/Cmd+Right (forward), F12/Cmd+Shift+I (toggle DevTools), Escape (unfocus). Content area: arrow keys (scroll step), Page Up/Down/Space (scroll page), Home/End (top/bottom).
 
-**DOM events:** `Node` has `AddEventListener`/`RemoveEventListener`/`DispatchEvent` with capture/target/bubble propagation. `DomEvent`, `MouseEvent`, `KeyboardEvent` in Core. `JsEventWrapper` bridges to JS. `InputHandler` dispatches `mousedown`/`mouseup`/`click` to hit DOM nodes. `DOMContentLoaded` and `load` fired after page load.
+**DOM events:** `Node` has `AddEventListener`/`RemoveEventListener`/`DispatchEvent` with capture/target/bubble propagation. `DomEvent`, `MouseEvent`, `KeyboardEvent` in Document. `JsEventWrapper` bridges to JS. `InputHandler` dispatches `mousedown`/`mouseup`/`click` to hit DOM nodes. `DOMContentLoaded` and `load` fired after page load.
 
 **Timers:** `TimerScheduler` (in EcmaScript.Dom) uses `Stopwatch` for monotonic time. `setTimeout` with real delay, `setInterval` (min 4ms), `requestAnimationFrame` (fires next frame). Timer queue drained in `BrowserWindow.OnRender` before painting. `cancelAnimationFrame`/`clearTimeout`/`clearInterval` cancel by ID.
 

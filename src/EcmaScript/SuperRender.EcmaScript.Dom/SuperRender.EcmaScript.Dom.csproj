@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SuperRender.EcmaScript.Engine\SuperRender.EcmaScript.Engine.csproj" />
+    <ProjectReference Include="..\..\Document\SuperRender.Document\SuperRender.Document.csproj" />
+  </ItemGroup>
+</Project>

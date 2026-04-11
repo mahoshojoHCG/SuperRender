@@ -1,9 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-  </PropertyGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\SuperRender.Core\SuperRender.Core.csproj" />
-    <ProjectReference Include="..\SuperRender.Gpu\SuperRender.Gpu.csproj" />
-  </ItemGroup>
-</Project>

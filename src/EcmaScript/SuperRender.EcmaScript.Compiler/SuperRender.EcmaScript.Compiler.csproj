@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SuperRender.EcmaScript.Runtime\SuperRender.EcmaScript.Runtime.csproj" />
+  </ItemGroup>
+</Project>

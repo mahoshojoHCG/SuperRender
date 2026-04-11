@@ -1,4 +1,4 @@
-using SuperRender.EcmaScript.Interop;
+using SuperRender.EcmaScript.Engine;
 using SuperRender.EcmaScript.Runtime;
 using Xunit;
 

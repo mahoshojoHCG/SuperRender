@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Document\SuperRender.Document\SuperRender.Document.csproj" />
+    <ProjectReference Include="..\..\Render\SuperRender.Renderer.Rendering\SuperRender.Renderer.Rendering.csproj" />
+    <ProjectReference Include="..\..\Render\SuperRender.Renderer.Gpu\SuperRender.Renderer.Gpu.csproj" />
+  </ItemGroup>
+</Project>

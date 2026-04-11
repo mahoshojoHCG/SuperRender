@@ -4,10 +4,11 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\SuperRender.Browser\SuperRender.Browser.csproj" />
-    <ProjectReference Include="..\..\src\SuperRender.Core\SuperRender.Core.csproj" />
-    <ProjectReference Include="..\..\src\SuperRender.EcmaScript\SuperRender.EcmaScript.csproj" />
-    <ProjectReference Include="..\..\src\SuperRender.EcmaScript.Dom\SuperRender.EcmaScript.Dom.csproj" />
+    <ProjectReference Include="..\..\src\Browser\SuperRender.Browser\SuperRender.Browser.csproj" />
+    <ProjectReference Include="..\..\src\Document\SuperRender.Document\SuperRender.Document.csproj" />
+    <ProjectReference Include="..\..\src\Render\SuperRender.Renderer.Rendering\SuperRender.Renderer.Rendering.csproj" />
+    <ProjectReference Include="..\..\src\EcmaScript\SuperRender.EcmaScript.Engine\SuperRender.EcmaScript.Engine.csproj" />
+    <ProjectReference Include="..\..\src\EcmaScript\SuperRender.EcmaScript.Dom\SuperRender.EcmaScript.Dom.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="xunit" Version="2.9.3" />

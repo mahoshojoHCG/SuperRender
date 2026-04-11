@@ -1,7 +1,7 @@
-using SuperRender.Core;
-using SuperRender.Core.Dom;
+using DomDocument = SuperRender.Document.Dom.Document;
+using SuperRender.Renderer.Rendering;
 using SuperRender.EcmaScript.Dom;
-using SuperRender.EcmaScript.Interop;
+using SuperRender.EcmaScript.Engine;
 using SuperRender.EcmaScript.Runtime;
 using Xunit;
 
@@ -9,9 +9,9 @@ namespace SuperRender.Browser.Tests;
 
 public class DomBindingTests
 {
-    private static (JsEngine engine, Document doc, DomBridge bridge) CreateTestEnvironment(string html)
+    private static (JsEngine engine, DomDocument doc, DomBridge bridge) CreateTestEnvironment(string html)
     {
-        var pipeline = new RenderPipeline(new SuperRender.Core.Layout.MonospaceTextMeasurer());
+        var pipeline = new RenderPipeline(new SuperRender.Renderer.Rendering.Layout.MonospaceTextMeasurer());
         var doc = pipeline.LoadHtml(html);
         var engine = new JsEngine();
         var bridge = new DomBridge(engine, doc);

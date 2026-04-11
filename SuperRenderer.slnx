@@ -10,17 +10,29 @@
     <File Path="LICENSE" />
     <File Path="MANUAL_TESTS_P0.md" />
   </Folder>
-  <Folder Name="/src/">
-    <Project Path="src/SuperRender.Core/SuperRender.Core.csproj" />
-    <Project Path="src/SuperRender.Gpu/SuperRender.Gpu.csproj" />
-    <Project Path="src/SuperRender.Demo/SuperRender.Demo.csproj" />
-    <Project Path="src/SuperRender.EcmaScript/SuperRender.EcmaScript.csproj" />
-    <Project Path="src/SuperRender.EcmaScript.Console/SuperRender.EcmaScript.Console.csproj" />
-    <Project Path="src/SuperRender.EcmaScript.Dom/SuperRender.EcmaScript.Dom.csproj" />
-    <Project Path="src/SuperRender.Browser/SuperRender.Browser.csproj" />
+  <Folder Name="/src/Document/">
+    <Project Path="src/Document/SuperRender.Document/SuperRender.Document.csproj" />
+  </Folder>
+  <Folder Name="/src/Render/">
+    <Project Path="src/Render/SuperRender.Renderer.Rendering/SuperRender.Renderer.Rendering.csproj" />
+    <Project Path="src/Render/SuperRender.Renderer.Gpu/SuperRender.Renderer.Gpu.csproj" />
+  </Folder>
+  <Folder Name="/src/EcmaScript/">
+    <Project Path="src/EcmaScript/SuperRender.EcmaScript.Compiler/SuperRender.EcmaScript.Compiler.csproj" />
+    <Project Path="src/EcmaScript/SuperRender.EcmaScript.Runtime/SuperRender.EcmaScript.Runtime.csproj" />
+    <Project Path="src/EcmaScript/SuperRender.EcmaScript.Engine/SuperRender.EcmaScript.Engine.csproj" />
+    <Project Path="src/EcmaScript/SuperRender.EcmaScript.Repl/SuperRender.EcmaScript.Repl.csproj" />
+    <Project Path="src/EcmaScript/SuperRender.EcmaScript.Dom/SuperRender.EcmaScript.Dom.csproj" />
+  </Folder>
+  <Folder Name="/src/Browser/">
+    <Project Path="src/Browser/SuperRender.Browser/SuperRender.Browser.csproj" />
+  </Folder>
+  <Folder Name="/src/Demo/">
+    <Project Path="src/Demo/SuperRender.Demo/SuperRender.Demo.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/SuperRender.Tests/SuperRender.Tests.csproj" />
+    <Project Path="tests/SuperRender.Document.Tests/SuperRender.Document.Tests.csproj" />
+    <Project Path="tests/SuperRender.Renderer.Tests/SuperRender.Renderer.Tests.csproj" />
     <Project Path="tests/SuperRender.EcmaScript.Tests/SuperRender.EcmaScript.Tests.csproj" />
     <Project Path="tests/SuperRender.Browser.Tests/SuperRender.Browser.Tests.csproj" />
   </Folder>

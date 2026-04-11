@@ -1,5 +1,5 @@
-using SuperRender.EcmaScript.Ast;
-using SuperRender.EcmaScript.Parsing;
+using SuperRender.EcmaScript.Compiler.Ast;
+using SuperRender.EcmaScript.Compiler.Parsing;
 using Xunit;
 
 namespace SuperRender.EcmaScript.Tests.Parsing;

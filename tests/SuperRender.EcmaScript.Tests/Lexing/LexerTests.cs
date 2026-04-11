@@ -1,4 +1,4 @@
-using SuperRender.EcmaScript.Lexing;
+using SuperRender.EcmaScript.Compiler.Lexing;
 using Xunit;
 
 namespace SuperRender.EcmaScript.Tests.Lexing;
