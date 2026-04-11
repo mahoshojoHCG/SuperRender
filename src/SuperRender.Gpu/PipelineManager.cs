@@ -84,7 +84,7 @@ public sealed unsafe class PipelineManager : IDisposable
                 attributeDescs, 2,
                 QuadPipelineLayout,
                 renderPass, extent,
-                blendingEnabled: false);
+                blendingEnabled: true);
         }
         finally
         {

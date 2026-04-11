@@ -21,7 +21,19 @@ public sealed class FontAtlas : IDisposable
     /// </summary>
     public bool IsDirty { get; private set; }
 
-    public void ClearDirty() => IsDirty = false;
+    /// <summary>
+    /// Pixel-space regions that have been modified since the last GPU upload.
+    /// Each region covers a newly-rendered glyph's bounding rectangle.
+    /// </summary>
+    public IReadOnlyList<(int X, int Y, int Width, int Height)> DirtyRegions => _dirtyRegions;
+
+    public void ClearDirty()
+    {
+        IsDirty = false;
+        _dirtyRegions.Clear();
+    }
+
+    private readonly List<(int X, int Y, int Width, int Height)> _dirtyRegions = [];
 
     // FreeType state for on-demand rendering
     private FreeTypeLibrary? _lib;
@@ -311,6 +323,10 @@ public sealed class FontAtlas : IDisposable
                 }
             }
         }
+
+        // Record dirty region for partial GPU upload
+        if (bmpW > 0 && bmpH > 0)
+            _dirtyRegions.Add((_cursorX + Padding, _cursorY + Padding, bmpW, bmpH));
 
         float u0 = (_cursorX + Padding) / (float)AtlasWidth;
         float v0 = (_cursorY + Padding) / (float)AtlasHeight;

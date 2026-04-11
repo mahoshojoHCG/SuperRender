@@ -104,6 +104,17 @@ Node.js-style interactive REPL powered by the EcmaScript engine.
 - EcmaScript engine defaults to strict mode; no sloppy-mode support
 - .NET interop is sandboxed: only explicitly mounted types are accessible from JS
 
+### GPU-First Rendering
+
+Prefer GPU rendering and compute over CPU wherever feasible:
+- **Use Vulkan graphics pipelines** for all visual output (rects, text, effects). Never rasterize pixels on the CPU when a shader can do it.
+- **Use Vulkan compute shaders** for parallelizable work: image decoding, glyph rasterization, layout pre-computation, hit-testing acceleration, or any batch data transformation that maps well to GPU threads.
+- **Minimize per-frame CPU→GPU data transfer.** Use persistent mapped buffers (ring-buffered for double-buffering) instead of per-frame alloc/free. Upload only dirty regions of textures, not the entire atlas.
+- **Let the GPU do index math.** Use `vertexOffset` in `vkCmdDrawIndexed` rather than adjusting index values on the CPU.
+- **Enable hardware blending** on all pipelines that may carry alpha (quads included). Do not rely on draw-order opacity hacks.
+- **Batch aggressively.** Merge draw calls where possible; minimize pipeline switches and scissor-rect flushes per frame.
+- When adding a new rendering feature (gradients, rounded corners, shadows, filters, transforms), implement it as a GPU shader pipeline — not as CPU-generated quads or pixel manipulation.
+
 ## Browser
 
 A Vulkan-powered browser application with tabbed browsing support.
@@ -165,10 +176,10 @@ Shared Vulkan rendering library used by both Demo and Browser.
 **Key components:**
 - `VulkanContext` — Vulkan instance/device/queues + MoltenVK setup for macOS
 - `SwapchainManager` — swapchain, render pass, framebuffers
-- `PipelineManager` — quad pipeline (solid rects) + text pipeline (font atlas sampling)
-- `BufferManager` — GPU buffer allocation, vertex/index upload, texture creation and update
-- `VulkanRenderer` — segment-based frame loop with per-segment scissor clipping, HiDPI content scale support, dynamic atlas texture re-upload. `BrowserWindow` uses two-pass content rendering (quads pass → selection highlights → text pass) to ensure correct z-ordering across clip segments.
-- `FontAtlas` — dynamic glyph atlas (2048x4096, BaseFontSize=32, HiDPI-scaled): pre-renders ASCII + common symbols at startup, renders additional glyphs (CJK, Unicode) on demand via FreeType. Regular + bold + monospace variants. CJK fallback font chain. `IsDirty` flag triggers GPU texture re-upload.
+- `PipelineManager` — quad pipeline (solid rects, alpha-blended) + text pipeline (font atlas sampling, alpha-blended)
+- `BufferManager` — persistent mapped ring buffers for vertex/index data (eliminates per-frame alloc/free), staging helpers for texture uploads, partial-region atlas updates
+- `VulkanRenderer` — segment-based frame loop with per-segment scissor clipping, GPU-side `vertexOffset` in draw calls, HiDPI content scale support, partial dirty-region atlas re-upload. `BrowserWindow` uses two-pass content rendering (quads pass → selection highlights → text pass) to ensure correct z-ordering across clip segments.
+- `FontAtlas` — dynamic glyph atlas (2048x4096, BaseFontSize=32, HiDPI-scaled): pre-renders ASCII + common symbols at startup, renders additional glyphs (CJK, Unicode) on demand via FreeType. Regular + bold + monospace variants. CJK fallback font chain. Dirty-region tracking for partial GPU texture uploads.
 - `FontAtlasGenerator` — static helpers for atlas generation with explicit font paths
 - `SystemFontLocator` — scans system font directories, uses FreeType to read family/style names from font files, builds case-insensitive family→path index. Handles `.ttf`, `.otf`, `.ttc` (multi-face collections with per-face index tracking for bold/italic variants). Resolves CSS font-family lists with generic family fallback.
 - `GenericFontFamilies` — maps CSS generic families (serif, sans-serif, monospace, cursive, fantasy, system-ui) to platform-specific real font family names. Provides CJK fallback font lists per platform.

@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.InteropServices;
 using Silk.NET.Vulkan;
 using SuperRender.Core.Painting;
 
@@ -12,7 +13,6 @@ public sealed unsafe class VulkanRenderer : IDisposable
     private readonly BufferManager _buffers;
     private readonly SystemFontLocator _fontLocator;
     private readonly FontAtlas _fontAtlas;
-    private readonly QuadRenderer _quadRenderer;
     private readonly TextRenderer _textRenderer;
 
     // Font atlas GPU resources
@@ -51,7 +51,6 @@ public sealed unsafe class VulkanRenderer : IDisposable
         _ctx = new VulkanContext(window);
         _fontLocator = new SystemFontLocator();
         _fontAtlas = new FontAtlas(_fontLocator, contentScale);
-        _quadRenderer = new QuadRenderer();
         _textRenderer = new TextRenderer(_fontAtlas);
 
         var fbSize = window.FramebufferSize;
@@ -98,8 +97,16 @@ public sealed unsafe class VulkanRenderer : IDisposable
         // Re-upload font atlas texture if new glyphs were rendered on demand
         if (_fontAtlas.IsDirty)
         {
-            _buffers.UpdateTextureImage(_atlasImage, _fontAtlas.PixelData,
-                _fontAtlas.AtlasWidth, _fontAtlas.AtlasHeight);
+            if (_fontAtlas.DirtyRegions.Count > 0)
+            {
+                _buffers.UpdateTextureImageRegions(_atlasImage, _fontAtlas.PixelData,
+                    _fontAtlas.AtlasWidth, _fontAtlas.DirtyRegions);
+            }
+            else
+            {
+                _buffers.UpdateTextureImage(_atlasImage, _fontAtlas.PixelData,
+                    _fontAtlas.AtlasWidth, _fontAtlas.AtlasHeight);
+            }
             _fontAtlas.ClearDirty();
         }
 
@@ -116,19 +123,20 @@ public sealed unsafe class VulkanRenderer : IDisposable
             seg.TextIndexOffset = (uint)allTextIdx.Count;
             seg.TextVertexOffset = (uint)allTextVerts.Count;
 
-            // Adjust quad indices to account for vertex offset
-            uint qBase = (uint)allQuadVerts.Count;
-            foreach (var idx in seg.QuadIndices) allQuadIdx.Add(idx + qBase);
+            allQuadIdx.AddRange(seg.QuadIndices);
             allQuadVerts.AddRange(seg.QuadVertices);
 
-            // Adjust text indices
-            uint tBase = (uint)allTextVerts.Count;
-            foreach (var idx in seg.TextIndices) allTextIdx.Add(idx + tBase);
+            allTextIdx.AddRange(seg.TextIndices);
             allTextVerts.AddRange(seg.TextVertices);
         }
 
-        _buffers.UploadQuads(allQuadVerts.ToArray(), allQuadIdx.ToArray());
-        _buffers.UploadTextQuads(allTextVerts.ToArray(), allTextIdx.ToArray());
+        // Upload directly into persistent mapped GPU buffers (no per-frame alloc/free)
+        _buffers.UploadQuads(_currentFrame,
+            CollectionsMarshal.AsSpan(allQuadVerts),
+            CollectionsMarshal.AsSpan(allQuadIdx));
+        _buffers.UploadTextQuads(_currentFrame,
+            CollectionsMarshal.AsSpan(allTextVerts),
+            CollectionsMarshal.AsSpan(allTextIdx));
 
         // Record command buffer
         var cmd = _commandBuffers[_currentFrame];
@@ -231,22 +239,22 @@ public sealed unsafe class VulkanRenderer : IDisposable
             };
 
             // Draw quads for this segment
-            if (_pipelines.QuadPipeline.Handle != 0 && seg.QuadIndexCount > 0)
+            if (_pipelines.QuadPipeline.Handle != 0 && seg.QuadIndexCount > 0 && _buffers.HasQuadData)
             {
                 vk.CmdBindPipeline(cmd, PipelineBindPoint.Graphics, _pipelines.QuadPipeline);
                 vk.CmdSetScissor(cmd, 0, 1, &scissor);
                 vk.CmdPushConstants(cmd, _pipelines.QuadPipelineLayout,
                     ShaderStageFlags.VertexBit, 0, 64, &projection);
 
-                var vbuf = _buffers.QuadVertexBuffer;
-                ulong offset = 0;
-                vk.CmdBindVertexBuffers(cmd, 0, 1, &vbuf, &offset);
-                vk.CmdBindIndexBuffer(cmd, _buffers.QuadIndexBuffer, 0, IndexType.Uint32);
-                vk.CmdDrawIndexed(cmd, seg.QuadIndexCount, 1, seg.QuadIndexOffset, 0, 0);
+                var (qvBuf, qvOff) = _buffers.GetQuadVertexBinding(_currentFrame);
+                vk.CmdBindVertexBuffers(cmd, 0, 1, &qvBuf, &qvOff);
+                var (qiBuf, qiOff) = _buffers.GetQuadIndexBinding(_currentFrame);
+                vk.CmdBindIndexBuffer(cmd, qiBuf, qiOff, IndexType.Uint32);
+                vk.CmdDrawIndexed(cmd, seg.QuadIndexCount, 1, seg.QuadIndexOffset, (int)seg.QuadVertexOffset, 0);
             }
 
             // Draw text for this segment
-            if (_pipelines.TextPipeline.Handle != 0 && seg.TextIndexCount > 0)
+            if (_pipelines.TextPipeline.Handle != 0 && seg.TextIndexCount > 0 && _buffers.HasTextData)
             {
                 vk.CmdBindPipeline(cmd, PipelineBindPoint.Graphics, _pipelines.TextPipeline);
                 vk.CmdSetScissor(cmd, 0, 1, &scissor);
@@ -257,11 +265,11 @@ public sealed unsafe class VulkanRenderer : IDisposable
                 vk.CmdBindDescriptorSets(cmd, PipelineBindPoint.Graphics,
                     _pipelines.TextPipelineLayout, 0, 1, &descSet, 0, null);
 
-                var vbuf = _buffers.TextVertexBuffer;
-                ulong offset = 0;
-                vk.CmdBindVertexBuffers(cmd, 0, 1, &vbuf, &offset);
-                vk.CmdBindIndexBuffer(cmd, _buffers.TextIndexBuffer, 0, IndexType.Uint32);
-                vk.CmdDrawIndexed(cmd, seg.TextIndexCount, 1, seg.TextIndexOffset, 0, 0);
+                var (tvBuf, tvOff) = _buffers.GetTextVertexBinding(_currentFrame);
+                vk.CmdBindVertexBuffers(cmd, 0, 1, &tvBuf, &tvOff);
+                var (tiBuf, tiOff) = _buffers.GetTextIndexBinding(_currentFrame);
+                vk.CmdBindIndexBuffer(cmd, tiBuf, tiOff, IndexType.Uint32);
+                vk.CmdDrawIndexed(cmd, seg.TextIndexCount, 1, seg.TextIndexOffset, (int)seg.TextVertexOffset, 0);
             }
         }
 
