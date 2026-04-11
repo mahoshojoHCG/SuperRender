@@ -43,7 +43,10 @@ public sealed class LayoutEngine
         rootDims.Y = 0;
         root.Dimensions = rootDims;
 
-        BlockLayout.Layout(root, viewport, _textMeasurer);
+        if (root.BoxType == LayoutBoxType.FlexContainer)
+            FlexLayout.Layout(root, viewport, _textMeasurer);
+        else
+            BlockLayout.Layout(root, viewport, _textMeasurer);
 
         return root;
     }
@@ -89,6 +92,7 @@ public sealed class LayoutEngine
         {
             DisplayType.Inline => LayoutBoxType.Inline,
             DisplayType.InlineBlock => LayoutBoxType.InlineBlock,
+            DisplayType.Flex => LayoutBoxType.FlexContainer,
             _ => LayoutBoxType.Block,
         };
 

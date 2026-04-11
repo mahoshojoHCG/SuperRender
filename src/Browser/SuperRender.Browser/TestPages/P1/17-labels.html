@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 17 - JS Labels</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+            font-size: 16px;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+        .output {
+            padding: 10px;
+            background-color: #111111;
+            color: #33ff33;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre;
+            min-height: 80px;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 17: JS Labels</h1>
+    <p><a href="../index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 17a: break with label (exits outer loop)</div>
+        <div class="output" id="output-17a"></div>
+        <div class="info">EXPECT: The outer loop breaks when i=1 and j=1. Output shows: (0,0), (0,1), (0,2), (1,0), then "Broke out of outer loop at i=1, j=1".</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 17b: continue with label (skips to next outer iteration)</div>
+        <div class="output" id="output-17b"></div>
+        <div class="info">EXPECT: When j=1, continue skips to next i. Output shows pairs where j never reaches beyond 1 for any i except the last inner loop values: (0,0), (1,0), (2,0).</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 17c: Labeled block with break</div>
+        <div class="output" id="output-17c"></div>
+        <div class="info">EXPECT: The labeled block exits early via break. Output shows "Before break" and "After block" but NOT "After break".</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 17d: Nested labels</div>
+        <div class="output" id="output-17d"></div>
+        <div class="info">EXPECT: With three nested loops and two labels, break targets the correct level. Shows the matrix positions visited before the break.</div>
+    </div>
+
+    <script>
+        // Test 17a: break with label
+        var out17a = document.getElementById("output-17a");
+        try {
+            var result = "break label test:\n";
+            outer:
+            for (var i = 0; i < 3; i = i + 1) {
+                for (var j = 0; j < 3; j = j + 1) {
+                    if (i === 1 && j === 1) {
+                        result = result + "Broke out of outer loop at i=" + i + ", j=" + j + "\n";
+                        break outer;
+                    }
+                    result = result + "  (" + i + "," + j + ")\n";
+                }
+            }
+            result = result + "Done.";
+            out17a.textContent = result;
+        } catch (e) {
+            out17a.textContent = "ERROR: " + e.message;
+        }
+
+        // Test 17b: continue with label
+        var out17b = document.getElementById("output-17b");
+        try {
+            var result2 = "continue label test:\n";
+            outer2:
+            for (var i2 = 0; i2 < 3; i2 = i2 + 1) {
+                for (var j2 = 0; j2 < 3; j2 = j2 + 1) {
+                    if (j2 === 1) {
+                        result2 = result2 + "  Skipping rest of inner loop at i=" + i2 + ", j=" + j2 + "\n";
+                        continue outer2;
+                    }
+                    result2 = result2 + "  (" + i2 + "," + j2 + ")\n";
+                }
+            }
+            result2 = result2 + "Done.";
+            out17b.textContent = result2;
+        } catch (e) {
+            out17b.textContent = "ERROR: " + e.message;
+        }
+
+        // Test 17c: Labeled block with break
+        var out17c = document.getElementById("output-17c");
+        try {
+            var result3 = "labeled block test:\n";
+            result3 = result3 + "  Before block\n";
+            myBlock: {
+                result3 = result3 + "  Inside block, before break\n";
+                break myBlock;
+                result3 = result3 + "  SHOULD NOT APPEAR (after break)\n";
+            }
+            result3 = result3 + "  After block\n";
+            result3 = result3 + "Done.";
+            out17c.textContent = result3;
+        } catch (e) {
+            out17c.textContent = "ERROR: " + e.message;
+        }
+
+        // Test 17d: Nested labels
+        var out17d = document.getElementById("output-17d");
+        try {
+            var result4 = "nested labels test:\n";
+            var visited = 0;
+            level1:
+            for (var a = 0; a < 3; a = a + 1) {
+                level2:
+                for (var b = 0; b < 3; b = b + 1) {
+                    for (var c = 0; c < 3; c = c + 1) {
+                        if (c === 1) {
+                            continue level2;
+                        }
+                        if (a === 2 && b === 1) {
+                            break level1;
+                        }
+                        result4 = result4 + "  (" + a + "," + b + "," + c + ")\n";
+                        visited = visited + 1;
+                    }
+                }
+            }
+            result4 = result4 + "Total positions visited: " + visited + "\n";
+            result4 = result4 + "Done.";
+            out17d.textContent = result4;
+        } catch (e) {
+            out17d.textContent = "ERROR: " + e.message;
+        }
+    </script>
+</body>
+</html>

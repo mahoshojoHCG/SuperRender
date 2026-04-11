@@ -3,6 +3,7 @@ using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
 using SuperRender.Browser.Networking;
+using SuperRender.Browser.Storage;
 using SuperRender.Document;
 using SuperRender.Renderer.Rendering.Layout;
 using SuperRender.Renderer.Rendering.Painting;
@@ -21,6 +22,9 @@ public sealed class BrowserWindow : IDisposable
     private BrowserChrome _chrome = null!;
     private InputHandler _inputHandler = null!;
     private ResourceLoader _resourceLoader = null!;
+    private CookieJar _cookieJar = null!;
+    private StorageDatabase? _storageDb;
+    private HttpCache? _httpCache;
     private DevToolsWindow? _devToolsWindow;
     private PaintList? _lastCombinedPaintList;
     private ContextMenu? _contextMenu;
@@ -47,7 +51,32 @@ public sealed class BrowserWindow : IDisposable
         var measurer = new BitmapFontTextMeasurer(_renderer.FontAtlasData);
         _measurer = measurer;
         _resourceLoader = new ResourceLoader();
-        _tabManager = new TabManager(measurer, _resourceLoader);
+
+        // Initialize cookie jar, storage, and cache
+        _cookieJar = new CookieJar();
+        _resourceLoader.CookieJar = _cookieJar;
+
+        var dataDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".superrenderer");
+        try
+        {
+            _storageDb = new StorageDatabase(Path.Combine(dataDir, "storage.db"));
+            _httpCache = new HttpCache(Path.Combine(dataDir, "cache.db"));
+            _resourceLoader.Cache = _httpCache;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Browser] Failed to initialize SQLite databases: {ex.Message}");
+        }
+
+        _tabManager = new TabManager(measurer, _resourceLoader)
+        {
+            CookieJar = _cookieJar,
+            StorageDb = _storageDb,
+            EnqueueMainThread = action => _mainThreadQueue.Enqueue(action),
+            ImageCache = new ImageCache(),
+        };
         _chrome = new BrowserChrome(measurer);
 
         _inputHandler = new InputHandler(
@@ -245,6 +274,8 @@ public sealed class BrowserWindow : IDisposable
     {
         _devToolsWindow?.Dispose();
         _tabManager?.Dispose();
+        _httpCache?.Dispose();
+        _storageDb?.Dispose();
         _resourceLoader?.Dispose();
         _renderer?.Dispose();
     }

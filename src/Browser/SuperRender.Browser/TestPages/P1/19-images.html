@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 19: Image Loading</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 16px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.6;
+        }
+        h1 { color: #333333; border-bottom: 2px solid #333333; padding-bottom: 8px; }
+        h2 { color: #555555; margin-top: 24px; }
+        .test-section {
+            border: 1px solid #dddddd;
+            padding: 16px;
+            margin-bottom: 16px;
+            background-color: #fafafa;
+        }
+        .label { color: #888888; font-size: 14px; margin-bottom: 8px; }
+        .img-container { display: flex; gap: 16px; align-items: flex-start; }
+    </style>
+</head>
+<body>
+    <h1>Test 19: Image Loading</h1>
+    <p><a href="../index.html">Back to Index</a></p>
+
+    <h2>19a: Embedded Base64 PNG</h2>
+    <div class="test-section">
+        <div class="label">A 4x4 red square PNG encoded as base64 data: URI</div>
+        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAADklEQVQI12P4z8BQDwAEgAF/QualzQAAAABJRU5ErkJggg==" alt="4x4 red square">
+        <p>Expected: A tiny red square image should appear above.</p>
+    </div>
+
+    <h2>19b: Explicit Width and Height</h2>
+    <div class="test-section">
+        <div class="label">Same image with width="100" height="100"</div>
+        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAADklEQVQI12P4z8BQDwAEgAF/QualzQAAAABJRU5ErkJggg==" width="100" height="100" alt="scaled red square">
+        <p>Expected: A 100x100 red square.</p>
+    </div>
+
+    <h2>19c: Alt Text Fallback</h2>
+    <div class="test-section">
+        <div class="label">Image with missing src - should show alt text</div>
+        <img alt="Image not found" width="200" height="60">
+        <p>Expected: A gray placeholder box with "Image not found" text.</p>
+    </div>
+
+    <h2>19d: Image in Flex Container</h2>
+    <div class="test-section">
+        <div class="label">Multiple images in a flex row with gap</div>
+        <div class="img-container">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAADklEQVQI12P4z8BQDwAEgAF/QualzQAAAABJRU5ErkJggg==" width="80" height="80" alt="red">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAADklEQVQI12Ng+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" width="80" height="80" alt="green">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAADklEQVQI12NgoA/4DwAB9AH/lK4XJQAAAABJRU5ErkJggg==" width="80" height="80" alt="blue">
+        </div>
+        <p>Expected: Three 80x80 colored squares in a horizontal row with spacing.</p>
+    </div>
+
+    <h2>19e: Width Only (Aspect Ratio Preserved)</h2>
+    <div class="test-section">
+        <div class="label">Image with only width="200", height should auto-scale</div>
+        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAADklEQVQI12P4z8BQDwAEgAF/QualzQAAAABJRU5ErkJggg==" width="200" alt="wide red square">
+        <p>Expected: A 200-wide image. Height should preserve the aspect ratio of the original 4x4 image (so 200px tall).</p>
+    </div>
+</body>
+</html>

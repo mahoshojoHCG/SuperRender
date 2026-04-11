@@ -1,5 +1,6 @@
 using DomDocument = SuperRender.Document.Dom.Document;
 using SuperRender.Browser.Networking;
+using SuperRender.Browser.Storage;
 using SuperRender.Renderer.Rendering;
 using SuperRender.Document.Css;
 using SuperRender.Document.Dom;
@@ -35,6 +36,13 @@ public sealed class Tab : IDisposable
     public NavigationHistory History { get; } = new();
     public ConsoleLog ConsoleLog { get; } = new();
     public TimerScheduler? Timers => _domBridge?.TimerQueue;
+    public SessionStorage SessionStorage { get; } = new();
+
+    // External dependencies injected from BrowserWindow
+    public CookieJar? CookieJar { get; set; }
+    public StorageDatabase? StorageDb { get; set; }
+    public Action<Action>? EnqueueMainThread { get; set; }
+    public ImageCache? ImageCache { get; set; }
 
     public Tab(ITextMeasurer measurer, ResourceLoader loader)
     {
@@ -117,6 +125,9 @@ public sealed class Tab : IDisposable
 
             // Fetch external CSS
             await LoadExternalStylesheetsAsync(finalUri).ConfigureAwait(false);
+
+            // Fetch and decode images
+            await LoadImagesAsync(finalUri).ConfigureAwait(false);
 
             // Set up JS engine
             SetupJsEngine();
@@ -205,6 +216,49 @@ public sealed class Tab : IDisposable
         }
     }
 
+    private async Task LoadImagesAsync(Uri baseUri)
+    {
+        if (Document is null || ImageCache is null) return;
+
+        var imgElements = FindElements(Document, "img");
+        foreach (var img in imgElements)
+        {
+            var src = img.GetAttribute("src");
+            if (string.IsNullOrWhiteSpace(src)) continue;
+
+            var imgUri = UrlResolver.Resolve(src, baseUri);
+            var urlKey = imgUri.ToString();
+
+            if (ImageCache.Contains(urlKey))
+            {
+                ApplyImageDimensions(img, ImageCache.Get(urlKey));
+                continue;
+            }
+
+            var bytes = await _loader.FetchImageBytesAsync(imgUri, baseUri).ConfigureAwait(false);
+            if (bytes is not null)
+            {
+                var imageData = Renderer.Image.ImageDecoder.Decode(bytes);
+                ImageCache.Set(urlKey, imageData);
+                ApplyImageDimensions(img, imageData);
+            }
+            else
+            {
+                ImageCache.Set(urlKey, null);
+            }
+        }
+    }
+
+    private static void ApplyImageDimensions(Element img, Renderer.Image.ImageData? imageData)
+    {
+        if (imageData is null) return;
+
+        img.SetAttribute("data-natural-width",
+            imageData.Width.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        img.SetAttribute("data-natural-height",
+            imageData.Height.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+
     private async Task LoadExternalScriptsAsync(Uri baseUri)
     {
         if (Document is null || _jsEngine is null) return;
@@ -271,6 +325,73 @@ public sealed class Tab : IDisposable
         _jsEngine.SetConsoleOutput(stdCapture, errCapture, warnCapture);
 
         _domBridge = new DomBridge(_jsEngine, Document);
+
+        // Wire up storage
+        if (StorageDb is not null && CurrentUri is not null)
+        {
+            var origin = GetOrigin(CurrentUri);
+            var localStorage = new LocalStorage(StorageDb, origin);
+            _domBridge.SetLocalStorage(
+                localStorage.GetItem, localStorage.SetItem, localStorage.RemoveItem,
+                localStorage.Clear, localStorage.Key, () => localStorage.Length);
+        }
+
+        _domBridge.SetSessionStorage(
+            SessionStorage.GetItem, SessionStorage.SetItem, SessionStorage.RemoveItem,
+            SessionStorage.Clear, SessionStorage.Key, () => SessionStorage.Length);
+
+        // Wire up cookies
+        if (CookieJar is not null && CurrentUri is not null)
+        {
+            var origin = CurrentUri;
+            _domBridge.SetCookies(
+                () => CookieJar.GetCookiesForScript(origin),
+                cookieStr => CookieJar.SetCookieFromScript(origin, cookieStr));
+        }
+
+        // Wire up fetch API
+        if (EnqueueMainThread is not null)
+        {
+            _domBridge.SetFetch(
+                async (url, method, headers, body) =>
+                {
+                    var baseUri = CurrentUri ?? new Uri("about:blank");
+                    var fetchUri = UrlResolver.Resolve(url, baseUri);
+                    var response = await _loader.FetchGenericAsync(fetchUri, method, headers, body).ConfigureAwait(false);
+                    return new FetchResult
+                    {
+                        Status = response.Status,
+                        StatusText = response.StatusText,
+                        Body = response.Body,
+                        Url = response.Url,
+                        Headers = response.Headers,
+                    };
+                },
+                EnqueueMainThread);
+        }
+
+        // Wire up location and history
+        _domBridge.SetLocationAndHistory(
+            () => CurrentUri,
+            url =>
+            {
+                var baseUri = CurrentUri ?? new Uri("about:blank");
+                var newUri = UrlResolver.Resolve(url, baseUri);
+                EnqueueMainThread?.Invoke(() => _ = NavigateAsync(newUri));
+            },
+            url =>
+            {
+                var baseUri = CurrentUri ?? new Uri("about:blank");
+                var newUri = UrlResolver.Resolve(url, baseUri);
+                if (CurrentUri is not null)
+                    History.ReplaceCurrent(newUri);
+                EnqueueMainThread?.Invoke(() => _ = NavigateInternalAsync(newUri));
+            },
+            () => EnqueueMainThread?.Invoke(() => { if (CurrentUri is not null) _ = NavigateInternalAsync(CurrentUri); }),
+            () => EnqueueMainThread?.Invoke(() => _ = GoBackAsync()),
+            () => EnqueueMainThread?.Invoke(() => _ = GoForwardAsync()),
+            uri => { CurrentUri = uri; });
+
         _domBridge.Install();
     }
 
@@ -338,6 +459,13 @@ public sealed class Tab : IDisposable
     {
         if (_pipeline?.Document is not null)
             _pipeline.Document.NeedsLayout = true;
+    }
+
+    private static string GetOrigin(Uri uri)
+    {
+        if (uri.Scheme is "file" or "sr" or "about")
+            return uri.Scheme + "://";
+        return $"{uri.Scheme}://{uri.Host}:{uri.Port}";
     }
 
     private static Element? FindElement(Node root, string tagName)

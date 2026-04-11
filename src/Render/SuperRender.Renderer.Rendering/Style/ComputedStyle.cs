@@ -10,6 +10,16 @@ public enum BoxSizingType { ContentBox, BorderBox }
 public enum OverflowType { Visible, Hidden, Scroll, Auto }
 public enum TextOverflowType { Clip, Ellipsis }
 public enum WhiteSpaceType { Normal, Pre, Nowrap, PreWrap, PreLine }
+public enum VisibilityType { Visible, Hidden, Collapse }
+public enum TextTransformType { None, Uppercase, Lowercase, Capitalize }
+public enum CursorType { Auto, Default, Pointer, Text, Crosshair, Move, NotAllowed, Wait, Help }
+public enum WordBreakType { Normal, BreakAll, KeepAll }
+public enum OverflowWrapType { Normal, BreakWord, Anywhere }
+public enum FlexDirectionType { Row, RowReverse, Column, ColumnReverse }
+public enum FlexWrapType { Nowrap, Wrap, WrapReverse }
+public enum JustifyContentType { FlexStart, FlexEnd, Center, SpaceBetween, SpaceAround, SpaceEvenly }
+public enum AlignItemsType { Stretch, FlexStart, FlexEnd, Center, Baseline }
+public enum AlignSelfType { Auto, Stretch, FlexStart, FlexEnd, Center, Baseline }
 
 [Flags]
 public enum TextDecorationLine
@@ -70,6 +80,32 @@ public sealed class ComputedStyle
     public Color? TextDecorationColor { get; set; }
     public WhiteSpaceType WhiteSpace { get; set; } = WhiteSpaceType.Normal;
 
+    // P1: Additional inherited properties
+    public VisibilityType Visibility { get; set; } = VisibilityType.Visible;
+    public TextTransformType TextTransform { get; set; } = TextTransformType.None;
+    public float LetterSpacing { get; set; }
+    public float WordSpacing { get; set; }
+    public CursorType Cursor { get; set; } = CursorType.Auto;
+    public WordBreakType WordBreak { get; set; } = WordBreakType.Normal;
+    public OverflowWrapType OverflowWrap { get; set; } = OverflowWrapType.Normal;
+    public string ListStyleType { get; set; } = "disc";
+
+    // P1: Opacity
+    public float Opacity { get; set; } = 1f;
+
+    // Flexbox
+    public FlexDirectionType FlexDirection { get; set; } = FlexDirectionType.Row;
+    public FlexWrapType FlexWrap { get; set; } = FlexWrapType.Nowrap;
+    public JustifyContentType JustifyContent { get; set; } = JustifyContentType.FlexStart;
+    public AlignItemsType AlignItems { get; set; } = AlignItemsType.Stretch;
+    public AlignSelfType AlignSelf { get; set; } = AlignSelfType.Auto;
+    public float FlexGrow { get; set; }
+    public float FlexShrink { get; set; } = 1f;
+    public float FlexBasis { get; set; } = float.NaN; // NaN = auto
+    public float Gap { get; set; }
+    public float RowGap { get; set; } = float.NaN; // NaN = use Gap
+    public float ColumnGap { get; set; } = float.NaN; // NaN = use Gap
+
     // Position
     public PositionType Position { get; set; } = PositionType.Static;
     public float Top { get; set; } = float.NaN;
@@ -115,6 +151,26 @@ public sealed class ComputedStyle
             TextDecorationLine = TextDecorationLine,
             TextDecorationColor = TextDecorationColor,
             WhiteSpace = WhiteSpace,
+            Visibility = Visibility,
+            TextTransform = TextTransform,
+            LetterSpacing = LetterSpacing,
+            WordSpacing = WordSpacing,
+            Cursor = Cursor,
+            WordBreak = WordBreak,
+            OverflowWrap = OverflowWrap,
+            ListStyleType = ListStyleType,
+            Opacity = Opacity,
+            FlexDirection = FlexDirection,
+            FlexWrap = FlexWrap,
+            JustifyContent = JustifyContent,
+            AlignItems = AlignItems,
+            AlignSelf = AlignSelf,
+            FlexGrow = FlexGrow,
+            FlexShrink = FlexShrink,
+            FlexBasis = FlexBasis,
+            Gap = Gap,
+            RowGap = RowGap,
+            ColumnGap = ColumnGap,
             Position = Position,
             Top = Top,
             Left = Left,

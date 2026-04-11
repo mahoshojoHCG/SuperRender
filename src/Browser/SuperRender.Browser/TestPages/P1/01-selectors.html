@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 01 - CSS Selectors</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+            font-size: 16px;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+
+        /* Test 1a: Adjacent sibling combinator */
+        .adj-test h2 + p {
+            color: #cc3333;
+        }
+
+        /* Test 1b: General sibling combinator */
+        .gen-test h2 ~ p {
+            color: #3333cc;
+        }
+
+        /* Test 1c: Attribute selectors */
+        .attr-test [type="text"] {
+            border: 3px solid #33cc33;
+            padding: 5px;
+        }
+        .attr-test [data-role] {
+            background-color: #ffffdd;
+        }
+
+        /* Test 1d: Structural pseudo-classes */
+        .struct-test li:first-child {
+            background-color: #ddffdd;
+        }
+        .struct-test li:last-child {
+            background-color: #ffdddd;
+        }
+        .struct-test li:nth-child(odd) {
+            border-left: 4px solid #3333cc;
+        }
+
+        /* Test 1e: :not() pseudo-class */
+        .not-test p {
+            color: #333333;
+        }
+        .not-test p:not(.excluded) {
+            color: #cc3333;
+        }
+
+        /* Test 1f: :is() pseudo-class */
+        .is-test :is(h1, h2, h3) {
+            font-style: italic;
+            color: #663399;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 01: CSS Selectors</h1>
+    <p><a href="../index.html">Back to index</a></p>
+
+    <div class="test-section adj-test">
+        <div class="label">Test 1a: Adjacent sibling combinator (h2 + p)</div>
+        <h2>Heading</h2>
+        <p>This paragraph is immediately after h2 (should be RED).</p>
+        <p>This paragraph is NOT immediately after h2 (should be default color).</p>
+        <div class="info">EXPECT: Only the first paragraph after the heading is red. The second paragraph stays default.</div>
+    </div>
+
+    <div class="test-section gen-test">
+        <div class="label">Test 1b: General sibling combinator (h2 ~ p)</div>
+        <h2>Heading</h2>
+        <p>First sibling paragraph (should be BLUE).</p>
+        <p>Second sibling paragraph (should also be BLUE).</p>
+        <div>This div is not a p, so not affected.</div>
+        <p>Third sibling paragraph after a div (should still be BLUE).</p>
+        <div class="info">EXPECT: All p elements that are siblings after h2 are blue, regardless of intervening elements.</div>
+    </div>
+
+    <div class="test-section attr-test">
+        <div class="label">Test 1c: Attribute selectors</div>
+        <div data-role="widget">This div has data-role attribute (should have yellow background).</div>
+        <div>This div has no data-role (should have no yellow background).</div>
+        <p>Below is a text-like div styled as if it were an input:</p>
+        <div type="text" style="display: inline-block; width: 200px;">type="text" element</div>
+        <div class="info">EXPECT: Element with [type="text"] has green border. Element with [data-role] has yellow background.</div>
+    </div>
+
+    <div class="test-section struct-test">
+        <div class="label">Test 1d: Structural pseudo-classes (:first-child, :last-child, :nth-child)</div>
+        <ul>
+            <li>Item 1 (first-child: green bg, odd: blue left border)</li>
+            <li>Item 2 (even: no blue border)</li>
+            <li>Item 3 (odd: blue left border)</li>
+            <li>Item 4 (even: no blue border)</li>
+            <li>Item 5 (last-child: red bg, odd: blue left border)</li>
+        </ul>
+        <div class="info">EXPECT: First item has green background. Last item has red background. Odd items (1, 3, 5) have blue left border.</div>
+    </div>
+
+    <div class="test-section not-test">
+        <div class="label">Test 1e: :not(.excluded) pseudo-class</div>
+        <p>This paragraph is NOT excluded (should be RED).</p>
+        <p class="excluded">This paragraph HAS class "excluded" (should be default dark color).</p>
+        <p>This paragraph is also NOT excluded (should be RED).</p>
+        <div class="info">EXPECT: Paragraphs without class "excluded" are red. The excluded paragraph stays dark.</div>
+    </div>
+
+    <div class="test-section is-test">
+        <div class="label">Test 1f: :is(h1, h2, h3) pseudo-class</div>
+        <h1>H1 heading (should be italic purple)</h1>
+        <h2>H2 heading (should be italic purple)</h2>
+        <h3>H3 heading (should be italic purple)</h3>
+        <p>Regular paragraph (should NOT be italic purple).</p>
+        <div class="info">EXPECT: All headings h1, h2, h3 are italic and purple. Paragraph is unaffected.</div>
+    </div>
+</body>
+</html>

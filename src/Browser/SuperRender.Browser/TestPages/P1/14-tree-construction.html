@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 14 - Tree Construction</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+            font-size: 16px;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+        .output {
+            padding: 10px;
+            background-color: #111111;
+            color: #33ff33;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre;
+            min-height: 60px;
+            overflow: hidden;
+        }
+        .visual-check {
+            padding: 10px;
+            background-color: #ffffff;
+            border: 1px solid #dddddd;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 14: Tree Construction</h1>
+    <p><a href="../index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 14a: Misnested p with block elements (auto-closes)</div>
+        <div class="visual-check">
+            <p>First paragraph.
+            <div style="background-color: #ddddff; padding: 5px;">This div inside a p should auto-close the p.</div>
+            <p>Second paragraph (new p after the div).</p>
+        </div>
+        <div id="output-14a" class="output"></div>
+        <div class="info">EXPECT: The p element is auto-closed when the div is encountered. The DOM tree should show the div as a sibling of the first p, not a child. The output shows the actual DOM structure.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 14b: Multiple li without closing tags</div>
+        <div class="visual-check">
+            <ul>
+                <li>Item one
+                <li>Item two
+                <li>Item three
+            </ul>
+        </div>
+        <div id="output-14b" class="output"></div>
+        <div class="info">EXPECT: Three separate list items are created despite missing closing tags. Each li is auto-closed when the next li is encountered. The output shows the actual child count of the ul.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 14c: dd and dt auto-closing</div>
+        <div class="visual-check">
+            <dl>
+                <dt>Term 1
+                <dd>Definition 1
+                <dt>Term 2
+                <dd>Definition 2
+            </dl>
+        </div>
+        <div id="output-14c" class="output"></div>
+        <div class="info">EXPECT: dt and dd elements are auto-closed by subsequent dt or dd elements. The dl should have 4 children (dt, dd, dt, dd).</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 14d: Visual verification summary</div>
+        <div id="output-14d" class="output"></div>
+        <div class="info">EXPECT: A summary of tree construction results showing that auto-closing worked correctly for all test cases.</div>
+    </div>
+
+    <script>
+        // Test 14a: Check p auto-closing
+        var output14a = document.getElementById("output-14a");
+        try {
+            var checkDiv = document.querySelector(".visual-check");
+            var children = checkDiv.childNodes;
+            var result = "DOM structure of first .visual-check:\n";
+            var i = 0;
+            while (i < children.length) {
+                var child = children[i];
+                if (child.nodeType === 1) {
+                    result = result + "  <" + child.tagName.toLowerCase() + ">\n";
+                }
+                i = i + 1;
+            }
+            output14a.textContent = result;
+        } catch (e) {
+            output14a.textContent = "ERROR: " + e.message;
+        }
+
+        // Test 14b: Check li auto-closing
+        var output14b = document.getElementById("output-14b");
+        try {
+            var ul = document.querySelector("ul");
+            var liCount = 0;
+            var liChildren = ul.childNodes;
+            var j = 0;
+            while (j < liChildren.length) {
+                if (liChildren[j].nodeType === 1 && liChildren[j].tagName === "LI") {
+                    liCount = liCount + 1;
+                }
+                j = j + 1;
+            }
+            output14b.textContent = "UL element children:\n  Total LI elements: " + liCount + "\n  Expected: 3";
+        } catch (e) {
+            output14b.textContent = "ERROR: " + e.message;
+        }
+
+        // Test 14c: Check dd/dt auto-closing
+        var output14c = document.getElementById("output-14c");
+        try {
+            var dl = document.querySelector("dl");
+            var dlChildren = dl.childNodes;
+            var dtCount = 0;
+            var ddCount = 0;
+            var k = 0;
+            while (k < dlChildren.length) {
+                if (dlChildren[k].nodeType === 1) {
+                    if (dlChildren[k].tagName === "DT") { dtCount = dtCount + 1; }
+                    if (dlChildren[k].tagName === "DD") { ddCount = ddCount + 1; }
+                }
+                k = k + 1;
+            }
+            output14c.textContent = "DL element children:\n  DT elements: " + dtCount + "\n  DD elements: " + ddCount + "\n  Expected: 2 DT + 2 DD";
+        } catch (e) {
+            output14c.textContent = "ERROR: " + e.message;
+        }
+
+        // Test 14d: Summary
+        var output14d = document.getElementById("output-14d");
+        output14d.textContent = "Tree Construction Summary:\n  14a: p auto-close before block - check output above\n  14b: li auto-close - check output above\n  14c: dt/dd auto-close - check output above\n  All tests verify actual DOM structure via JS";
+    </script>
+</body>
+</html>

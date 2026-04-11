@@ -160,6 +160,16 @@ public sealed class CssParser
             return ExpandPerSideBorderShorthand(property, trimmed, important);
         }
 
+        if (property == "flex")
+        {
+            return ExpandFlexShorthand(trimmed, important);
+        }
+
+        if (property == "flex-flow")
+        {
+            return ExpandFlexFlowShorthand(trimmed, important);
+        }
+
         // Parse single value
         var value = ParseValueTokens(trimmed);
         return
@@ -362,6 +372,104 @@ public sealed class CssParser
         return declarations;
     }
 
+    private static List<Declaration> ExpandFlexShorthand(List<CssToken> valueTokens, bool important)
+    {
+        var parts = SplitByWhitespace(valueTokens);
+        var declarations = new List<Declaration>();
+
+        if (parts.Count == 1)
+        {
+            var val = ParseValueTokens(parts[0]);
+            var raw = val.Raw.ToLowerInvariant();
+
+            switch (raw)
+            {
+                case "initial":
+                    declarations.Add(MakeDecl("flex-grow", "0", CssValueType.Number, 0, important));
+                    declarations.Add(MakeDecl("flex-shrink", "1", CssValueType.Number, 1, important));
+                    declarations.Add(MakeDecl("flex-basis", "auto", CssValueType.Keyword, 0, important));
+                    return declarations;
+                case "auto":
+                    declarations.Add(MakeDecl("flex-grow", "1", CssValueType.Number, 1, important));
+                    declarations.Add(MakeDecl("flex-shrink", "1", CssValueType.Number, 1, important));
+                    declarations.Add(MakeDecl("flex-basis", "auto", CssValueType.Keyword, 0, important));
+                    return declarations;
+                case "none":
+                    declarations.Add(MakeDecl("flex-grow", "0", CssValueType.Number, 0, important));
+                    declarations.Add(MakeDecl("flex-shrink", "0", CssValueType.Number, 0, important));
+                    declarations.Add(MakeDecl("flex-basis", "auto", CssValueType.Keyword, 0, important));
+                    return declarations;
+            }
+
+            // Single number: flex: <grow> => grow:N, shrink:1, basis:0
+            if (val.Type == CssValueType.Number)
+            {
+                declarations.Add(new Declaration { Property = "flex-grow", Value = val, Important = important });
+                declarations.Add(MakeDecl("flex-shrink", "1", CssValueType.Number, 1, important));
+                declarations.Add(MakeDecl("flex-basis", "0", CssValueType.Number, 0, important));
+                return declarations;
+            }
+        }
+
+        if (parts.Count == 2)
+        {
+            var grow = ParseValueTokens(parts[0]);
+            var second = ParseValueTokens(parts[1]);
+
+            declarations.Add(new Declaration { Property = "flex-grow", Value = grow, Important = important });
+            declarations.Add(new Declaration { Property = "flex-shrink", Value = second, Important = important });
+            declarations.Add(MakeDecl("flex-basis", "0", CssValueType.Number, 0, important));
+            return declarations;
+        }
+
+        if (parts.Count >= 3)
+        {
+            var grow = ParseValueTokens(parts[0]);
+            var shrink = ParseValueTokens(parts[1]);
+            var basis = ParseValueTokens(parts[2]);
+
+            declarations.Add(new Declaration { Property = "flex-grow", Value = grow, Important = important });
+            declarations.Add(new Declaration { Property = "flex-shrink", Value = shrink, Important = important });
+            declarations.Add(new Declaration { Property = "flex-basis", Value = basis, Important = important });
+            return declarations;
+        }
+
+        return declarations;
+    }
+
+    private static List<Declaration> ExpandFlexFlowShorthand(List<CssToken> valueTokens, bool important)
+    {
+        var parts = SplitByWhitespace(valueTokens);
+        var declarations = new List<Declaration>();
+
+        foreach (var part in parts)
+        {
+            var val = ParseValueTokens(part);
+            var raw = val.Raw.ToLowerInvariant();
+
+            if (raw is "row" or "row-reverse" or "column" or "column-reverse")
+            {
+                declarations.Add(new Declaration { Property = "flex-direction", Value = val, Important = important });
+            }
+            else if (raw is "nowrap" or "wrap" or "wrap-reverse")
+            {
+                declarations.Add(new Declaration { Property = "flex-wrap", Value = val, Important = important });
+            }
+        }
+
+        return declarations;
+    }
+
+    private static Declaration MakeDecl(string property, string raw, CssValueType type, double numericValue, bool important)
+    {
+        return new Declaration
+        {
+            Property = property,
+            Value = new CssValue { Type = type, Raw = raw, NumericValue = numericValue },
+            Important = important
+        };
+    }
+
     #endregion
 
     #region Value Parsing
@@ -475,9 +583,19 @@ public sealed class CssParser
             argTokens.Add(tokens[i]);
         }
 
-        if (funcName == "rgb" || funcName == "rgba")
+        if (funcName is "rgb" or "rgba")
         {
             return ParseRgbFunction(funcName, argTokens);
+        }
+
+        if (funcName is "hsl" or "hsla")
+        {
+            return ParseHslFunction(funcName, argTokens);
+        }
+
+        if (funcName is "calc" or "min" or "max" or "clamp")
+        {
+            return ParseCalcFunction(funcName, argTokens);
         }
 
         // Fallback: join everything as keyword
@@ -487,12 +605,52 @@ public sealed class CssParser
 
     private static CssValue ParseRgbFunction(string funcName, List<CssToken> argTokens)
     {
-        // Extract numeric values from arg tokens
+        // Support both comma-separated and space-separated syntax:
+        // rgb(255, 0, 0)  or  rgb(255 0 0)  or  rgb(255 0 0 / 0.5)
         var numbers = new List<double>();
-        foreach (var t in argTokens)
+        bool hasSlashAlpha = false;
+        double slashAlpha = 1.0;
+        bool hasCommas = argTokens.Any(t => t.Type == CssTokenType.Comma);
+
+        if (hasCommas)
         {
-            if (t.Type is CssTokenType.Number or CssTokenType.Percentage or CssTokenType.Dimension)
-                numbers.Add(t.NumericValue);
+            // Legacy comma-separated: rgb(r, g, b) or rgba(r, g, b, a)
+            foreach (var t in argTokens)
+            {
+                if (t.Type is CssTokenType.Number or CssTokenType.Percentage or CssTokenType.Dimension)
+                    numbers.Add(t.NumericValue);
+            }
+        }
+        else
+        {
+            // Modern space-separated: rgb(r g b) or rgb(r g b / alpha)
+            for (int i = 0; i < argTokens.Count; i++)
+            {
+                var t = argTokens[i];
+                if (t.Type == CssTokenType.Delim && t.Value == "/")
+                {
+                    // Everything after / is the alpha value
+                    for (int j = i + 1; j < argTokens.Count; j++)
+                    {
+                        var at = argTokens[j];
+                        if (at.Type is CssTokenType.Number)
+                        {
+                            hasSlashAlpha = true;
+                            slashAlpha = at.NumericValue;
+                            break;
+                        }
+                        if (at.Type is CssTokenType.Percentage)
+                        {
+                            hasSlashAlpha = true;
+                            slashAlpha = at.NumericValue / 100.0;
+                            break;
+                        }
+                    }
+                    break;
+                }
+                if (t.Type is CssTokenType.Number or CssTokenType.Percentage or CssTokenType.Dimension)
+                    numbers.Add(t.NumericValue);
+            }
         }
 
         if (numbers.Count >= 3)
@@ -501,18 +659,98 @@ public sealed class CssParser
             byte g = ClampByte(numbers[1]);
             byte b = ClampByte(numbers[2]);
 
-            var color = numbers.Count >= 4
-                ? Document.Color.FromRgba(r, g, b, ClampByte(numbers[3]))
-                : Document.Color.FromRgb(r, g, b);
-
-            string raw = numbers.Count >= 4
-                ? $"{funcName}({r}, {g}, {b}, {numbers[3]})"
-                : $"{funcName}({r}, {g}, {b})";
+            Document.Color color;
+            if (hasSlashAlpha)
+            {
+                byte a = (byte)Math.Clamp((int)Math.Round(slashAlpha * 255), 0, 255);
+                color = Document.Color.FromRgba(r, g, b, a);
+            }
+            else if (numbers.Count >= 4)
+            {
+                color = Document.Color.FromRgba(r, g, b, ClampByte(numbers[3]));
+            }
+            else
+            {
+                color = Document.Color.FromRgb(r, g, b);
+            }
 
             return new CssValue
             {
                 Type = CssValueType.Color,
-                Raw = raw,
+                Raw = funcName + "(...)",
+                ColorValue = color
+            };
+        }
+
+        return new CssValue { Type = CssValueType.Keyword, Raw = funcName + "(...)" };
+    }
+
+    private static CssValue ParseHslFunction(string funcName, List<CssToken> argTokens)
+    {
+        // hsl(h, s%, l%) or hsl(h s% l%) or hsl(h, s%, l%, a) or hsl(h s% l% / a)
+        var numbers = new List<double>();
+        bool hasSlashAlpha = false;
+        double slashAlpha = 1.0;
+        bool hasCommas = argTokens.Any(t => t.Type == CssTokenType.Comma);
+
+        if (hasCommas)
+        {
+            foreach (var t in argTokens)
+            {
+                if (t.Type is CssTokenType.Number or CssTokenType.Percentage or CssTokenType.Dimension)
+                    numbers.Add(t.Type == CssTokenType.Percentage ? t.NumericValue / 100.0 : t.NumericValue);
+            }
+        }
+        else
+        {
+            for (int i = 0; i < argTokens.Count; i++)
+            {
+                var t = argTokens[i];
+                if (t.Type == CssTokenType.Delim && t.Value == "/")
+                {
+                    for (int j = i + 1; j < argTokens.Count; j++)
+                    {
+                        var at = argTokens[j];
+                        if (at.Type is CssTokenType.Number)
+                        {
+                            hasSlashAlpha = true;
+                            slashAlpha = at.NumericValue;
+                            break;
+                        }
+                        if (at.Type is CssTokenType.Percentage)
+                        {
+                            hasSlashAlpha = true;
+                            slashAlpha = at.NumericValue / 100.0;
+                            break;
+                        }
+                    }
+                    break;
+                }
+                if (t.Type is CssTokenType.Number or CssTokenType.Percentage or CssTokenType.Dimension)
+                    numbers.Add(t.Type == CssTokenType.Percentage ? t.NumericValue / 100.0 : t.NumericValue);
+            }
+        }
+
+        if (numbers.Count >= 3)
+        {
+            double h = numbers[0]; // degrees
+            double s = numbers[1]; // 0-1 (already normalized from %)
+            double l = numbers[2]; // 0-1 (already normalized from %)
+
+            double alpha;
+            if (hasSlashAlpha)
+                alpha = slashAlpha;
+            else if (numbers.Count >= 4)
+                alpha = numbers[3]; // comma-separated alpha
+            else
+                alpha = 1.0;
+
+            var color = Document.Color.FromHsla(h, s, l, alpha);
+
+            return new CssValue
+            {
+                Type = CssValueType.Color,
+                Raw = funcName + "(...)",
                 ColorValue = color
             };
         }
@@ -522,6 +760,185 @@ public sealed class CssParser
 
     private static byte ClampByte(double v)
         => (byte)Math.Clamp((int)Math.Round(v), 0, 255);
+
+    private static CssValue ParseCalcFunction(string funcName, List<CssToken> argTokens)
+    {
+        var node = funcName switch
+        {
+            "calc" => ParseCalcExpression(argTokens, 0, out _),
+            "min" => ParseMinMaxClamp(CalcMinMaxType.Min, argTokens),
+            "max" => ParseMinMaxClamp(CalcMinMaxType.Max, argTokens),
+            "clamp" => ParseMinMaxClamp(CalcMinMaxType.Clamp, argTokens),
+            _ => null
+        };
+
+        if (node != null)
+        {
+            return new CssValue
+            {
+                Type = CssValueType.Calc,
+                Raw = funcName + "(...)",
+                CalcExpr = node
+            };
+        }
+
+        return new CssValue { Type = CssValueType.Keyword, Raw = funcName + "(...)" };
+    }
+
+    private static CalcNode? ParseCalcExpression(List<CssToken> tokens, int start, out int end)
+    {
+        end = start;
+        var node = ParseCalcTerm(tokens, start, out end);
+        if (node == null) return null;
+
+        while (end < tokens.Count)
+        {
+            SkipWhitespaceInList(tokens, ref end);
+            if (end >= tokens.Count) break;
+
+            var tok = tokens[end];
+            CalcOp? op = null;
+            if (tok.Type == CssTokenType.Delim && tok.Value == "+") op = CalcOp.Add;
+            else if ((tok.Type == CssTokenType.Delim || tok.Type == CssTokenType.Ident) && tok.Value == "-") op = CalcOp.Sub;
+            else if (tok.Type == CssTokenType.Ident && tok.Value == "+") op = CalcOp.Add;
+
+            if (op == null) break;
+
+            end++;
+            SkipWhitespaceInList(tokens, ref end);
+
+            var right = ParseCalcTerm(tokens, end, out end);
+            if (right == null) break;
+
+            node = new CalcBinaryNode(node, op.Value, right);
+        }
+
+        return node;
+    }
+
+    private static CalcNode? ParseCalcTerm(List<CssToken> tokens, int start, out int end)
+    {
+        end = start;
+        var node = ParseCalcAtom(tokens, start, out end);
+        if (node == null) return null;
+
+        while (end < tokens.Count)
+        {
+            SkipWhitespaceInList(tokens, ref end);
+            if (end >= tokens.Count) break;
+
+            var tok = tokens[end];
+            CalcOp? op = null;
+            if (tok.Type == CssTokenType.Delim && tok.Value == "*") op = CalcOp.Mul;
+            else if ((tok.Type == CssTokenType.Delim || tok.Type == CssTokenType.Ident) && tok.Value == "/") op = CalcOp.Div;
+
+            if (op == null) break;
+
+            end++;
+            SkipWhitespaceInList(tokens, ref end);
+
+            var right = ParseCalcAtom(tokens, end, out end);
+            if (right == null) break;
+
+            node = new CalcBinaryNode(node, op.Value, right);
+        }
+
+        return node;
+    }
+
+    private static CalcNode? ParseCalcAtom(List<CssToken> tokens, int start, out int end)
+    {
+        end = start;
+        if (start >= tokens.Count) return null;
+
+        SkipWhitespaceInList(tokens, ref end);
+        if (end >= tokens.Count) return null;
+
+        var tok = tokens[end];
+
+        if (tok.Type == CssTokenType.LeftParen)
+        {
+            end++;
+            var inner = ParseCalcExpression(tokens, end, out end);
+            SkipWhitespaceInList(tokens, ref end);
+            if (end < tokens.Count && tokens[end].Type == CssTokenType.RightParen)
+                end++;
+            return inner;
+        }
+
+        if (tok.Type == CssTokenType.Function)
+        {
+            var fname = tok.Value.ToLowerInvariant();
+            end++;
+            var nestedArgs = new List<CssToken>();
+            int depth = 1;
+            while (end < tokens.Count && depth > 0)
+            {
+                if (tokens[end].Type == CssTokenType.LeftParen) depth++;
+                else if (tokens[end].Type == CssTokenType.RightParen)
+                {
+                    depth--;
+                    if (depth == 0) { end++; break; }
+                }
+                nestedArgs.Add(tokens[end]);
+                end++;
+            }
+
+            if (fname is "min" or "max" or "clamp")
+                return ParseMinMaxClamp(fname == "min" ? CalcMinMaxType.Min : fname == "max" ? CalcMinMaxType.Max : CalcMinMaxType.Clamp, nestedArgs);
+            if (fname == "calc")
+                return ParseCalcExpression(nestedArgs, 0, out _);
+            return null;
+        }
+
+        if (tok.Type is CssTokenType.Number or CssTokenType.Dimension or CssTokenType.Percentage)
+        {
+            end++;
+            var value = SingleTokenToValue(tok);
+            return new CalcValueNode(value);
+        }
+
+        return null;
+    }
+
+    private static CalcMinMaxNode? ParseMinMaxClamp(CalcMinMaxType type, List<CssToken> argTokens)
+    {
+        var args = new List<CalcNode>();
+        var current = new List<CssToken>();
+
+        foreach (var t in argTokens)
+        {
+            if (t.Type == CssTokenType.Comma)
+            {
+                if (current.Count > 0)
+                {
+                    var node = ParseCalcExpression(current, 0, out _);
+                    if (node != null) args.Add(node);
+                    current = [];
+                }
+            }
+            else
+            {
+                current.Add(t);
+            }
+        }
+
+        if (current.Count > 0)
+        {
+            var node = ParseCalcExpression(current, 0, out _);
+            if (node != null) args.Add(node);
+        }
+
+        if (args.Count == 0) return null;
+
+        return new CalcMinMaxNode(type, args);
+    }
+
+    private static void SkipWhitespaceInList(List<CssToken> tokens, ref int pos)
+    {
+        while (pos < tokens.Count && tokens[pos].Type == CssTokenType.Whitespace)
+            pos++;
+    }
 
     #endregion
 

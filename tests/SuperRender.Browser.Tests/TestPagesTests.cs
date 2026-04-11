@@ -18,7 +18,7 @@ public class TestPagesTests
     [Fact]
     public void Load_BoxSizingHtml_ReturnsContent()
     {
-        var content = TestPages.Load("01-box-sizing.html");
+        var content = TestPages.Load("P0/01-box-sizing.html");
         Assert.NotNull(content);
         Assert.Contains("box-sizing", content!, StringComparison.OrdinalIgnoreCase);
     }
@@ -26,7 +26,7 @@ public class TestPagesTests
     [Fact]
     public void Load_ExternalStyleCss_ReturnsContent()
     {
-        var content = TestPages.Load("18-style.css");
+        var content = TestPages.Load("P0/18-style.css");
         Assert.NotNull(content);
         Assert.Contains("color", content!);
     }
@@ -34,7 +34,7 @@ public class TestPagesTests
     [Fact]
     public void Load_ExternalScriptJs_ReturnsContent()
     {
-        var content = TestPages.Load("18-script.js");
+        var content = TestPages.Load("P0/18-script.js");
         Assert.NotNull(content);
         Assert.Contains("document", content!);
     }
@@ -67,9 +67,9 @@ public class TestPagesTests
     {
         var pages = TestPages.ListPages();
         Assert.Contains("index.html", pages);
-        Assert.Contains("01-box-sizing.html", pages);
-        Assert.Contains("18-style.css", pages);
-        Assert.Contains("18-script.js", pages);
+        Assert.Contains("P0.01-box-sizing.html", pages);
+        Assert.Contains("P0.18-style.css", pages);
+        Assert.Contains("P0.18-script.js", pages);
         Assert.True(pages.Count >= 20, $"Expected at least 20 resources, got {pages.Count}");
     }
 
@@ -131,7 +131,7 @@ public class TestPagesTests
     [Fact]
     public void Resolve_CssRelativeToSrBase_ReturnsSrUri()
     {
-        var baseUri = new Uri("sr://test/18-external-resources.html");
+        var baseUri = new Uri("sr://test/P0/18-external-resources.html");
         var result = UrlResolver.Resolve("18-style.css", baseUri);
 
         Assert.Equal("sr", result.Scheme);
@@ -166,8 +166,8 @@ public class TestPagesTests
     public async Task FetchCssAsync_SrUri_ReturnsEmbeddedCss()
     {
         using var loader = new ResourceLoader();
-        var cssUri = new Uri("sr://test/18-style.css");
-        var originUri = new Uri("sr://test/18-external-resources.html");
+        var cssUri = new Uri("sr://test/P0/18-style.css");
+        var originUri = new Uri("sr://test/P0/18-external-resources.html");
         var result = await loader.FetchCssAsync(cssUri, originUri);
 
         Assert.NotNull(result);
@@ -178,8 +178,8 @@ public class TestPagesTests
     public async Task FetchJsAsync_SrUri_ReturnsEmbeddedJs()
     {
         using var loader = new ResourceLoader();
-        var jsUri = new Uri("sr://test/18-script.js");
-        var originUri = new Uri("sr://test/18-external-resources.html");
+        var jsUri = new Uri("sr://test/P0/18-script.js");
+        var originUri = new Uri("sr://test/P0/18-external-resources.html");
         var result = await loader.FetchJsAsync(jsUri, originUri);
 
         Assert.NotNull(result);
@@ -190,24 +190,24 @@ public class TestPagesTests
 
     [Theory]
     [InlineData("index.html")]
-    [InlineData("01-box-sizing.html")]
-    [InlineData("02-overflow.html")]
-    [InlineData("03-inline-block.html")]
-    [InlineData("04-position.html")]
-    [InlineData("05-white-space.html")]
-    [InlineData("06-ua-stylesheet.html")]
-    [InlineData("07-scrolling.html")]
-    [InlineData("08-links.html")]
-    [InlineData("09-keyboard-shortcuts.html")]
-    [InlineData("10-text-selection.html")]
-    [InlineData("11-context-menu.html")]
-    [InlineData("12-devtools.html")]
-    [InlineData("13-timers.html")]
-    [InlineData("14-dom-events.html")]
-    [InlineData("15-generators.html")]
-    [InlineData("16-async-await.html")]
-    [InlineData("17-integration.html")]
-    [InlineData("18-external-resources.html")]
+    [InlineData("P0/01-box-sizing.html")]
+    [InlineData("P0/02-overflow.html")]
+    [InlineData("P0/03-inline-block.html")]
+    [InlineData("P0/04-position.html")]
+    [InlineData("P0/05-white-space.html")]
+    [InlineData("P0/06-ua-stylesheet.html")]
+    [InlineData("P0/07-scrolling.html")]
+    [InlineData("P0/08-links.html")]
+    [InlineData("P0/09-keyboard-shortcuts.html")]
+    [InlineData("P0/10-text-selection.html")]
+    [InlineData("P0/11-context-menu.html")]
+    [InlineData("P0/12-devtools.html")]
+    [InlineData("P0/13-timers.html")]
+    [InlineData("P0/14-dom-events.html")]
+    [InlineData("P0/15-generators.html")]
+    [InlineData("P0/16-async-await.html")]
+    [InlineData("P0/17-integration.html")]
+    [InlineData("P0/18-external-resources.html")]
     public async Task FetchHtmlAsync_AllTestPages_LoadSuccessfully(string page)
     {
         using var loader = new ResourceLoader();

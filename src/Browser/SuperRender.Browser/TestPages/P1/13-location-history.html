@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 13 - Location and History</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+            font-size: 16px;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+        .output {
+            padding: 10px;
+            background-color: #111111;
+            color: #33ff33;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre;
+            min-height: 80px;
+            overflow: hidden;
+        }
+        .btn {
+            display: inline-block;
+            padding: 8px 16px;
+            background-color: #333333;
+            color: #ffffff;
+            border: 2px solid #111111;
+            margin: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 13: Location and History</h1>
+    <p><a href="../index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 13a: window.location properties</div>
+        <div class="btn" id="loc-btn">Display Location</div>
+        <div class="output" id="loc-output">Click "Display Location" to see window.location properties...</div>
+        <div class="info">EXPECT: Displays location.href, location.protocol, location.hostname, location.pathname, and location.search (if available).</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 13b: history.pushState</div>
+        <div class="btn" id="push-btn">Push State (/page-2)</div>
+        <div class="btn" id="push-btn2">Push State (/page-3)</div>
+        <div class="output" id="push-output">Click the buttons to push history states...</div>
+        <div class="info">EXPECT: Clicking each button calls history.pushState and updates the address bar URL without navigating. The output shows the new location.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 13c: history.back() and history.forward()</div>
+        <div class="btn" id="back-btn">history.back()</div>
+        <div class="btn" id="forward-btn">history.forward()</div>
+        <div class="output" id="nav-output">Use pushState buttons above first, then test back/forward...</div>
+        <div class="info">EXPECT: history.back() goes to the previous pushState entry. history.forward() returns. The location should update accordingly.</div>
+    </div>
+
+    <script>
+        // Test 13a: Display location
+        var locBtn = document.getElementById("loc-btn");
+        var locOutput = document.getElementById("loc-output");
+
+        locBtn.addEventListener("click", function() {
+            try {
+                var result = "window.location properties:\n";
+                result = result + "  href:     " + window.location.href + "\n";
+                result = result + "  protocol: " + window.location.protocol + "\n";
+                result = result + "  hostname: " + window.location.hostname + "\n";
+                result = result + "  pathname: " + window.location.pathname + "\n";
+                result = result + "  search:   " + window.location.search + "\n";
+                result = result + "  hash:     " + window.location.hash;
+                locOutput.textContent = result;
+            } catch (e) {
+                locOutput.textContent = "ERROR: " + e.message;
+            }
+        });
+
+        // Test 13b: pushState
+        var pushBtn = document.getElementById("push-btn");
+        var pushBtn2 = document.getElementById("push-btn2");
+        var pushOutput = document.getElementById("push-output");
+        var pushCount = 0;
+
+        pushBtn.addEventListener("click", function() {
+            try {
+                history.pushState({ page: 2 }, "Page 2", "/page-2");
+                pushCount = pushCount + 1;
+                pushOutput.textContent = "Pushed state #" + pushCount + "\n";
+                pushOutput.textContent = pushOutput.textContent + "  New URL: " + window.location.href + "\n";
+                pushOutput.textContent = pushOutput.textContent + "  history.length: " + history.length;
+            } catch (e) {
+                pushOutput.textContent = "ERROR: " + e.message;
+            }
+        });
+
+        pushBtn2.addEventListener("click", function() {
+            try {
+                history.pushState({ page: 3 }, "Page 3", "/page-3");
+                pushCount = pushCount + 1;
+                pushOutput.textContent = "Pushed state #" + pushCount + "\n";
+                pushOutput.textContent = pushOutput.textContent + "  New URL: " + window.location.href + "\n";
+                pushOutput.textContent = pushOutput.textContent + "  history.length: " + history.length;
+            } catch (e) {
+                pushOutput.textContent = "ERROR: " + e.message;
+            }
+        });
+
+        // Test 13c: back/forward
+        var backBtn = document.getElementById("back-btn");
+        var forwardBtn = document.getElementById("forward-btn");
+        var navOutput = document.getElementById("nav-output");
+
+        backBtn.addEventListener("click", function() {
+            try {
+                history.back();
+                setTimeout(function() {
+                    navOutput.textContent = "After back():\n  URL: " + window.location.href;
+                }, 100);
+            } catch (e) {
+                navOutput.textContent = "ERROR: " + e.message;
+            }
+        });
+
+        forwardBtn.addEventListener("click", function() {
+            try {
+                history.forward();
+                setTimeout(function() {
+                    navOutput.textContent = "After forward():\n  URL: " + window.location.href;
+                }, 100);
+            } catch (e) {
+                navOutput.textContent = "ERROR: " + e.message;
+            }
+        });
+    </script>
+</body>
+</html>

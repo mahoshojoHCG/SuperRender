@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace SuperRender.Document.Dom;
 
 public enum NodeType
@@ -19,6 +21,117 @@ public abstract class Node
     public Node? LastChild => Children.Count > 0 ? Children[^1] : null;
     public Node? NextSibling { get; internal set; }
     public Node? PreviousSibling { get; internal set; }
+
+    /// <summary>
+    /// Gets or sets the text content of this node and its descendants.
+    /// Getter recursively collects all TextNode text. Setter removes all children
+    /// and replaces them with a single TextNode.
+    /// </summary>
+    public virtual string TextContent
+    {
+        get
+        {
+            var sb = new StringBuilder();
+            CollectTextContent(this, sb);
+            return sb.ToString();
+        }
+        set
+        {
+            // Remove all existing children
+            while (Children.Count > 0)
+                RemoveChild(Children[^1]);
+
+            if (!string.IsNullOrEmpty(value))
+            {
+                var textNode = new TextNode(value)
+                {
+                    OwnerDocument = this is Document doc ? doc : OwnerDocument
+                };
+                AppendChild(textNode);
+            }
+        }
+    }
+
+    private static void CollectTextContent(Node node, StringBuilder sb)
+    {
+        if (node is TextNode text)
+        {
+            sb.Append(text.Data);
+            return;
+        }
+
+        foreach (var child in node.Children)
+            CollectTextContent(child, sb);
+    }
+
+    /// <summary>
+    /// Returns true if this node has one or more children.
+    /// </summary>
+    public bool HasChildNodes() => Children.Count > 0;
+
+    /// <summary>
+    /// Returns true if <paramref name="other"/> is this node or a descendant of this node.
+    /// </summary>
+    public bool Contains(Node? other)
+    {
+        if (other is null) return false;
+
+        var current = other;
+        while (current is not null)
+        {
+            if (ReferenceEquals(current, this))
+                return true;
+            current = current.Parent;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Creates a copy of this node. If <paramref name="deep"/> is true, all descendants
+    /// are cloned recursively.
+    /// </summary>
+    public abstract Node CloneNode(bool deep);
+
+    /// <summary>
+    /// Replaces <paramref name="oldChild"/> with <paramref name="newChild"/> in this node's
+    /// children list. Returns the removed old child.
+    /// </summary>
+    public Node ReplaceChild(Node newChild, Node oldChild)
+    {
+        ArgumentNullException.ThrowIfNull(newChild);
+        ArgumentNullException.ThrowIfNull(oldChild);
+
+        var index = Children.IndexOf(oldChild);
+        if (index < 0)
+            throw new InvalidOperationException("The node to be replaced is not a child of this node.");
+
+        // Remove newChild from its current parent if needed
+        if (newChild.Parent != null)
+            newChild.Parent.RemoveChild(newChild);
+
+        // Fix sibling links for the old child's neighbors
+        var prev = oldChild.PreviousSibling;
+        var next = oldChild.NextSibling;
+
+        newChild.PreviousSibling = prev;
+        newChild.NextSibling = next;
+        if (prev != null) prev.NextSibling = newChild;
+        if (next != null) next.PreviousSibling = newChild;
+
+        newChild.Parent = this;
+        newChild.OwnerDocument = this is Document doc ? doc : OwnerDocument;
+
+        // Clear old child's links
+        oldChild.Parent = null;
+        oldChild.PreviousSibling = null;
+        oldChild.NextSibling = null;
+
+        Children[index] = newChild;
+        MarkDirty();
+
+        return oldChild;
+    }
 
     public void AppendChild(Node child)
     {

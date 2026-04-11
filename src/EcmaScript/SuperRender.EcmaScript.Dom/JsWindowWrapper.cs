@@ -28,6 +28,30 @@ internal sealed class JsWindowWrapper : JsObject
         _devicePixelRatio = dpr;
     }
 
+    /// <summary>
+    /// Install a storage object (localStorage or sessionStorage) as a window property.
+    /// </summary>
+    public void InstallStorage(string name, JsObject storageWrapper)
+    {
+        DefineOwnProperty(name, PropertyDescriptor.Data(storageWrapper));
+    }
+
+    /// <summary>
+    /// Install the location object as a window property.
+    /// </summary>
+    public void InstallLocation(JsObject locationWrapper)
+    {
+        DefineOwnProperty("location", PropertyDescriptor.Data(locationWrapper));
+    }
+
+    /// <summary>
+    /// Install the history object as a window property.
+    /// </summary>
+    public void InstallHistory(JsObject historyWrapper)
+    {
+        DefineOwnProperty("history", PropertyDescriptor.Data(historyWrapper));
+    }
+
     private void InstallProperties(Realm realm)
     {
         DefineOwnProperty("document", PropertyDescriptor.Data(_documentWrapper, writable: false));

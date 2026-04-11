@@ -36,7 +36,8 @@ public static class TestPages
     /// </summary>
     public static string? Load(string filename)
     {
-        var resourceName = ResourcePrefix + filename;
+        // Convert path separators to dots for embedded resource names
+        var resourceName = ResourcePrefix + filename.Replace('/', '.').Replace('\\', '.');
         using var stream = Assembly.GetManifestResourceStream(resourceName);
         if (stream is null)
             return null;
@@ -49,7 +50,7 @@ public static class TestPages
     /// </summary>
     public static bool Exists(string filename)
     {
-        var resourceName = ResourcePrefix + filename;
+        var resourceName = ResourcePrefix + filename.Replace('/', '.').Replace('\\', '.');
         var info = Assembly.GetManifestResourceInfo(resourceName);
         return info is not null;
     }

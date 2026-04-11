@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 12 - Fetch API</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+            font-size: 16px;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+        .output {
+            padding: 10px;
+            background-color: #111111;
+            color: #33ff33;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre;
+            min-height: 80px;
+            overflow: hidden;
+        }
+        .btn {
+            display: inline-block;
+            padding: 8px 16px;
+            background-color: #333333;
+            color: #ffffff;
+            border: 2px solid #111111;
+            margin: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 12: Fetch API</h1>
+    <p><a href="../index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 12a: Basic fetch request</div>
+        <p>Click the button to fetch a URL and display the response:</p>
+        <div class="btn" id="fetch-btn">Fetch httpbin.org/get</div>
+        <div class="output" id="fetch-output">Click the button to make a fetch request...</div>
+        <div class="info">EXPECT: After clicking, the output shows the HTTP response status and body content. If fetch is not implemented, shows an error message.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 12b: Fetch with error handling</div>
+        <div class="btn" id="fetch-err-btn">Fetch invalid URL</div>
+        <div class="output" id="fetch-err-output">Click the button to test error handling...</div>
+        <div class="info">EXPECT: Shows a caught error message since the URL is intentionally invalid.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 12c: Fetch the current test page</div>
+        <div class="btn" id="fetch-self-btn">Fetch this page (sr://test/P1/12-fetch.html)</div>
+        <div class="output" id="fetch-self-output">Click the button to fetch this page's own source...</div>
+        <div class="info">EXPECT: Shows the HTML source of this test page (or at least the beginning of it).</div>
+    </div>
+
+    <script>
+        // Test 12a: Basic fetch
+        var fetchBtn = document.getElementById("fetch-btn");
+        var fetchOutput = document.getElementById("fetch-output");
+
+        fetchBtn.addEventListener("click", function() {
+            fetchOutput.textContent = "Fetching...";
+            try {
+                fetch("https://httpbin.org/get").then(function(response) {
+                    fetchOutput.textContent = "Status: " + response.status + "\n";
+                    return response.text();
+                }).then(function(body) {
+                    var preview = body.substring(0, 500);
+                    fetchOutput.textContent = fetchOutput.textContent + "Body (first 500 chars):\n" + preview;
+                }).catch(function(err) {
+                    fetchOutput.textContent = "Fetch error: " + err.message;
+                });
+            } catch (e) {
+                fetchOutput.textContent = "ERROR: " + e.message;
+            }
+        });
+
+        // Test 12b: Fetch error handling
+        var fetchErrBtn = document.getElementById("fetch-err-btn");
+        var fetchErrOutput = document.getElementById("fetch-err-output");
+
+        fetchErrBtn.addEventListener("click", function() {
+            fetchErrOutput.textContent = "Fetching invalid URL...";
+            try {
+                fetch("https://this-domain-does-not-exist.invalid/test").then(function(response) {
+                    fetchErrOutput.textContent = "Unexpected success: " + response.status;
+                }).catch(function(err) {
+                    fetchErrOutput.textContent = "Caught error (expected):\n  " + err.message;
+                });
+            } catch (e) {
+                fetchErrOutput.textContent = "Sync ERROR: " + e.message;
+            }
+        });
+
+        // Test 12c: Fetch self
+        var fetchSelfBtn = document.getElementById("fetch-self-btn");
+        var fetchSelfOutput = document.getElementById("fetch-self-output");
+
+        fetchSelfBtn.addEventListener("click", function() {
+            fetchSelfOutput.textContent = "Fetching self...";
+            try {
+                fetch("sr://test/P1/12-fetch.html").then(function(response) {
+                    fetchSelfOutput.textContent = "Status: " + response.status + "\n";
+                    return response.text();
+                }).then(function(body) {
+                    var preview = body.substring(0, 300);
+                    fetchSelfOutput.textContent = fetchSelfOutput.textContent + "Source (first 300 chars):\n" + preview;
+                }).catch(function(err) {
+                    fetchSelfOutput.textContent = "Fetch error: " + err.message;
+                });
+            } catch (e) {
+                fetchSelfOutput.textContent = "ERROR: " + e.message;
+            }
+        });
+    </script>
+</body>
+</html>

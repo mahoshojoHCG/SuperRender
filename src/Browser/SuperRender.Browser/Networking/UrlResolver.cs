@@ -7,6 +7,15 @@ public static class UrlResolver
 {
     public static Uri Resolve(string href, Uri? baseUri)
     {
+        // Root-relative paths ("/foo") must resolve against the base URI's origin,
+        // not be treated as absolute file:// paths (which happens on Unix where
+        // Uri.TryCreate("/foo", Absolute) succeeds with scheme "file").
+        if (href.StartsWith('/') && baseUri is not null)
+        {
+            if (Uri.TryCreate(baseUri, href, out var rootRelative))
+                return rootRelative;
+        }
+
         if (Uri.TryCreate(href, UriKind.Absolute, out var absoluteUri))
             return absoluteUri;
 

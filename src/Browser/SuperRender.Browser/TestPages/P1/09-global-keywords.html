@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 09 - Global Keywords</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+            font-size: 16px;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+
+        /* Test 9a: initial */
+        .red-text { color: #cc3333; }
+        .initial-color { color: initial; }
+
+        /* Test 9b: inherit */
+        .parent-width {
+            width: 300px;
+            background-color: #ddddff;
+            border: 2px solid #3333cc;
+            padding: 10px;
+        }
+        .inherit-width {
+            width: inherit;
+            background-color: #ffdddd;
+            border: 2px solid #cc3333;
+            padding: 5px;
+        }
+
+        /* Test 9c: unset on inherited property (color inherits, so unset = inherit) */
+        .green-parent {
+            color: #33cc33;
+            padding: 10px;
+            border: 1px solid #33cc33;
+        }
+        .unset-color {
+            color: unset;
+        }
+
+        /* Test 9d: unset on non-inherited property (background-color doesn't inherit, so unset = initial) */
+        .bg-parent {
+            background-color: #ffdddd;
+            padding: 10px;
+            border: 1px solid #cc3333;
+        }
+        .unset-bg {
+            background-color: unset;
+            padding: 5px;
+            border: 1px dashed #999999;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 09: Global Keywords</h1>
+    <p><a href="../index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 9a: color: initial (resets to default)</div>
+        <div class="red-text">
+            <p>This text is red (inherited from parent).</p>
+            <p class="initial-color">This text uses color: initial (should be BLACK, the initial value).</p>
+            <p>This text is red again (inherited).</p>
+        </div>
+        <div class="info">EXPECT: First and third paragraphs are red. The middle paragraph with color:initial is black (the CSS initial value for color).</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 9b: width: inherit (copies parent value)</div>
+        <div class="parent-width">
+            Parent: width 300px (blue border)
+            <div class="inherit-width">
+                Child: width inherit (should also be 300px, red border)
+            </div>
+        </div>
+        <div class="info">EXPECT: The child box (red border) is the same width as the parent box (blue border), both 300px. The child explicitly inherits the parent width.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 9c: color: unset on inherited property</div>
+        <div class="green-parent">
+            Parent has green text.
+            <p class="unset-color">This paragraph has color: unset. Since color is an inherited property, unset = inherit, so this should be GREEN.</p>
+        </div>
+        <div class="info">EXPECT: The paragraph inside the green parent is also green. "unset" on an inherited property (color) behaves like "inherit".</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 9d: background-color: unset on non-inherited property</div>
+        <div class="bg-parent">
+            Parent has pink background.
+            <div class="unset-bg">
+                This child has background-color: unset. Since background-color is NOT inherited, unset = initial, so background should be TRANSPARENT (showing parent pink through).
+            </div>
+        </div>
+        <div class="info">EXPECT: The child element has a transparent/initial background. Since it is inside the pink parent, the pink shows through. "unset" on a non-inherited property (background-color) behaves like "initial".</div>
+    </div>
+</body>
+</html>

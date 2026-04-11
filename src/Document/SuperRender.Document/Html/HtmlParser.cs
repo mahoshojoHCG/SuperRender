@@ -27,6 +27,18 @@ public sealed class HtmlParser
         "tfoot", "th", "thead", "tr", "ul",
     };
 
+    // Heading elements (used for heading-before-heading auto-close).
+    private static readonly HashSet<string> HeadingElements = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "h1", "h2", "h3", "h4", "h5", "h6",
+    };
+
+    // Formatting elements subject to the adoption agency algorithm.
+    private static readonly HashSet<string> FormattingElements = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "b", "i", "em", "strong", "a", "u", "s", "small", "strike", "tt", "font", "big",
+    };
+
     public HtmlParser(string html)
     {
         _html = html ?? throw new ArgumentNullException(nameof(html));
@@ -49,7 +61,7 @@ public sealed class HtmlParser
                     break;
 
                 case HtmlTokenType.EndTag:
-                    HandleEndTag(token, openElements);
+                    HandleEndTag(token, openElements, doc);
                     break;
 
                 case HtmlTokenType.Text:
@@ -79,6 +91,10 @@ public sealed class HtmlParser
     {
         var tagName = token.TagName!;
 
+        // Auto-close rules: pop elements that should be implicitly closed
+        // before inserting the incoming element.
+        ApplyAutoCloseRules(tagName, openElements);
+
         // Build the attributes dictionary (case-insensitive).
         Dictionary<string, string>? attrs = null;
         if (token.Attributes.Count > 0)
@@ -100,9 +116,51 @@ public sealed class HtmlParser
             openElements.Push(element);
     }
 
-    private static void HandleEndTag(HtmlToken token, Stack<Element> openElements)
+    /// <summary>
+    /// Checks whether the current top of the open-elements stack should be
+    /// auto-closed before inserting the incoming element. Loops to handle
+    /// cascading closes (e.g. &lt;li&gt;&lt;p&gt;text&lt;li&gt; closes both p and li).
+    /// </summary>
+    private static void ApplyAutoCloseRules(string incomingTag, Stack<Element> openElements)
+    {
+        while (openElements.Count > 0)
+        {
+            var top = openElements.Peek();
+            bool shouldClose = false;
+
+            // Rule 1: <p> auto-closes before any block-level element.
+            if (top.TagName == "p" && BlockElements.Contains(incomingTag))
+                shouldClose = true;
+            // Rule 2: <li> auto-closes before another <li>.
+            else if (top.TagName == "li" && incomingTag == "li")
+                shouldClose = true;
+            // Rule 3: <dd>/<dt> auto-closes before another <dd> or <dt>.
+            else if (top.TagName is "dd" or "dt" && incomingTag is "dd" or "dt")
+                shouldClose = true;
+            // Rule 4: <option> auto-closes before another <option>.
+            else if (top.TagName == "option" && incomingTag == "option")
+                shouldClose = true;
+            // Rule 5: heading auto-closes before another heading.
+            else if (HeadingElements.Contains(top.TagName) && HeadingElements.Contains(incomingTag))
+                shouldClose = true;
+
+            if (shouldClose)
+                openElements.Pop();
+            else
+                break;
+        }
+    }
+
+    private static void HandleEndTag(HtmlToken token, Stack<Element> openElements, Dom.Document doc)
     {
         var tagName = token.TagName!;
+
+        // Formatting elements use the adoption agency algorithm.
+        if (FormattingElements.Contains(tagName))
+        {
+            HandleFormattingEndTag(tagName, openElements, doc);
+            return;
+        }
 
         // Pop elements until we find the matching open tag.
         // This gracefully handles mis-nested and unclosed tags.
@@ -132,6 +190,63 @@ public sealed class HtmlParser
         }
         // If found, the elements that were popped from between are implicitly closed.
         // We do NOT push them back — they stay as children in the tree already.
+    }
+
+    /// <summary>
+    /// Simplified adoption agency algorithm for formatting element end tags.
+    /// Handles misnested formatting elements by closing the formatting element
+    /// and re-opening any elements that were between the top of the stack and
+    /// the formatting element.
+    /// </summary>
+    private static void HandleFormattingEndTag(string tagName, Stack<Element> openElements, Dom.Document doc)
+    {
+        // 1. Find the formatting element in the stack (searching from the top).
+        var stackArray = openElements.ToArray(); // index 0 = top of stack
+        int formattingIndex = -1;
+        for (int i = 0; i < stackArray.Length; i++)
+        {
+            if (string.Equals(stackArray[i].TagName, tagName, StringComparison.OrdinalIgnoreCase))
+            {
+                formattingIndex = i;
+                break;
+            }
+        }
+
+        // 2. Not found → ignore the end tag.
+        if (formattingIndex < 0)
+            return;
+
+        // 3. It IS the current node → just pop (normal close).
+        if (formattingIndex == 0)
+        {
+            openElements.Pop();
+            return;
+        }
+
+        // 4. Misnested: pop elements between the top and the formatting element,
+        //    pop the formatting element, then re-open the between elements as
+        //    new (empty) clones under the formatting element's parent.
+        var betweenTagNames = new List<string>();
+        for (int i = 0; i < formattingIndex; i++)
+        {
+            betweenTagNames.Add(openElements.Pop().TagName);
+        }
+
+        // Pop the formatting element itself.
+        openElements.Pop();
+
+        // Re-open the between elements in their original nesting order
+        // (betweenTagNames is top-first, so reverse to get outermost-first).
+        betweenTagNames.Reverse();
+
+        Node parent = openElements.Count > 0 ? openElements.Peek() : (Node)doc;
+        foreach (var tn in betweenTagNames)
+        {
+            var newElem = new Element(tn) { OwnerDocument = doc };
+            parent.AppendChild(newElem);
+            openElements.Push(newElem);
+            parent = newElem;
+        }
     }
 
     private static void HandleText(HtmlToken token, Dom.Document doc, Stack<Element> openElements)

@@ -128,6 +128,33 @@ internal class JsNodeWrapper : JsObject
             JsFunction.CreateNative("hasChildNodes", (_, _) =>
                 DomNode.Children.Count > 0 ? True : False, 0)));
 
+        DefineOwnProperty("replaceChild", PropertyDescriptor.Data(
+            JsFunction.CreateNative("replaceChild", (_, args) =>
+            {
+                var newChild = (args.Length > 0 ? args[0] as JsNodeWrapper : null)
+                    ?? throw new Runtime.Errors.JsTypeError("Argument 1 is not a node");
+                var oldChild = (args.Length > 1 ? args[1] as JsNodeWrapper : null)
+                    ?? throw new Runtime.Errors.JsTypeError("Argument 2 is not a node");
+                DomNode.ReplaceChild(newChild.GetNode(), oldChild.GetNode());
+                return Cache.GetOrCreate(oldChild.GetNode());
+            }, 2)));
+
+        DefineOwnProperty("cloneNode", PropertyDescriptor.Data(
+            JsFunction.CreateNative("cloneNode", (_, args) =>
+            {
+                bool deep = args.Length > 0 && args[0].ToBoolean();
+                var clone = DomNode.CloneNode(deep);
+                return Cache.GetOrCreate(clone);
+            }, 1)));
+
+        DefineOwnProperty("contains", PropertyDescriptor.Data(
+            JsFunction.CreateNative("contains", (_, args) =>
+            {
+                var other = args.Length > 0 ? (args[0] as JsNodeWrapper)?.GetNode() : null;
+                if (other == null) return False;
+                return DomNode.Contains(other) ? True : False;
+            }, 1)));
+
         // EventTarget methods
         DefineOwnProperty("addEventListener", PropertyDescriptor.Data(
             JsFunction.CreateNative("addEventListener", (_, args) =>

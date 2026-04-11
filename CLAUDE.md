@@ -7,28 +7,30 @@ A complete HTML+CSS rendering engine built with C# (.NET 10), using Silk.NET + V
 - `src/Document/`
   - `SuperRender.Document/` — Document model: DOM (Node, Element, Document), HTML/CSS parsers, Stylesheet, Selector, Color, events, DomMutationApi (zero external deps)
 - `src/Render/`
-  - `SuperRender.Renderer.Rendering/` — Style resolution, layout engine, painting, RenderPipeline orchestrator
+  - `SuperRender.Renderer.Rendering/` — Style resolution, layout engine (block/inline/flex), painting, RenderPipeline orchestrator
   - `SuperRender.Renderer.Gpu/` — Shared Vulkan rendering infrastructure: GPU context, pipelines, font atlas, batch renderers
+  - `SuperRender.Renderer.Image/` — Pure C# image decoders: PNG, BMP, baseline JPEG (zero external deps)
 - `src/EcmaScript/`
   - `SuperRender.EcmaScript.Compiler/` — Lexer, Parser, AST, JsCompiler (DLR expression tree compiler)
   - `SuperRender.EcmaScript.Runtime/` — JsValue types, Environment, Realm, Builtins (20 standard library objects), Errors
   - `SuperRender.EcmaScript.Engine/` — JsEngine public API, .NET interop (TypeProxy, ObjectProxy)
   - `SuperRender.EcmaScript.Repl/` — Interactive JS console (Node.js-style REPL)
-  - `SuperRender.EcmaScript.Dom/` — JS DOM API bindings: bridges C# DOM to JS runtime (document, element, window APIs)
+  - `SuperRender.EcmaScript.Dom/` — JS DOM API bindings: bridges C# DOM to JS runtime (document, element, window, fetch, location, history APIs)
 - `src/Browser/`
-  - `SuperRender.Browser/` — Browser application with tabs, address bar, networking, CORS, HiDPI
+  - `SuperRender.Browser/` — Browser application with tabs, address bar, networking, cookies, storage (SQLite), HTTP caching, CORS, HiDPI, image loading
 - `src/Demo/`
   - `SuperRender.Demo/` — Minimal Vulkan demo app (uses Gpu library)
-- `tests/SuperRender.Document.Tests/` — xUnit tests for Document (43 tests: HTML, CSS, DOM)
-- `tests/SuperRender.Renderer.Tests/` — xUnit tests for Renderer (114 tests: Style, Layout, Painting)
-- `tests/SuperRender.EcmaScript.Tests/` — xUnit tests for EcmaScript (430 tests)
-- `tests/SuperRender.Browser.Tests/` — xUnit tests for Browser + DOM bindings (140 tests)
+- `tests/SuperRender.Document.Tests/` — xUnit tests for Document (295 tests: HTML, CSS, DOM, selectors, entities)
+- `tests/SuperRender.Renderer.Tests/` — xUnit tests for Renderer (216 tests: Style, Layout, Flexbox, Painting)
+- `tests/SuperRender.Renderer.Image.Tests/` — xUnit tests for Image decoders (25 tests: PNG, BMP, JPEG)
+- `tests/SuperRender.EcmaScript.Tests/` — xUnit tests for EcmaScript (441 tests)
+- `tests/SuperRender.Browser.Tests/` — xUnit tests for Browser + DOM bindings (265 tests)
 
 ## Build & Run
 
 ```bash
 dotnet build              # Build all projects (warnings are errors)
-dotnet test               # Run all unit tests (727 total)
+dotnet test               # Run all unit tests (1242 total)
 dotnet run --project src/Demo/SuperRender.Demo  # Launch the demo window (requires Vulkan)
 dotnet run --project src/Browser/SuperRender.Browser  # Launch the browser (requires Vulkan)
 dotnet run --project src/EcmaScript/SuperRender.EcmaScript.Repl  # Launch the JS console REPL
@@ -36,15 +38,16 @@ dotnet run --project src/EcmaScript/SuperRender.EcmaScript.Repl  # Launch the JS
 
 ## Architecture
 
-**Rendering pipeline:** HTML string → Parse → DOM tree → Style resolution (cascade/specificity/inheritance) → Layout (block/inline box model) → Paint commands → Vulkan GPU rendering
+**Rendering pipeline:** HTML string → Parse → DOM tree → Style resolution (cascade/specificity/inheritance) → Layout (block/inline/flex box model) → Paint commands → Vulkan GPU rendering
 
 **Key components:**
 - `RenderPipeline` — orchestrator with dirty-flag optimization
-- `HtmlParser` — state-machine tokenizer + tree builder
-- `CssParser` — tokenizer + parser with shorthand expansion (margin/padding/border)
-- `StyleResolver` — cascade, specificity, `!important`, inherited properties (color, font-size, font-family, font-weight, font-style, text-align, line-height, white-space), `hidden` attribute, box-sizing, min/max constraints, overflow, z-index, CSS font-family list parsing (comma-separated with fallback)
-- `LayoutEngine` — block layout, inline layout with word-wrap, anonymous block wrapping (style-isolated), inline-block layout with shrink-to-fit and visual-height vertical alignment, position:relative/absolute with shrink-to-fit and right-positioning recalculation, white-space modes (normal/pre/nowrap/pre-wrap/pre-line). TextRun height uses fontSize (character height) for tight bounds; line-height used only for inter-line spacing.
-- `Painter` — generates FillRect/DrawText/PushClip/PopClip commands from layout tree, per-run inline background painting (for `<mark>` etc.), text-decoration rendering (underline, line-through, overline), z-index ordering for positioned elements with stacking-context clip segments, overflow:hidden clipping, list markers (bullets for ul, numbers for ol)
+- `HtmlParser` — state-machine tokenizer + tree builder with auto-closing rules and adoption agency algorithm
+- `CssParser` — tokenizer + parser with shorthand expansion (margin/padding/border/flex/flex-flow/border-radius)
+- `StyleResolver` — cascade, specificity, `!important`, global keywords (`initial`/`inherit`/`unset`/`revert`), inherited properties (color, font-size, font-family, font-weight, font-style, text-align, line-height, white-space, visibility, text-transform, letter-spacing, word-spacing, cursor, word-break, overflow-wrap, list-style-type), `hidden` attribute, box-sizing, min/max constraints, overflow, z-index, opacity, CSS font-family list parsing, `calc()`/`min()`/`max()`/`clamp()` evaluation, viewport units (vw/vh/vmin/vmax)
+- `LayoutEngine` — block layout, inline layout with word-wrap, anonymous block wrapping, inline-block layout, flexbox layout (`FlexLayout` with direction/wrap/justify/align/grow/shrink/basis/gap), position:relative/absolute, white-space modes, replaced element sizing for `<img>` with intrinsic dimensions and aspect ratio preservation
+- `Painter` — generates FillRect/DrawText/DrawImage/PushClip/PopClip commands from layout tree, per-run inline background painting, text-decoration rendering, z-index ordering, overflow:hidden clipping, list markers, opacity compositing, visibility:hidden support, `<img>` alt text fallback
+- `SelectorMatcher` — CSS Selectors Level 4: descendant/child/adjacent-sibling/general-sibling combinators, attribute selectors, structural pseudo-classes (`:first-child`/`:last-child`/`:nth-child(An+B)`/`:only-child`/`:first-of-type`/etc.), functional pseudo-classes (`:not()`/`:is()`/`:where()`), dynamic pseudo-classes (`:hover`/`:focus`/`:active`/`:link`/`:visited`), pseudo-elements (`::before`/`::after`), `:root`/`:empty`
 - `SelectionPainter` — generates highlight FillRect commands for text selection ranges, font-aware width measurement
 - `TextHitTester` — hit-tests mouse coordinates against laid-out TextRuns to find character positions, font-aware measurement, respects overflow:hidden clip regions (clipped text cannot be selected)
 - `LayoutBoxHitTester` — hit-tests layout boxes by coordinate to find clicked DOM elements, walks to `<a>` ancestors for link navigation
@@ -54,6 +57,20 @@ dotnet run --project src/EcmaScript/SuperRender.EcmaScript.Repl  # Launch the JS
 - `DomEvent` / `MouseEvent` / `KeyboardEvent` — DOM event classes with capture/target/bubble propagation
 - `EventListener` — registered event handler on a DOM node (type, handler, capture flag)
 - `UserAgentStylesheet` — default browser CSS styles (body margin, heading sizes/bold, list indent, text-level semantics: bold, italic, underline, strikethrough, monospace, link styling, pre white-space:pre)
+- `InteractionStateHelper` — manages `:hover`/`:focus`/`:active` state flags on DOM elements, fires mouseenter/mouseleave events
+
+## Image Decoding
+
+Pure C# image decoders in `SuperRender.Renderer.Image` (zero external dependencies).
+
+**Supported formats:**
+- `PngDecoder` — PNG (color types 0/2/3/4/6, bit depths 1-16, all 5 filter types, PLTE/tRNS transparency, DEFLATE via `System.IO.Compression`)
+- `BmpDecoder` — BMP (24-bit/32-bit uncompressed, bottom-up/top-down row order)
+- `JpegDecoder` — Baseline JPEG (SOF0, Huffman decode, IDCT, YCbCr→RGB, 4:4:4/4:2:0 subsampling)
+
+**Pipeline:** `ImageDecoder.Decode(byte[])` → auto-detects format → returns `ImageData { Width, Height, byte[] Pixels }` (RGBA, 4 bytes/pixel, row-major)
+
+**Integration:** `Tab.LoadImagesAsync()` fetches image bytes via `ResourceLoader.FetchImageBytesAsync()` (supports HTTP/file/data: URIs), decodes with `ImageDecoder`, stores in `ImageCache`, sets `data-natural-width`/`data-natural-height` attributes on `<img>` elements for layout sizing.
 
 ## EcmaScript Engine
 
@@ -62,7 +79,7 @@ dotnet run --project src/EcmaScript/SuperRender.EcmaScript.Repl  # Launch the JS
 **Key components:**
 - `Lexer` — character-by-character scanner, full ES2025 token set
 - `Parser` — recursive descent + Pratt parser (20 precedence levels), ASI, arrow detection, destructuring, modules
-- `JsCompiler` — AST-to-DLR Expression tree compiler with `RuntimeHelpers` for JS semantics
+- `JsCompiler` — AST-to-DLR Expression tree compiler with `RuntimeHelpers` for JS semantics, labeled statement support (`break label`/`continue label`)
 - `JsValue` hierarchy — `IDynamicMetaObjectProvider` base, JsObject with prototype chain, JsFunction with closures
 - `Environment` — lexical scope chain with TDZ and const enforcement
 - `Realm` — global object + 15 intrinsic prototypes + GeneratorPrototype
@@ -71,13 +88,13 @@ dotnet run --project src/EcmaScript/SuperRender.EcmaScript.Repl  # Launch the JS
 - `JsGeneratorObject` — JS generator with next/return/throw, iterator protocol via Symbol.iterator
 - `JsEngine` — public API entry point, sandboxed .NET interop via `RegisterType<T>()`/`SetValue()`
 
-**Deferred features** tracked in `src/EcmaScript/SuperRender.EcmaScript.Compiler/es-2025-todos.md`: BigInt, WeakRef, SharedArrayBuffer, Intl, Temporal, decorators (24 items remaining — generators and async/await are now implemented).
+**Deferred features** tracked in `src/EcmaScript/SuperRender.EcmaScript.Compiler/es-2025-todos.md`: BigInt, WeakRef, SharedArrayBuffer, Intl, Temporal, decorators.
 
-**Deferred CSS features** tracked in `src/Document/SuperRender.Document/css-todos.md`: selectors level 4, flexbox, grid, custom properties, calc(), transforms, transitions, animations, media queries, container queries, CSS nesting, and more (34 sections).
+**Deferred CSS features** tracked in `src/Document/SuperRender.Document/css-todos.md`: grid, custom properties, transforms, transitions, animations, media queries, container queries, CSS nesting, and more.
 
-**Deferred HTML features** tracked in `src/Document/SuperRender.Document/html-todos.md`: full WHATWG tokenizer states, tree construction algorithm, adoption agency, forms, tables, embedded content, events, Shadow DOM, MutationObserver, user-agent stylesheet, and more (10 sections).
+**Deferred HTML features** tracked in `src/Document/SuperRender.Document/html-todos.md`: full WHATWG tokenizer states, forms, tables, embedded content, Shadow DOM, MutationObserver, and more.
 
-**Deferred browser features** tracked in `src/Browser/SuperRender.Browser/browser-todos.md`: navigation history, keyboard shortcuts, content scrolling, page zoom, cookies, HTTP caching, security hardening, DOM events, timers, images, form elements, find-in-page, dev tools, bookmarks, downloads, link navigation, fetch API, and more (25 sections + experimental ideas).
+**Deferred browser features** tracked in `src/Browser/SuperRender.Browser/browser-todos.md`: page zoom, find-in-page, bookmarks, downloads, and more.
 
 ## EcmaScript Console
 
@@ -95,6 +112,7 @@ Node.js-style interactive REPL powered by the EcmaScript engine.
 - **AnalysisLevel**: `latest-Recommended` with `EnforceCodeStyleInBuild`
 - **Rule suppressions** go in `.editorconfig`, not in `.csproj` `<NoWarn>` — keeps rules centralized and auditable
 - CA1707 (underscore in identifiers) is suppressed only under `tests/` for xUnit `Method_Scenario_Expected` naming
+- CA1720 (identifier contains type name) is suppressed under `src/Render/SuperRender.Renderer.Rendering/Style/` for CSS-mandated property names (e.g., `CursorType.Pointer`)
 
 ## Platform Notes
 
@@ -105,6 +123,7 @@ Node.js-style interactive REPL powered by the EcmaScript engine.
 ## Development Guidelines
 
 - Document project must remain dependency-free (pure C#)
+- Renderer.Image project must remain dependency-free (pure C#)
 - EcmaScript.Compiler, Runtime, and Engine must remain dependency-free (pure C#, DLR ships with .NET)
 - EcmaScript.Repl has no dependencies beyond the EcmaScript.Engine project
 - All Vulkan/GPU code stays in the Renderer.Gpu project (shared by Demo and Browser)
@@ -134,16 +153,20 @@ A Vulkan-powered browser application with tabbed browsing support.
 - `BrowserWindow` — main orchestrator: owns renderer, tab manager, chrome, input handler; drains timer queue and main-thread queue each frame
 - `BrowserChrome` — renders tab bar (32px) + address bar (36px) as PaintCommands, vertically centered text via `CenterTextY`, font-metrics-accurate cursor positioning
 - `TabManager` — tab lifecycle: create, close, switch tabs
-- `Tab` — individual browsing context: owns Document, RenderPipeline, JsEngine, DomBridge, TextSelectionState, ScrollState, NavigationHistory, TimerScheduler
-- `InputHandler` — routes keyboard/mouse to chrome or content area, handles text selection drag, address bar click-to-cursor, right-click context menus, link click navigation, DOM event dispatch, keyboard shortcuts (Cmd/Ctrl+T/W/Tab/L/R, F5, F12, Cmd+Shift+I, Escape, scroll keys)
+- `Tab` — individual browsing context: owns Document, RenderPipeline, JsEngine, DomBridge, TextSelectionState, ScrollState, NavigationHistory, TimerScheduler, SessionStorage
+- `InputHandler` — routes keyboard/mouse to chrome or content area, handles text selection drag, address bar click-to-cursor, right-click context menus, link click navigation, DOM event dispatch, mouse hover tracking with `:hover`/`:focus`/`:active` state management, keyboard shortcuts (Cmd/Ctrl+T/W/Tab/L/R, F5, F12, Cmd+Shift+I, Escape, scroll keys)
+- `InteractionStateHelper` — manages hover/focus/active CSS pseudo-class flags, fires mouseover/mouseout/mouseenter/mouseleave events
 - `ScrollState` — per-tab vertical scroll position tracking with mouse wheel and keyboard scrolling, scrollbar geometry computation
 - `NavigationHistory` — per-tab URI history stack with back/forward cursor
 - `ContextMenu` — reusable context menu: items with hover highlighting, hit-testing, PaintList rendering
 - `ClipboardHelper` — cross-platform clipboard access (pbcopy/pbpaste on macOS, xclip on Linux, PowerShell on Windows)
-- `ResourceLoader` — HTTP client for fetching HTML/CSS/JS resources, file:// URI support for local files, sr:// for embedded test pages
+- `ResourceLoader` — HTTP client for fetching HTML/CSS/JS/image resources, file:// URI support for local files, sr:// for embedded test pages, data: URI for embedded images
 - `SecurityPolicy` — same-origin checks + CORS header validation for sub-resources
-- `UrlResolver` — resolves relative URLs against base URI, normalizes address bar input (supports http/https/file/sr/about schemes, bare domain names, absolute file paths)
-- `TestPages` — provides access to embedded manual test page resources via `sr://test/{name}` protocol
+- `UrlResolver` — resolves relative URLs against base URI (root-relative paths resolve to origin, not file://), normalizes address bar input (supports http/https/file/sr/about schemes, bare domain names, absolute file paths)
+- `TestPages` — provides access to embedded manual test page resources via `sr://test/{name}` protocol, supports P0/P1 subdirectories
+- `ImageCache` — thread-safe in-memory cache for decoded images, keyed by URL
+- `CookieJar` — in-memory cookie storage with Set-Cookie parsing, domain/path matching, Secure/HttpOnly/SameSite enforcement
+- `HttpCache` — SQLite-backed HTTP response cache with Cache-Control/ETag/Last-Modified/Expires support
 
 **HiDPI support:** Content scale derived from `FramebufferSize / Size`. Layout engine works in logical (CSS) pixels; projection matrix maps logical → physical coordinates. Font atlas is generated at `BaseFontSize * contentScale` for sharp text on Retina/HiDPI displays.
 
@@ -159,24 +182,38 @@ A Vulkan-powered browser application with tabbed browsing support.
 
 **Keyboard shortcuts:** Platform-aware (Cmd on macOS, Ctrl on Windows/Linux). Global: Cmd+T (new tab), Cmd+W (close), Cmd+Tab/Shift+Tab (switch), Cmd+L (focus+select address bar), Cmd+R/F5 (reload), Cmd+[/Cmd+Left (back), Cmd+]/Cmd+Right (forward), F12/Cmd+Shift+I (toggle DevTools), Escape (unfocus). Content area: arrow keys (scroll step), Page Up/Down/Space (scroll page), Home/End (top/bottom).
 
-**DOM events:** `Node` has `AddEventListener`/`RemoveEventListener`/`DispatchEvent` with capture/target/bubble propagation. `DomEvent`, `MouseEvent`, `KeyboardEvent` in Document. `JsEventWrapper` bridges to JS. `InputHandler` dispatches `mousedown`/`mouseup`/`click` to hit DOM nodes. `DOMContentLoaded` and `load` fired after page load.
+**DOM events:** `Node` has `AddEventListener`/`RemoveEventListener`/`DispatchEvent` with capture/target/bubble propagation. `DomEvent`, `MouseEvent`, `KeyboardEvent` in Document. `JsEventWrapper` bridges to JS. `InputHandler` dispatches `mousedown`/`mouseup`/`click`/`mousemove`/`mouseover`/`mouseout`/`mouseenter`/`mouseleave` to hit DOM nodes. `DOMContentLoaded` and `load` fired after page load.
 
 **Timers:** `TimerScheduler` (in EcmaScript.Dom) uses `Stopwatch` for monotonic time. `setTimeout` with real delay, `setInterval` (min 4ms), `requestAnimationFrame` (fires next frame). Timer queue drained in `BrowserWindow.OnRender` before painting. `cancelAnimationFrame`/`clearTimeout`/`clearInterval` cancel by ID.
 
 **Developer Tools:** Separate Vulkan window opened via F12/Cmd+Shift+I/right-click context menu. `DevToolsWindow` creates its own `IWindow` + `VulkanRenderer`; rendering is driven from the main window's render loop (Silk.NET only drives `Run()` on one window, so secondary windows are rendered manually via `RenderFrame()`). GLFW's `glfwPollEvents()` handles input events for all windows. `DevToolsPanel` builds PaintList for the console UI: toolbar, scrollable log area, JS input line. `ConsoleCapture` (TextWriter subclass) redirects `console.log/warn/error` to per-tab `ConsoleLog`. JS execution requests are queued via `ConcurrentQueue<string>` and drained on the main thread. `Tab.LoadHtmlDirect(html)` replaces the old reflection-based page loading and also sets up the JsEngine. `Tab.ExecuteConsoleInput(code)` lazy-initializes the JsEngine if needed.
+
+**Cookies & Storage:** `CookieJar` stores cookies in memory with full `Set-Cookie` parsing (Domain, Path, Expires, Max-Age, Secure, HttpOnly, SameSite). `document.cookie` JS getter/setter via `JsDocumentWrapper`. `localStorage` backed by SQLite (`StorageDatabase`), `sessionStorage` per-tab in memory. `JsStorageWrapper` bridges to JS with `getItem`/`setItem`/`removeItem`/`clear`/`key`/`length`.
+
+**HTTP Caching:** `HttpCache` backed by SQLite (`CacheDatabase`). Checks freshness (max-age, Expires), sends conditional requests (If-None-Match, If-Modified-Since), handles 304 Not Modified.
+
+**Fetch API:** `JsFetchApi` installs global `fetch(url, options)` returning a JS Promise. Async HTTP via `Task.Run` + main-thread queue marshaling. `JsResponseWrapper` exposes `status`/`ok`/`headers`/`.text()`/`.json()`.
+
+**Location & History APIs:** `JsLocationWrapper` exposes `href`/`protocol`/`host`/`hostname`/`port`/`pathname`/`search`/`hash`/`origin`/`assign()`/`replace()`/`reload()`. `JsHistoryWrapper` exposes `pushState()`/`replaceState()`/`back()`/`forward()`/`go()`/`length`/`state`.
+
+**Image loading:** `Tab.LoadImagesAsync()` scans for `<img>` elements after CSS loading, fetches bytes via `ResourceLoader.FetchImageBytesAsync()` (HTTP/file/data: URIs), decodes with `ImageDecoder` (pure C# PNG/BMP/JPEG), stores in `ImageCache`, sets intrinsic dimensions on elements. `Painter.PaintImage()` emits `DrawImageCommand` or renders alt text fallback in a gray placeholder box.
 
 ## EcmaScript DOM Bindings
 
 Bridges C# DOM objects to the JS runtime with correct Web API naming conventions.
 
 **Key components:**
-- `DomBridge` — entry point: installs `document` and `window` globals into JsEngine, owns `TimerScheduler`, forwards timer/event APIs (setTimeout, setInterval, requestAnimationFrame, etc.) to global scope
-- `JsNodeWrapper` — wraps Node: nodeType, parentNode, childNodes, appendChild, removeChild, insertBefore, addEventListener, removeEventListener, dispatchEvent
-- `JsElementWrapper` — wraps Element: tagName, id, className, classList, getAttribute/setAttribute, querySelector/querySelectorAll, innerHTML, style
-- `JsDocumentWrapper` — wraps Document: createElement, createTextNode, getElementById, getElementsByTagName/ClassName, body, head, title
-- `JsWindowWrapper` — window global: document, innerWidth/Height, devicePixelRatio, setTimeout/clearTimeout (real delays via TimerScheduler), setInterval/clearInterval, requestAnimationFrame/cancelAnimationFrame
+- `DomBridge` — entry point: installs `document`, `window`, `fetch` globals into JsEngine, owns `TimerScheduler`, configures cookies/storage/location/history delegates
+- `JsNodeWrapper` — wraps Node: nodeType, parentNode, childNodes, appendChild, removeChild, insertBefore, replaceChild, cloneNode, contains, textContent, addEventListener, removeEventListener, dispatchEvent
+- `JsElementWrapper` — wraps Element: tagName, id, className, classList, getAttribute/setAttribute/hasAttribute/toggleAttribute, querySelector/querySelectorAll, innerHTML, style, matches, closest, dataset, firstElementChild/lastElementChild/childElementCount, after/before/remove
+- `JsDocumentWrapper` — wraps Document: createElement, createTextNode, getElementById, getElementsByTagName/ClassName, body, head, title, cookie
+- `JsWindowWrapper` — window global: document, innerWidth/Height, devicePixelRatio, setTimeout/clearTimeout, setInterval/clearInterval, requestAnimationFrame/cancelAnimationFrame, localStorage, sessionStorage, location, history
 - `JsEventWrapper` — wraps DomEvent/MouseEvent/KeyboardEvent for JS: type, target, currentTarget, preventDefault, stopPropagation, clientX/Y, key/code
 - `JsCssStyleDeclaration` — element.style accessor: camelCase property get/set → inline style attribute
+- `JsFetchApi` — global `fetch()` function returning Promise
+- `JsLocationWrapper` — `window.location` object
+- `JsHistoryWrapper` — `window.history` object
+- `JsStorageWrapper` — wraps `localStorage`/`sessionStorage`
 - `TimerScheduler` — monotonic timer queue: setTimeout/setInterval/requestAnimationFrame with real delays, drained per frame
 - `NodeWrapperCache` — ConditionalWeakTable for 1:1 C# node ↔ JS wrapper identity, event handler mapping for removeEventListener
 

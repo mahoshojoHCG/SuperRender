@@ -1,0 +1,3 @@
+[*.cs]
+# CA1720: Identifier contains type name — CSS property values (cursor: pointer) are spec-mandated
+dotnet_diagnostic.CA1720.severity = none

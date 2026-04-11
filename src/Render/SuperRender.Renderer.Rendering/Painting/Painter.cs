@@ -9,20 +9,28 @@ public sealed class Painter
     public static PaintList Paint(LayoutBox root)
     {
         var list = new PaintList();
-        PaintBox(root, list);
+        PaintBox(root, list, 1f);
         return list;
     }
 
-    private static void PaintBox(LayoutBox box, PaintList list)
+    private static void PaintBox(LayoutBox box, PaintList list, float parentOpacity = 1f)
     {
         if (box.Style.Display == DisplayType.None)
             return;
 
-        // 1. Paint background
-        PaintBackground(box, list);
+        // visibility: hidden — skip painting but keep layout space; children CAN override
+        bool isHidden = box.Style.Visibility == VisibilityType.Hidden;
 
-        // 2. Paint border
-        PaintBorder(box, list);
+        // Effective opacity: multiply with parent (opacity is composited)
+        float effectiveOpacity = parentOpacity * box.Style.Opacity;
+
+        // 1. Paint background (if visible)
+        if (!isHidden)
+            PaintBackground(box, list, effectiveOpacity);
+
+        // 2. Paint border (if visible)
+        if (!isHidden)
+            PaintBorder(box, list, effectiveOpacity);
 
         // 3. Clip if overflow:hidden
         bool clipping = box.Style.Overflow == OverflowType.Hidden;
@@ -31,23 +39,29 @@ public sealed class Painter
             list.Add(new PushClipCommand { Rect = box.Dimensions.PaddingRect });
         }
 
-        // 4. Paint list marker for <li> elements
-        PaintListMarker(box, list);
+        // 4. Paint list marker for <li> elements (if visible)
+        if (!isHidden)
+            PaintListMarker(box, list, effectiveOpacity);
 
-        // 5. Paint text runs (inside clip region, before children so positioned children render on top)
-        PaintTextRuns(box, list);
+        // 5. Paint text runs (if visible)
+        if (!isHidden)
+            PaintTextRuns(box, list, effectiveOpacity);
 
-        // 5. Paint children with z-index ordering for positioned elements
-        PaintChildren(box, list);
+        // 5b. Paint image for <img> elements (if visible)
+        if (!isHidden)
+            PaintImage(box, list, effectiveOpacity);
 
-        // 6. Pop clip
+        // 6. Paint children with z-index ordering for positioned elements
+        PaintChildren(box, list, effectiveOpacity);
+
+        // 7. Pop clip
         if (clipping)
         {
             list.Add(new PopClipCommand());
         }
     }
 
-    private static void PaintChildren(LayoutBox box, PaintList list)
+    private static void PaintChildren(LayoutBox box, PaintList list, float parentOpacity)
     {
         // Separate children into non-positioned and positioned
         var nonPositioned = new List<LayoutBox>();
@@ -64,11 +78,10 @@ public sealed class Painter
         // Paint non-positioned children first (normal flow)
         foreach (var child in nonPositioned)
         {
-            PaintBox(child, list);
+            PaintBox(child, list, parentOpacity);
         }
 
         // Sort positioned children by z-index and paint in a new rendering segment
-        // (forces quads+text together so positioned elements render on top of normal flow)
         if (positioned.Count > 0)
         {
             positioned.Sort((a, b) =>
@@ -78,7 +91,6 @@ public sealed class Painter
                 return za.CompareTo(zb);
             });
 
-            // Push a full-viewport clip to start a new rendering segment
             list.Add(new PushClipCommand
             {
                 Rect = new RectF(-100000, -100000, 200000, 200000),
@@ -86,30 +98,28 @@ public sealed class Painter
 
             foreach (var child in positioned)
             {
-                PaintBox(child, list);
+                PaintBox(child, list, parentOpacity);
             }
 
             list.Add(new PopClipCommand());
         }
     }
 
-    private static void PaintBackground(LayoutBox box, PaintList list)
+    private static void PaintBackground(LayoutBox box, PaintList list, float opacity = 1f)
     {
         var bg = box.Style.BackgroundColor;
         if (bg.A <= 0) return;
 
-        // Skip box-level background for inline elements with text runs —
-        // their backgrounds are painted per-run in PaintTextRuns for tighter highlighting
         if (box.Style.Display == DisplayType.Inline && box.TextRuns is { Count: > 0 })
             return;
 
         var rect = box.Dimensions.BorderRect;
         if (rect.Width <= 0 || rect.Height <= 0) return;
 
-        list.Add(new FillRectCommand { Rect = rect, Color = bg });
+        list.Add(new FillRectCommand { Rect = rect, Color = ApplyOpacity(bg, opacity) });
     }
 
-    private static void PaintBorder(LayoutBox box, PaintList list)
+    private static void PaintBorder(LayoutBox box, PaintList list, float opacity = 1f)
     {
         var style = box.Style;
         var border = style.BorderWidth;
@@ -123,7 +133,7 @@ public sealed class Painter
             list.Add(new FillRectCommand
             {
                 Rect = new RectF(borderRect.X, borderRect.Y, borderRect.Width, border.Top),
-                Color = style.BorderTopColor,
+                Color = ApplyOpacity(style.BorderTopColor, opacity),
             });
         }
 
@@ -134,7 +144,7 @@ public sealed class Painter
             list.Add(new FillRectCommand
             {
                 Rect = new RectF(borderRect.X, paddingRect.Bottom, borderRect.Width, border.Bottom),
-                Color = style.BorderBottomColor,
+                Color = ApplyOpacity(style.BorderBottomColor, opacity),
             });
         }
 
@@ -145,7 +155,7 @@ public sealed class Painter
             list.Add(new FillRectCommand
             {
                 Rect = new RectF(borderRect.X, borderRect.Y, border.Left, borderRect.Height),
-                Color = style.BorderLeftColor,
+                Color = ApplyOpacity(style.BorderLeftColor, opacity),
             });
         }
 
@@ -156,31 +166,28 @@ public sealed class Painter
             list.Add(new FillRectCommand
             {
                 Rect = new RectF(paddingRect.Right, borderRect.Y, border.Right, borderRect.Height),
-                Color = style.BorderRightColor,
+                Color = ApplyOpacity(style.BorderRightColor, opacity),
             });
         }
     }
 
-    private static void PaintTextRuns(LayoutBox box, PaintList list)
+    private static void PaintTextRuns(LayoutBox box, PaintList list, float opacity = 1f)
     {
         if (box.TextRuns == null) return;
 
         foreach (var run in box.TextRuns)
         {
-            // Paint per-run inline background (e.g. <mark> yellow highlight)
             if (run.Style.BackgroundColor.A > 0)
             {
                 list.Add(new FillRectCommand
                 {
                     Rect = new RectF(run.X, run.Y, run.Width, run.Style.FontSize),
-                    Color = run.Style.BackgroundColor,
+                    Color = ApplyOpacity(run.Style.BackgroundColor, opacity),
                 });
             }
 
-            // Always paint text decoration (so underlines span spaces in links)
-            PaintTextDecoration(run, list);
+            PaintTextDecoration(run, list, opacity);
 
-            // Skip drawing invisible text, but decoration was already painted above
             if (string.IsNullOrWhiteSpace(run.Text)) continue;
 
             list.Add(new DrawTextCommand
@@ -189,21 +196,23 @@ public sealed class Painter
                 X = run.X,
                 Y = run.Y,
                 FontSize = run.Style.FontSize,
-                Color = run.Style.Color,
+                Color = ApplyOpacity(run.Style.Color, opacity),
                 FontWeight = run.Style.FontWeight,
                 FontStyle = run.Style.FontStyle,
                 FontFamily = run.Style.FontFamily,
                 FontFamilies = run.Style.FontFamilies,
+                LetterSpacing = run.Style.LetterSpacing,
+                WordSpacing = run.Style.WordSpacing,
             });
         }
     }
 
-    private static void PaintTextDecoration(TextRun run, PaintList list)
+    private static void PaintTextDecoration(TextRun run, PaintList list, float opacity = 1f)
     {
         var decoration = run.Style.TextDecorationLine;
         if (decoration == TextDecorationLine.None) return;
 
-        var color = run.Style.TextDecorationColor ?? run.Style.Color;
+        var color = ApplyOpacity(run.Style.TextDecorationColor ?? run.Style.Color, opacity);
         float thickness = Math.Max(1f, run.Style.FontSize / 16f);
 
         if ((decoration & TextDecorationLine.Underline) != 0)
@@ -236,18 +245,18 @@ public sealed class Painter
         }
     }
 
-    private static void PaintListMarker(LayoutBox box, PaintList list)
+    private static void PaintListMarker(LayoutBox box, PaintList list, float opacity = 1f)
     {
         if (box.DomNode is not Element el || el.TagName != "li") return;
 
-        // Determine marker type from parent element
         var parent = el.Parent as Element;
         bool ordered = parent?.TagName == "ol";
 
         var dims = box.Dimensions;
         float fontSize = box.Style.FontSize;
-        float markerX = dims.X - fontSize * 1.2f; // Position marker to the left of content
+        float markerX = dims.X - fontSize * 1.2f;
         float markerY = dims.Y;
+        var color = ApplyOpacity(box.Style.Color, opacity);
 
         if (ordered)
         {
@@ -268,24 +277,83 @@ public sealed class Painter
                 X = markerX,
                 Y = markerY,
                 FontSize = fontSize,
-                Color = box.Style.Color,
+                Color = color,
                 FontFamilies = box.Style.FontFamilies,
                 FontWeight = box.Style.FontWeight,
             });
         }
         else
         {
-            // Bullet: draw a small filled circle (approximated by a unicode bullet character)
             list.Add(new DrawTextCommand
             {
-                Text = "\u2022", // bullet character •
+                Text = "\u2022",
                 X = markerX,
                 Y = markerY,
                 FontSize = fontSize,
-                Color = box.Style.Color,
+                Color = color,
                 FontFamilies = box.Style.FontFamilies,
                 FontWeight = box.Style.FontWeight,
             });
+        }
+    }
+
+    private static Document.Color ApplyOpacity(Document.Color color, float opacity)
+    {
+        if (opacity >= 1f) return color;
+        return new Document.Color(color.R, color.G, color.B, color.A * opacity);
+    }
+
+    private static void PaintImage(LayoutBox box, PaintList list, float opacity = 1f)
+    {
+        if (box.DomNode is not Element el || el.TagName != "img") return;
+
+        var src = el.GetAttribute("src");
+        var contentRect = box.Dimensions.ContentRect;
+
+        if (!string.IsNullOrWhiteSpace(src) && contentRect.Width > 0 && contentRect.Height > 0)
+        {
+            list.Add(new DrawImageCommand
+            {
+                ImageUrl = src,
+                Rect = contentRect,
+                Opacity = opacity,
+            });
+        }
+        else
+        {
+            // Alt text fallback when no image loaded
+            var alt = el.GetAttribute("alt");
+            if (!string.IsNullOrWhiteSpace(alt) && contentRect.Width > 0 && contentRect.Height > 0)
+            {
+                // Light gray placeholder box
+                var placeholderColor = new Document.Color(0.93f, 0.93f, 0.93f, 1f);
+                list.Add(new FillRectCommand
+                {
+                    Rect = contentRect,
+                    Color = ApplyOpacity(placeholderColor, opacity),
+                });
+
+                // Border
+                var borderColor = new Document.Color(0.8f, 0.8f, 0.8f, 1f);
+                list.Add(new StrokeRectCommand
+                {
+                    Rect = contentRect,
+                    Color = ApplyOpacity(borderColor, opacity),
+                });
+
+                // Alt text centered
+                var fontSize = box.Style.FontSize;
+                list.Add(new DrawTextCommand
+                {
+                    Text = alt,
+                    X = contentRect.X + 4,
+                    Y = contentRect.Y + 4,
+                    FontSize = fontSize,
+                    Color = ApplyOpacity(new Document.Color(0.4f, 0.4f, 0.4f, 1f), opacity),
+                    FontFamilies = box.Style.FontFamilies,
+                    FontWeight = box.Style.FontWeight,
+                });
+            }
         }
     }
 }

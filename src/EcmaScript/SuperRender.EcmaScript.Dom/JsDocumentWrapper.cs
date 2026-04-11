@@ -20,6 +20,17 @@ internal sealed class JsDocumentWrapper : JsElementWrapper
 
     private static Element CreateDummyElement(DomDocument doc) => doc.CreateElement("html");
 
+    /// <summary>
+    /// Install document.cookie accessor. Called from DomBridge when cookies are configured.
+    /// </summary>
+    public void InstallCookie(Func<string> getCookies, Action<string> setCookie)
+    {
+        DefineOwnProperty("cookie", PropertyDescriptor.Accessor(
+            Getter(() => new JsString(getCookies())),
+            Setter(v => setCookie(v.ToJsString())),
+            enumerable: true, configurable: true));
+    }
+
     private void InstallDocumentProperties()
     {
         DefineOwnProperty("nodeType", PropertyDescriptor.Accessor(

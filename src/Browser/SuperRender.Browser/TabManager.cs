@@ -1,4 +1,5 @@
 using SuperRender.Browser.Networking;
+using SuperRender.Browser.Storage;
 using SuperRender.Renderer.Rendering.Layout;
 
 namespace SuperRender.Browser;
@@ -17,6 +18,12 @@ public sealed class TabManager : IDisposable
     public Tab? ActiveTab => _tabs.Count > 0 && ActiveTabIndex >= 0 && ActiveTabIndex < _tabs.Count
         ? _tabs[ActiveTabIndex] : null;
 
+    // Shared browser-level resources
+    public CookieJar? CookieJar { get; set; }
+    public StorageDatabase? StorageDb { get; set; }
+    public Action<Action>? EnqueueMainThread { get; set; }
+    public ImageCache? ImageCache { get; set; }
+
     public TabManager(ITextMeasurer measurer, ResourceLoader loader)
     {
         _measurer = measurer;
@@ -25,7 +32,13 @@ public sealed class TabManager : IDisposable
 
     public Tab CreateTab()
     {
-        var tab = new Tab(_measurer, _loader);
+        var tab = new Tab(_measurer, _loader)
+        {
+            CookieJar = CookieJar,
+            StorageDb = StorageDb,
+            EnqueueMainThread = EnqueueMainThread,
+            ImageCache = ImageCache,
+        };
         _tabs.Add(tab);
         ActiveTabIndex = _tabs.Count - 1;
         return tab;

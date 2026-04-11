@@ -47,7 +47,7 @@ public sealed class RenderPipeline
         // Style resolution
         var uaStylesheet = _useUserAgentStylesheet ? UserAgentStylesheet.Create() : null;
         var resolver = new StyleResolver(_document.Stylesheets, uaStylesheet);
-        _styles = resolver.ResolveAll(_document);
+        _styles = resolver.ResolveAll(_document, viewportWidth, viewportHeight);
 
         // Layout
         var layoutEngine = new LayoutEngine(_textMeasurer);

@@ -32,4 +32,15 @@ public sealed class Document : Node
     {
         return new TextNode(data) { OwnerDocument = this };
     }
+
+    public override Node CloneNode(bool deep)
+    {
+        var clone = new Document();
+        if (deep)
+        {
+            foreach (var child in Children)
+                clone.AppendChild(child.CloneNode(true));
+        }
+        return clone;
+    }
 }

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 04 - Opacity and Visibility</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+            font-size: 16px;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+        .comparison-row {
+            margin-bottom: 10px;
+        }
+
+        /* Test 4a: opacity: 0.5 */
+        .half-opacity {
+            width: 200px;
+            height: 80px;
+            background-color: #cc3333;
+            color: #ffffff;
+            padding: 15px;
+            opacity: 0.5;
+            font-weight: bold;
+        }
+        .full-opacity {
+            width: 200px;
+            height: 80px;
+            background-color: #cc3333;
+            color: #ffffff;
+            padding: 15px;
+            opacity: 1;
+            font-weight: bold;
+        }
+
+        /* Test 4b: opacity: 0 */
+        .zero-opacity {
+            width: 200px;
+            height: 80px;
+            background-color: #3333cc;
+            color: #ffffff;
+            padding: 15px;
+            opacity: 0;
+            font-weight: bold;
+        }
+        .marker {
+            background-color: #eeeeee;
+            padding: 5px;
+            border: 1px dashed #999999;
+        }
+
+        /* Test 4c: visibility: hidden */
+        .vis-hidden {
+            width: 200px;
+            height: 80px;
+            background-color: #33cc33;
+            color: #ffffff;
+            padding: 15px;
+            visibility: hidden;
+            font-weight: bold;
+        }
+
+        /* Test 4d: Nested opacity */
+        .outer-half {
+            width: 250px;
+            padding: 15px;
+            background-color: #cc3333;
+            color: #ffffff;
+            opacity: 0.5;
+        }
+        .inner-half {
+            padding: 10px;
+            background-color: #3333cc;
+            color: #ffffff;
+            opacity: 0.5;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 04: Opacity and Visibility</h1>
+    <p><a href="../index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 4a: opacity: 0.5 on a colored box</div>
+        <div class="comparison-row">
+            <p>Full opacity (1.0):</p>
+            <div class="full-opacity">opacity: 1 (full red)</div>
+        </div>
+        <div class="comparison-row">
+            <p>Half opacity (0.5):</p>
+            <div class="half-opacity">opacity: 0.5 (faded red)</div>
+        </div>
+        <div class="info">EXPECT: The second red box appears faded/translucent compared to the first. The background shows through partially.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 4b: opacity: 0 (invisible but occupies space)</div>
+        <div class="marker">Content before the invisible box.</div>
+        <div class="zero-opacity">This text should be invisible.</div>
+        <div class="marker">Content after the invisible box.</div>
+        <div class="info">EXPECT: There is a visible gap between the two "Content" markers. The blue box is invisible but still takes up space (80px height).</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 4c: visibility: hidden (invisible, occupies space)</div>
+        <div class="marker">Content before the hidden box.</div>
+        <div class="vis-hidden">This text should be hidden.</div>
+        <div class="marker">Content after the hidden box.</div>
+        <div class="info">EXPECT: Similar to opacity:0 above. There is a visible gap between the markers. The green box is invisible but still takes up its layout space.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 4d: Nested opacity (parent 0.5, child 0.5 = 0.25 effective)</div>
+        <div class="outer-half">
+            Parent: opacity 0.5 (faded red)
+            <div class="inner-half">
+                Child: opacity 0.5 (effectively 0.25 total, very faded blue)
+            </div>
+        </div>
+        <div class="info">EXPECT: The outer red box is 50% transparent. The inner blue box is VERY faded (25% effective opacity) because parent and child opacities multiply: 0.5 x 0.5 = 0.25.</div>
+    </div>
+</body>
+</html>

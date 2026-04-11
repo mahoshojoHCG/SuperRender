@@ -34,6 +34,11 @@ public sealed class JsCompiler
     private LabelTarget? _continueLabel;
     private ParameterExpression? _coroutineParam;
 
+    // Label tracking for break/continue with named labels
+    private readonly Dictionary<string, (LabelTarget breakTarget, LabelTarget? continueTarget)> _labelTargets = new();
+    private LabelTarget? _pendingLabelBreak;
+    private LabelTarget? _pendingLabelContinue;
+
     public JsCompiler(Realm realm)
     {
         _realm = realm;
@@ -117,8 +122,8 @@ public sealed class JsCompiler
         TryStatement ts => CompileTry(ts),
         ReturnStatement rs => CompileReturn(rs),
         ThrowStatement ths => CompileThrow(ths),
-        BreakStatement => CompileBreak(),
-        ContinueStatement => CompileContinue(),
+        BreakStatement bs => CompileBreak(bs),
+        ContinueStatement cs => CompileContinue(cs),
         LabeledStatement ls => CompileLabeledStatement(ls),
         VariableDeclaration vd => CompileVariableDeclaration(vd),
         FunctionDeclaration fd => CompileFunctionDecl(fd),
@@ -223,8 +228,10 @@ public sealed class JsCompiler
         var loopEnv = Expr.Parameter(typeof(Environment), "forEnv");
         var prevBreak = _breakLabel;
         var prevContinue = _continueLabel;
-        var breakLbl = Expr.Label(typeof(JsValue), "forBreak");
-        var continueLbl = Expr.Label("forContinue");
+        var breakLbl = _pendingLabelBreak ?? Expr.Label(typeof(JsValue), "forBreak");
+        var continueLbl = _pendingLabelContinue ?? Expr.Label("forContinue");
+        _pendingLabelBreak = null;
+        _pendingLabelContinue = null;
         _breakLabel = breakLbl;
         _continueLabel = continueLbl;
 
@@ -296,8 +303,10 @@ public sealed class JsCompiler
     {
         var prevBreak = _breakLabel;
         var prevContinue = _continueLabel;
-        var breakLbl = Expr.Label(typeof(JsValue), "forOfBreak");
-        var continueLbl = Expr.Label("forOfContinue");
+        var breakLbl = _pendingLabelBreak ?? Expr.Label(typeof(JsValue), "forOfBreak");
+        var continueLbl = _pendingLabelContinue ?? Expr.Label("forOfContinue");
+        _pendingLabelBreak = null;
+        _pendingLabelContinue = null;
         _breakLabel = breakLbl;
         _continueLabel = continueLbl;
 
@@ -352,8 +361,10 @@ public sealed class JsCompiler
     {
         var prevBreak = _breakLabel;
         var prevContinue = _continueLabel;
-        var breakLbl = Expr.Label(typeof(JsValue), "forInOfBreak");
-        var continueLbl = Expr.Label("forInOfContinue");
+        var breakLbl = _pendingLabelBreak ?? Expr.Label(typeof(JsValue), "forInOfBreak");
+        var continueLbl = _pendingLabelContinue ?? Expr.Label("forInOfContinue");
+        _pendingLabelBreak = null;
+        _pendingLabelContinue = null;
         _breakLabel = breakLbl;
         _continueLabel = continueLbl;
 
@@ -468,8 +479,10 @@ public sealed class JsCompiler
     {
         var prevBreak = _breakLabel;
         var prevContinue = _continueLabel;
-        var breakLbl = Expr.Label(typeof(JsValue), "whileBreak");
-        var continueLbl = Expr.Label("whileContinue");
+        var breakLbl = _pendingLabelBreak ?? Expr.Label(typeof(JsValue), "whileBreak");
+        var continueLbl = _pendingLabelContinue ?? Expr.Label("whileContinue");
+        _pendingLabelBreak = null;
+        _pendingLabelContinue = null;
         _breakLabel = breakLbl;
         _continueLabel = continueLbl;
 
@@ -498,8 +511,10 @@ public sealed class JsCompiler
     {
         var prevBreak = _breakLabel;
         var prevContinue = _continueLabel;
-        var breakLbl = Expr.Label(typeof(JsValue), "doWhileBreak");
-        var continueLbl = Expr.Label("doWhileContinue");
+        var breakLbl = _pendingLabelBreak ?? Expr.Label(typeof(JsValue), "doWhileBreak");
+        var continueLbl = _pendingLabelContinue ?? Expr.Label("doWhileContinue");
+        _pendingLabelBreak = null;
+        _pendingLabelContinue = null;
         _breakLabel = breakLbl;
         _continueLabel = continueLbl;
 
@@ -695,8 +710,18 @@ public sealed class JsCompiler
             typeof(JsValue));
     }
 
-    private Expr CompileBreak()
+    private Expr CompileBreak(BreakStatement node)
     {
+        if (node.Label is not null)
+        {
+            if (!_labelTargets.TryGetValue(node.Label, out var targets))
+            {
+                throw new JsSyntaxError($"Undefined label '{node.Label}'");
+            }
+
+            return Expr.Break(targets.breakTarget, Expr.Constant(JsValue.Undefined, typeof(JsValue)));
+        }
+
         if (_breakLabel is null)
         {
             throw new JsSyntaxError("Illegal break statement");
@@ -705,8 +730,23 @@ public sealed class JsCompiler
         return Expr.Break(_breakLabel, Expr.Constant(JsValue.Undefined, typeof(JsValue)));
     }
 
-    private Expr CompileContinue()
+    private Expr CompileContinue(ContinueStatement node)
     {
+        if (node.Label is not null)
+        {
+            if (!_labelTargets.TryGetValue(node.Label, out var targets))
+            {
+                throw new JsSyntaxError($"Undefined label '{node.Label}'");
+            }
+
+            if (targets.continueTarget is null)
+            {
+                throw new JsSyntaxError($"Illegal continue statement: label '{node.Label}' is not on a loop");
+            }
+
+            return Expr.Continue(targets.continueTarget);
+        }
+
         if (_continueLabel is null)
         {
             throw new JsSyntaxError("Illegal continue statement");
@@ -715,10 +755,53 @@ public sealed class JsCompiler
         return Expr.Continue(_continueLabel);
     }
 
+    private static bool IsLoopStatement(SyntaxNode node) => node is
+        ForStatement or WhileStatement or DoWhileStatement or ForInStatement or ForOfStatement;
+
     private Expr CompileLabeledStatement(LabeledStatement node)
     {
-        // For now, just compile the body (labels mostly matter for break/continue with labels)
-        return CompileNode(node.Body);
+        var breakLbl = Expr.Label(typeof(JsValue), $"label_{node.Label}_break");
+
+        if (IsLoopStatement(node.Body))
+        {
+            // For labeled loops, create both break and continue targets.
+            // The loop compiler will pick these up via _pendingLabelBreak/_pendingLabelContinue
+            // and use them as its own targets, so break/continue label jump correctly.
+            var continueLbl = Expr.Label($"label_{node.Label}_continue");
+            _labelTargets[node.Label] = (breakLbl, continueLbl);
+            _pendingLabelBreak = breakLbl;
+            _pendingLabelContinue = continueLbl;
+
+            try
+            {
+                var body = CompileNode(node.Body);
+                return body;
+            }
+            finally
+            {
+                _labelTargets.Remove(node.Label);
+                _pendingLabelBreak = null;
+                _pendingLabelContinue = null;
+            }
+        }
+        else
+        {
+            // For non-loop labeled statements (e.g. blocks), only break is valid.
+            // Wrap the body so that break label jumps past it.
+            _labelTargets[node.Label] = (breakLbl, null);
+
+            try
+            {
+                var body = CompileNode(node.Body);
+                return Expr.Block(typeof(JsValue),
+                    EnsureJsValue(body),
+                    Expr.Label(breakLbl, Expr.Constant(JsValue.Undefined, typeof(JsValue))));
+            }
+            finally
+            {
+                _labelTargets.Remove(node.Label);
+            }
+        }
     }
 
     private Expr CompileVariableDeclaration(VariableDeclaration node)
@@ -1832,6 +1915,9 @@ public sealed class JsCompiler
         var outerBreak = _breakLabel;
         var outerContinue = _continueLabel;
         var outerCoroutine = _coroutineParam;
+        var outerLabelTargets = new Dictionary<string, (LabelTarget, LabelTarget?)>(_labelTargets);
+        var outerPendingBreak = _pendingLabelBreak;
+        var outerPendingContinue = _pendingLabelContinue;
 
         // New parameters for the function body
         var fnThisParam = Expr.Parameter(typeof(JsValue), "fnThis");
@@ -1844,6 +1930,9 @@ public sealed class JsCompiler
         _returnLabel = returnLabel;
         _breakLabel = null;
         _continueLabel = null;
+        _labelTargets.Clear();
+        _pendingLabelBreak = null;
+        _pendingLabelContinue = null;
 
         // Set up coroutine parameter for generators/async
         ParameterExpression? coroutineParam = null;
@@ -2079,6 +2168,14 @@ public sealed class JsCompiler
             _breakLabel = outerBreak;
             _continueLabel = outerContinue;
             _coroutineParam = outerCoroutine;
+            _labelTargets.Clear();
+            foreach (var kvp in outerLabelTargets)
+            {
+                _labelTargets[kvp.Key] = kvp.Value;
+            }
+
+            _pendingLabelBreak = outerPendingBreak;
+            _pendingLabelContinue = outerPendingContinue;
         }
     }
 
@@ -2392,6 +2489,15 @@ public sealed class JsCompiler
         if (typeof(JsValue).IsAssignableFrom(expr.Type))
         {
             return Expr.Convert(expr, typeof(JsValue));
+        }
+
+        // Void expressions (e.g. Break, Continue, Goto) represent non-local control
+        // flow that never falls through. Wrap in a block with a dead-code Undefined
+        // so the overall expression is typed as JsValue for use in Condition nodes.
+        if (expr.Type == typeof(void))
+        {
+            return Expr.Block(typeof(JsValue), expr,
+                Expr.Constant(JsValue.Undefined, typeof(JsValue)));
         }
 
         return expr;

@@ -1,3 +1,4 @@
+using SuperRender.Document.Dom;
 using SuperRender.Renderer.Rendering.Style;
 
 namespace SuperRender.Renderer.Rendering.Layout;
@@ -51,6 +52,10 @@ internal static class BlockLayout
                 marginLeft = remaining / 2f;
                 marginRight = remaining / 2f;
             }
+        }
+        else if (TryGetImageIntrinsicWidth(box, out float intrinsicWidth))
+        {
+            contentWidth = intrinsicWidth;
         }
         else
         {
@@ -122,7 +127,7 @@ internal static class BlockLayout
         bool hasBlock = false, hasInline = false;
         foreach (var child in normalChildren)
         {
-            if (child.BoxType == LayoutBoxType.Block)
+            if (child.BoxType is LayoutBoxType.Block or LayoutBoxType.FlexContainer)
                 hasBlock = true;
             else
                 hasInline = true;
@@ -148,7 +153,20 @@ internal static class BlockLayout
             childDims.Y = cursorY;
             child.Dimensions = childDims;
 
-            if (child.BoxType == LayoutBoxType.Block)
+            if (child.BoxType == LayoutBoxType.FlexContainer)
+            {
+                var childContainer = new BoxDimensions
+                {
+                    X = dims.X,
+                    Y = cursorY,
+                    Width = dims.Width,
+                    Height = dims.Height
+                };
+
+                FlexLayout.Layout(child, childContainer, measurer);
+                cursorY = child.Dimensions.MarginRect.Bottom;
+            }
+            else if (child.BoxType == LayoutBoxType.Block)
             {
                 var childContainer = new BoxDimensions
                 {
@@ -429,6 +447,11 @@ internal static class BlockLayout
                 if (height < 0) height = 0;
             }
         }
+        else if (TryGetImageIntrinsicHeight(box, dims.Width, out float intrinsicHeight))
+        {
+            // For <img> without explicit CSS height, use intrinsic height (aspect-ratio aware)
+            height = intrinsicHeight;
+        }
 
         // When overflow is hidden and explicit height is set, clamp to that height
         if (style.Overflow == OverflowType.Hidden && !float.IsNaN(style.Height))
@@ -515,5 +538,56 @@ internal static class BlockLayout
         };
         anon.Children.AddRange(inlineChildren);
         return anon;
+    }
+
+    /// <summary>
+    /// For &lt;img&gt; elements, tries to get intrinsic width from HTML attributes or decoded image metadata.
+    /// Checks: CSS width (already handled), HTML width attribute, data-natural-width attribute.
+    /// </summary>
+    private static bool TryGetImageIntrinsicWidth(LayoutBox box, out float width)
+    {
+        width = 0;
+        if (box.DomNode is not Element el || el.TagName != "img") return false;
+
+        // Try HTML width attribute
+        var widthAttr = el.GetAttribute("width");
+        if (widthAttr != null && float.TryParse(widthAttr, System.Globalization.CultureInfo.InvariantCulture, out width))
+            return true;
+
+        // Try natural width from decoded image
+        var naturalW = el.GetAttribute("data-natural-width");
+        if (naturalW != null && float.TryParse(naturalW, System.Globalization.CultureInfo.InvariantCulture, out width))
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// For &lt;img&gt; elements, tries to get intrinsic height, preserving aspect ratio if only width is known.
+    /// </summary>
+    private static bool TryGetImageIntrinsicHeight(LayoutBox box, float currentWidth, out float height)
+    {
+        height = 0;
+        if (box.DomNode is not Element el || el.TagName != "img") return false;
+
+        // Try HTML height attribute
+        var heightAttr = el.GetAttribute("height");
+        if (heightAttr != null && float.TryParse(heightAttr, System.Globalization.CultureInfo.InvariantCulture, out height))
+            return true;
+
+        // Try natural height
+        var naturalH = el.GetAttribute("data-natural-height");
+        if (naturalH != null && float.TryParse(naturalH, System.Globalization.CultureInfo.InvariantCulture, out height))
+        {
+            // If width was overridden, preserve aspect ratio
+            var naturalW = el.GetAttribute("data-natural-width");
+            if (naturalW != null && float.TryParse(naturalW, System.Globalization.CultureInfo.InvariantCulture, out float nw) && nw > 0)
+            {
+                height = currentWidth * height / nw;
+            }
+            return true;
+        }
+
+        return false;
     }
 }

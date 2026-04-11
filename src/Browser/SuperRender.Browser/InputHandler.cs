@@ -25,6 +25,9 @@ public sealed class InputHandler
     private float _mouseDownY;
     private Node? _mouseDownNode;
     private const float ClickThreshold = 5f;
+    private Node? _currentHoverTarget;
+    private Node? _currentActiveNode;
+    private Element? _currentFocusedElement;
 
     public InputHandler(
         BrowserChrome chrome,
@@ -131,6 +134,20 @@ public sealed class InputHandler
                 if (hitBox?.DomNode is not null)
                 {
                     _mouseDownNode = hitBox.DomNode;
+
+                    // Set :active state on the target element
+                    _currentActiveNode = hitBox.DomNode;
+                    InteractionStateHelper.SetActive(hitBox.DomNode);
+
+                    // Set :focus on the nearest focusable element, clear previous focus
+                    var targetElement = hitBox.DomNode as Element
+                        ?? hitBox.DomNode.Parent as Element;
+                    _currentFocusedElement = InteractionStateHelper.SetFocus(
+                        targetElement, _currentFocusedElement);
+
+                    if (tab.Document is not null)
+                        tab.Document.NeedsLayout = true;
+
                     hitBox.DomNode.DispatchEvent(new MouseEvent
                     {
                         Type = "mousedown", Bubbles = true, Cancelable = true,
@@ -450,6 +467,16 @@ public sealed class InputHandler
             }
         }
 
+        // Clear :active state on mouseup
+        if (_currentActiveNode is not null)
+        {
+            InteractionStateHelper.ClearActive(_currentActiveNode);
+            _currentActiveNode = null;
+            var activeTab = _tabs.ActiveTab;
+            if (activeTab?.Document is not null)
+                activeTab.Document.NeedsLayout = true;
+        }
+
         _mouseDownNode = null;
     }
 
@@ -468,18 +495,115 @@ public sealed class InputHandler
             return;
         }
 
-        if (!_isDragging) return;
-
         var tab = _tabs.ActiveTab;
-        if (tab?.LayoutRoot is null) return;
 
-        float contentX = x;
-        float contentY = y - BrowserChrome.TotalChromeHeight + (tab.Scroll?.ScrollY ?? 0);
-        var allRuns = TextHitTester.CollectTextRuns(tab.LayoutRoot);
-        var hit = TextHitTester.HitTest(allRuns, contentX, contentY, _measurer);
-        if (hit.HasValue)
+        // Content area: hover tracking and mouse move events
+        if (y >= BrowserChrome.TotalChromeHeight && tab?.LayoutRoot is not null)
         {
-            tab.Selection.End = new TextPosition(hit.Value.runIndex, hit.Value.charOffset);
+            float contentX = x;
+            float contentY = y - BrowserChrome.TotalChromeHeight + (tab.Scroll?.ScrollY ?? 0);
+
+            ProcessContentHover(tab, contentX, contentY);
+
+            // Text selection drag
+            if (_isDragging)
+            {
+                var allRuns = TextHitTester.CollectTextRuns(tab.LayoutRoot);
+                var textHit = TextHitTester.HitTest(allRuns, contentX, contentY, _measurer);
+                if (textHit.HasValue)
+                    tab.Selection.End = new TextPosition(textHit.Value.runIndex, textHit.Value.charOffset);
+            }
+        }
+        else
+        {
+            // Mouse is in chrome area — clear content hover
+            ClearContentHover(tab);
+
+            // Continue text selection drag even when mouse is in chrome area
+            if (_isDragging && tab?.LayoutRoot is not null)
+            {
+                float contentX = x;
+                float contentY = y - BrowserChrome.TotalChromeHeight + (tab.Scroll?.ScrollY ?? 0);
+                var allRuns = TextHitTester.CollectTextRuns(tab.LayoutRoot);
+                var textHit = TextHitTester.HitTest(allRuns, contentX, contentY, _measurer);
+                if (textHit.HasValue)
+                    tab.Selection.End = new TextPosition(textHit.Value.runIndex, textHit.Value.charOffset);
+            }
+        }
+    }
+
+    private void ProcessContentHover(Tab tab, float contentX, float contentY)
+    {
+        var hitBox = LayoutBoxHitTester.HitTest(tab.LayoutRoot!, contentX, contentY);
+        var newTarget = hitBox?.DomNode;
+
+        if (!ReferenceEquals(newTarget, _currentHoverTarget))
+        {
+            DispatchHoverTransitionEvents(newTarget, contentX, contentY);
+            InteractionStateHelper.UpdateHover(_currentHoverTarget, newTarget, tab.Document);
+            _currentHoverTarget = newTarget;
+        }
+
+        // Always dispatch mousemove on current target (bubbling)
+        newTarget?.DispatchEvent(new MouseEvent
+        {
+            Type = "mousemove", Bubbles = true, Cancelable = true,
+            ClientX = contentX, ClientY = contentY,
+        });
+    }
+
+    private void DispatchHoverTransitionEvents(Node? newTarget, float clientX, float clientY)
+    {
+        // Fire mouseout on old target (bubbling)
+        _currentHoverTarget?.DispatchEvent(new MouseEvent
+        {
+            Type = "mouseout", Bubbles = true, Cancelable = true,
+            ClientX = clientX, ClientY = clientY,
+        });
+
+        // Fire mouseleave on old ancestors NOT in new target's ancestor chain (non-bubbling)
+        var oldAncestors = InteractionStateHelper.GetElementAncestors(_currentHoverTarget);
+        var newAncestorSet = new HashSet<Element>(InteractionStateHelper.GetElementAncestors(newTarget));
+        foreach (var el in oldAncestors)
+        {
+            if (!newAncestorSet.Contains(el))
+            {
+                el.DispatchEvent(new MouseEvent
+                {
+                    Type = "mouseleave", Bubbles = false, Cancelable = false,
+                    ClientX = clientX, ClientY = clientY,
+                });
+            }
+        }
+
+        // Fire mouseover on new target (bubbling)
+        newTarget?.DispatchEvent(new MouseEvent
+        {
+            Type = "mouseover", Bubbles = true, Cancelable = true,
+            ClientX = clientX, ClientY = clientY,
+        });
+
+        // Fire mouseenter on new ancestors NOT in old target's ancestor chain (non-bubbling)
+        var oldAncestorSet = new HashSet<Element>(oldAncestors);
+        foreach (var el in InteractionStateHelper.GetElementAncestors(newTarget))
+        {
+            if (!oldAncestorSet.Contains(el))
+            {
+                el.DispatchEvent(new MouseEvent
+                {
+                    Type = "mouseenter", Bubbles = false, Cancelable = false,
+                    ClientX = clientX, ClientY = clientY,
+                });
+            }
+        }
+    }
+
+    private void ClearContentHover(Tab? tab)
+    {
+        if (_currentHoverTarget is not null)
+        {
+            InteractionStateHelper.UpdateHover(_currentHoverTarget, null, tab?.Document);
+            _currentHoverTarget = null;
         }
     }
 

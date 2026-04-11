@@ -1,3 +1,5 @@
+using SuperRender.Document.Css;
+
 namespace SuperRender.Document.Dom;
 
 public sealed class Element : Node
@@ -45,6 +47,36 @@ public sealed class Element : Node
         MarkDirty();
     }
 
+    /// <summary>
+    /// Returns true if the element has an attribute with the given name (case-insensitive).
+    /// </summary>
+    public bool HasAttribute(string name)
+        => Attributes.ContainsKey(name);
+
+    /// <summary>
+    /// Toggles a boolean attribute. If <paramref name="force"/> is true, ensures the attribute
+    /// exists. If false, removes it. If null, toggles it. Returns whether the attribute is
+    /// present after the call.
+    /// </summary>
+    public bool ToggleAttribute(string name, bool? force = null)
+    {
+        bool exists = HasAttribute(name);
+
+        if (force == true || (force == null && !exists))
+        {
+            SetAttribute(name, "");
+            return true;
+        }
+
+        if (force == false || (force == null && exists))
+        {
+            RemoveAttribute(name);
+            return false;
+        }
+
+        return exists;
+    }
+
     public string InnerText
     {
         get
@@ -75,6 +107,186 @@ public sealed class Element : Node
                 CollectText(child, sb);
         }
     }
+
+    // --- Element traversal properties ---
+
+    /// <summary>
+    /// Returns the first child that is an Element, or null if none.
+    /// </summary>
+    public Element? FirstElementChild =>
+        Children.OfType<Element>().FirstOrDefault();
+
+    /// <summary>
+    /// Returns the last child that is an Element, or null if none.
+    /// </summary>
+    public Element? LastElementChild =>
+        Children.OfType<Element>().LastOrDefault();
+
+    /// <summary>
+    /// Returns the count of child nodes that are Elements.
+    /// </summary>
+    public int ChildElementCount =>
+        Children.OfType<Element>().Count();
+
+    // --- DOM manipulation methods ---
+
+    /// <summary>
+    /// Creates a clone of this element. If <paramref name="deep"/> is true, all children
+    /// are cloned recursively.
+    /// </summary>
+    public override Node CloneNode(bool deep)
+    {
+        var clone = new Element(TagName, new Dictionary<string, string>(Attributes, StringComparer.OrdinalIgnoreCase))
+        {
+            OwnerDocument = OwnerDocument
+        };
+
+        if (deep)
+        {
+            foreach (var child in Children)
+                clone.AppendChild(child.CloneNode(true));
+        }
+
+        return clone;
+    }
+
+    /// <summary>
+    /// Tests whether this element matches the given CSS selector string.
+    /// </summary>
+    public bool Matches(string selectorText)
+    {
+        var selectors = ParseSelectors(selectorText);
+        foreach (var selector in selectors)
+        {
+            if (SelectorMatcher.Matches(selector, this))
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Walks up the ancestor chain (including self) and returns the first element
+    /// matching the given CSS selector, or null if none matches.
+    /// </summary>
+    public Element? Closest(string selectorText)
+    {
+        var selectors = ParseSelectors(selectorText);
+        Element? current = this;
+        while (current != null)
+        {
+            foreach (var selector in selectors)
+            {
+                if (SelectorMatcher.Matches(selector, current))
+                    return current;
+            }
+            current = current.Parent as Element;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Returns a dictionary of data-* attributes with the "data-" prefix stripped and
+    /// kebab-case names converted to camelCase.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Dataset
+    {
+        get
+        {
+            var result = new Dictionary<string, string>();
+            foreach (var kvp in Attributes)
+            {
+                if (kvp.Key.StartsWith("data-", StringComparison.OrdinalIgnoreCase) && kvp.Key.Length > 5)
+                {
+                    var key = KebabToCamelCase(kvp.Key[5..]);
+                    result[key] = kvp.Value;
+                }
+            }
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// Inserts the given nodes after this element in its parent's children list.
+    /// </summary>
+    public void After(params Node[] nodes)
+    {
+        if (Parent is null) return;
+
+        var nextSib = NextSibling;
+        foreach (var node in nodes)
+        {
+            Parent.InsertBefore(node, nextSib);
+        }
+    }
+
+    /// <summary>
+    /// Inserts the given nodes before this element in its parent's children list.
+    /// </summary>
+    public void Before(params Node[] nodes)
+    {
+        if (Parent is null) return;
+
+        foreach (var node in nodes)
+        {
+            Parent.InsertBefore(node, this);
+        }
+    }
+
+    /// <summary>
+    /// Removes this element from its parent.
+    /// </summary>
+    public void Remove()
+    {
+        Parent?.RemoveChild(this);
+    }
+
+    // --- Helpers ---
+
+    private static List<Selector> ParseSelectors(string selectorText)
+    {
+        var tokenizer = new CssTokenizer(selectorText);
+        var tokens = tokenizer.Tokenize()
+            .Where(t => t.Type != CssTokenType.EndOfFile)
+            .ToList();
+        var parser = new SelectorParser(tokens);
+        return parser.ParseSelectorList();
+    }
+
+    private static string KebabToCamelCase(string kebab)
+    {
+        if (string.IsNullOrEmpty(kebab)) return kebab;
+
+        var sb = new System.Text.StringBuilder(kebab.Length);
+        bool capitalizeNext = false;
+        foreach (char c in kebab)
+        {
+            if (c == '-')
+            {
+                capitalizeNext = true;
+            }
+            else if (capitalizeNext)
+            {
+                sb.Append(char.ToUpperInvariant(c));
+                capitalizeNext = false;
+            }
+            else
+            {
+                sb.Append(c);
+            }
+        }
+        return sb.ToString();
+    }
+
+    // --- Dynamic state flags (set by browser/InputHandler) ---
+
+    /// <summary>Whether the mouse is currently over this element.</summary>
+    public bool IsHovered { get; set; }
+
+    /// <summary>Whether this element currently has keyboard focus.</summary>
+    public bool IsFocused { get; set; }
+
+    /// <summary>Whether a mouse button is currently pressed on this element.</summary>
+    public bool IsActive { get; set; }
 
     internal void RebuildClassList()
     {

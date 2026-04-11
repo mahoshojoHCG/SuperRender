@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 10 - Hover and Active States</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+            font-size: 16px;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+
+        /* Test 10a: Div hover */
+        .hover-box {
+            width: 300px;
+            padding: 20px;
+            background-color: #ddddff;
+            border: 2px solid #3333cc;
+            font-weight: bold;
+            text-align: center;
+        }
+        .hover-box:hover {
+            background-color: #3333cc;
+            color: #ffffff;
+        }
+
+        /* Test 10b: Link hover */
+        .hover-link {
+            color: #3333cc;
+            font-size: 18px;
+        }
+        .hover-link:hover {
+            color: #cc3333;
+        }
+
+        /* Test 10c: Button active */
+        .active-btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #666666;
+            color: #ffffff;
+            border: 2px solid #444444;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .active-btn:hover {
+            background-color: #888888;
+        }
+        .active-btn:active {
+            background-color: #222222;
+            border-color: #000000;
+        }
+
+        /* Test 10d: Multiple hover targets */
+        .card {
+            width: 250px;
+            padding: 15px;
+            margin: 10px 0;
+            background-color: #ffffff;
+            border: 1px solid #dddddd;
+        }
+        .card:hover {
+            background-color: #f0f0ff;
+            border-color: #3333cc;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 10: Hover and Active States</h1>
+    <p><a href="../index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 10a: Div changes background on :hover</div>
+        <div class="hover-box">Hover over me!</div>
+        <div class="info">EXPECT: Box is light blue by default. When mouse hovers over it, background turns dark blue and text turns white. Returns to light blue when mouse leaves.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 10b: Link changes color on :hover</div>
+        <p><a href="#" class="hover-link">Hover over this link</a></p>
+        <div class="info">EXPECT: Link is blue by default. When mouse hovers, it turns red. Returns to blue when mouse leaves.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 10c: Button goes dark on :active (click and hold)</div>
+        <div class="active-btn">Press and hold</div>
+        <div class="info">EXPECT: Button is grey by default. Lighter grey on hover. Very dark (nearly black) while being actively clicked (mouse held down). Returns to hover/default when released.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 10d: Multiple hover targets</div>
+        <p>Mouse over each card below. Only the hovered card should change.</p>
+        <div class="card">Card A: This should highlight on hover.</div>
+        <div class="card">Card B: This should highlight on hover.</div>
+        <div class="card">Card C: This should highlight on hover.</div>
+        <div class="info">EXPECT: Each card independently highlights (light blue background, blue border) when hovered. Only one card highlights at a time.</div>
+    </div>
+</body>
+</html>

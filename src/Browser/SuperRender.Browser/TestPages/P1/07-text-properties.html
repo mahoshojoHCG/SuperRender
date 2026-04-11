@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 07 - Text Properties</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+            font-size: 16px;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+        .demo-text {
+            font-size: 18px;
+            padding: 10px;
+            background-color: #ffffff;
+            border: 1px solid #dddddd;
+            margin-bottom: 10px;
+        }
+
+        /* Test 7a: text-transform */
+        .upper { text-transform: uppercase; }
+        .lower { text-transform: lowercase; }
+        .cap { text-transform: capitalize; }
+
+        /* Test 7b: letter-spacing */
+        .letter-spaced { letter-spacing: 5px; }
+
+        /* Test 7c: word-spacing */
+        .word-spaced { word-spacing: 10px; }
+
+        /* Test 7d: Combined */
+        .combined {
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 07: Text Properties</h1>
+    <p><a href="../index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 7a: text-transform</div>
+        <p>Original: "The Quick Brown Fox Jumps Over The Lazy Dog"</p>
+        <div class="demo-text upper">The Quick Brown Fox Jumps Over The Lazy Dog</div>
+        <p>text-transform: uppercase (above)</p>
+        <div class="demo-text lower">The Quick Brown Fox Jumps Over The Lazy Dog</div>
+        <p>text-transform: lowercase (above)</p>
+        <div class="demo-text cap">the quick brown fox jumps over the lazy dog</div>
+        <p>text-transform: capitalize (above)</p>
+        <div class="info">EXPECT: uppercase shows ALL CAPS. lowercase shows all lowercase. capitalize shows First Letter Of Each Word Capitalized.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 7b: letter-spacing: 5px</div>
+        <div class="demo-text">Normal letter spacing</div>
+        <div class="demo-text letter-spaced">Wide letter spacing</div>
+        <div class="info">EXPECT: Second line has visibly wider gaps between each individual character (5px extra).</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 7c: word-spacing: 10px</div>
+        <div class="demo-text">Normal word spacing between words here</div>
+        <div class="demo-text word-spaced">Wide word spacing between words here</div>
+        <div class="info">EXPECT: Second line has visibly wider gaps between each word (10px extra per space), but character spacing within words is normal.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 7d: Combined (uppercase + letter-spacing: 3px)</div>
+        <div class="demo-text combined">Menu Item Label</div>
+        <div class="info">EXPECT: Text is ALL CAPS with extra spacing between letters. Common design pattern for nav/menu labels.</div>
+    </div>
+</body>
+</html>

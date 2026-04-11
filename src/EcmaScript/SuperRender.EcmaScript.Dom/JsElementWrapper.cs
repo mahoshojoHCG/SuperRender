@@ -161,6 +161,86 @@ internal class JsElementWrapper : JsNodeWrapper
         DefineOwnProperty("style", PropertyDescriptor.Accessor(
             Getter(() => new JsCssStyleDeclaration(_element)),
             null, enumerable: true, configurable: true));
+
+        DefineOwnProperty("matches", PropertyDescriptor.Data(
+            JsFunction.CreateNative("matches", (_, args) =>
+            {
+                if (args.Length > 0)
+                    return _element.Matches(args[0].ToJsString()) ? True : False;
+                return False;
+            }, 1)));
+
+        DefineOwnProperty("closest", PropertyDescriptor.Data(
+            JsFunction.CreateNative("closest", (_, args) =>
+            {
+                if (args.Length > 0)
+                {
+                    var result = _element.Closest(args[0].ToJsString());
+                    return Cache.WrapNullable(result);
+                }
+                return Null;
+            }, 1)));
+
+        DefineOwnProperty("dataset", PropertyDescriptor.Accessor(
+            Getter(() =>
+            {
+                var obj = new JsObject();
+                foreach (var kvp in _element.Dataset)
+                    obj.DefineOwnProperty(kvp.Key, PropertyDescriptor.Data(new JsString(kvp.Value)));
+                return obj;
+            }), null, enumerable: true, configurable: true));
+
+        DefineOwnProperty("toggleAttribute", PropertyDescriptor.Data(
+            JsFunction.CreateNative("toggleAttribute", (_, args) =>
+            {
+                if (args.Length < 1) return False;
+                var name = args[0].ToJsString();
+                bool? force = args.Length > 1 ? args[1].ToBoolean() : null;
+                return _element.ToggleAttribute(name, force) ? True : False;
+            }, 1)));
+
+        DefineOwnProperty("firstElementChild", PropertyDescriptor.Accessor(
+            Getter(() => Cache.WrapNullable(_element.FirstElementChild)),
+            null, enumerable: true, configurable: true));
+
+        DefineOwnProperty("lastElementChild", PropertyDescriptor.Accessor(
+            Getter(() => Cache.WrapNullable(_element.LastElementChild)),
+            null, enumerable: true, configurable: true));
+
+        DefineOwnProperty("childElementCount", PropertyDescriptor.Accessor(
+            Getter(() => JsNumber.Create(_element.ChildElementCount)),
+            null, enumerable: true, configurable: true));
+
+        DefineOwnProperty("after", PropertyDescriptor.Data(
+            JsFunction.CreateNative("after", (_, args) =>
+            {
+                var nodes = args
+                    .OfType<JsNodeWrapper>()
+                    .Select(w => w.GetNode())
+                    .ToArray();
+                if (nodes.Length > 0)
+                    _element.After(nodes);
+                return Undefined;
+            }, 0)));
+
+        DefineOwnProperty("before", PropertyDescriptor.Data(
+            JsFunction.CreateNative("before", (_, args) =>
+            {
+                var nodes = args
+                    .OfType<JsNodeWrapper>()
+                    .Select(w => w.GetNode())
+                    .ToArray();
+                if (nodes.Length > 0)
+                    _element.Before(nodes);
+                return Undefined;
+            }, 0)));
+
+        DefineOwnProperty("remove", PropertyDescriptor.Data(
+            JsFunction.CreateNative("remove", (_, _) =>
+            {
+                _element.Remove();
+                return Undefined;
+            }, 0)));
     }
 
     private static string ReconstructInnerHtml(Element element)

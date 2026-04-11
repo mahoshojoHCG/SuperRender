@@ -7,7 +7,8 @@ public enum CssValueType
     Percentage,
     Color,
     StringLiteral,
-    Number
+    Number,
+    Calc
 }
 
 public sealed class CssValue
@@ -17,6 +18,7 @@ public sealed class CssValue
     public double NumericValue { get; init; }
     public string? Unit { get; init; }
     public Document.Color? ColorValue { get; init; }
+    public CalcNode? CalcExpr { get; init; }
 
     public override string ToString() => Raw;
 }

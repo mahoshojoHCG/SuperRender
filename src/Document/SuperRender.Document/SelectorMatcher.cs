@@ -9,43 +9,68 @@ public static class SelectorMatcher
     {
         if (selector.Components.Count == 0) return false;
 
-        var current = element;
-        for (int i = selector.Components.Count - 1; i >= 0; i--)
-        {
-            var component = selector.Components[i];
-            if (current == null) return false;
+        // Right-to-left matching
+        return MatchFromRight(selector, selector.Components.Count - 1, element);
+    }
 
-            if (!MatchesSimple(component.Simple, current))
+    private static bool MatchFromRight(Selector selector, int componentIndex, Element? element)
+    {
+        if (element == null) return false;
+        if (componentIndex < 0) return true; // All components matched
+
+        var component = selector.Components[componentIndex];
+
+        if (!MatchesSimple(component.Simple, element))
+            return false;
+
+        if (componentIndex == 0)
+            return true; // Leftmost component matched, done
+
+        // Navigate to the next element based on the combinator on the LEFT component
+        var combinator = selector.Components[componentIndex - 1].Combinator;
+
+        switch (combinator)
+        {
+            case Combinator.Descendant:
             {
-                if (i < selector.Components.Count - 1 && selector.Components[i + 1].Combinator == Combinator.Descendant)
+                // Any ancestor must match the next component
+                var ancestor = element.Parent as Element;
+                while (ancestor != null)
                 {
-                    current = current.Parent as Element;
-                    i++;
-                    if (current == null) return false;
-                    continue;
+                    if (MatchFromRight(selector, componentIndex - 1, ancestor))
+                        return true;
+                    ancestor = ancestor.Parent as Element;
                 }
                 return false;
             }
 
-            if (i > 0)
+            case Combinator.Child:
+                return MatchFromRight(selector, componentIndex - 1, element.Parent as Element);
+
+            case Combinator.AdjacentSibling:
+                return MatchFromRight(selector, componentIndex - 1, GetPreviousSiblingElement(element));
+
+            case Combinator.GeneralSibling:
             {
-                var combinator = component.Combinator;
-                current = combinator switch
+                // Any preceding sibling must match
+                if (element.Parent == null) return false;
+                bool foundSelf = false;
+                for (int i = element.Parent.Children.Count - 1; i >= 0; i--)
                 {
-                    Combinator.Descendant => FindAncestorMatch(current, selector.Components[i - 1].Simple),
-                    Combinator.Child => current.Parent as Element,
-                    _ => current.Parent as Element
-                };
-
-                if (combinator == Combinator.Descendant && current != null)
-                {
-                    i--;
-                    continue;
+                    var child = element.Parent.Children[i];
+                    if (child == element) { foundSelf = true; continue; }
+                    if (foundSelf && child is Element el)
+                    {
+                        if (MatchFromRight(selector, componentIndex - 1, el))
+                            return true;
+                    }
                 }
+                return false;
             }
-        }
 
-        return true;
+            default:
+                return MatchFromRight(selector, componentIndex - 1, element.Parent as Element);
+        }
     }
 
     public static bool MatchesSimple(SimpleSelector selector, Element element)
@@ -62,17 +87,190 @@ public static class SelectorMatcher
                 return false;
         }
 
+        foreach (var attr in selector.Attributes)
+        {
+            if (!MatchesAttribute(attr, element))
+                return false;
+        }
+
+        foreach (var pc in selector.PseudoClasses)
+        {
+            if (!MatchesPseudoClass(pc, element))
+                return false;
+        }
+
         return true;
     }
 
-    private static Element? FindAncestorMatch(Element element, SimpleSelector selector)
+    private static bool MatchesAttribute(AttributeSelector attr, Element element)
     {
-        var current = element.Parent as Element;
-        while (current != null)
+        var hasAttr = element.Attributes.TryGetValue(attr.Name, out var attrValue);
+
+        if (attr.Op == AttributeOp.Exists)
+            return hasAttr;
+
+        if (!hasAttr || attrValue == null) return false;
+
+        return attr.Op switch
         {
-            if (MatchesSimple(selector, current))
-                return current;
-            current = current.Parent as Element;
+            AttributeOp.Equals => attrValue.Equals(attr.Value, StringComparison.Ordinal),
+            AttributeOp.StartsWith => attr.Value != null && attrValue.StartsWith(attr.Value, StringComparison.Ordinal),
+            AttributeOp.EndsWith => attr.Value != null && attrValue.EndsWith(attr.Value, StringComparison.Ordinal),
+            AttributeOp.Contains => attr.Value != null && attrValue.Contains(attr.Value, StringComparison.Ordinal),
+            AttributeOp.DashMatch => attrValue.Equals(attr.Value, StringComparison.Ordinal) ||
+                                    (attr.Value != null && attrValue.StartsWith(attr.Value + "-", StringComparison.Ordinal)),
+            AttributeOp.WordMatch => attr.Value != null && attrValue.Split(' ').Any(w => w.Equals(attr.Value, StringComparison.Ordinal)),
+            _ => false
+        };
+    }
+
+    private static bool MatchesPseudoClass(PseudoClass pc, Element element)
+    {
+        switch (pc.Type)
+        {
+            case PseudoClassType.FirstChild:
+                return IsFirstChildElement(element);
+
+            case PseudoClassType.LastChild:
+                return IsLastChildElement(element);
+
+            case PseudoClassType.OnlyChild:
+                return IsFirstChildElement(element) && IsLastChildElement(element);
+
+            case PseudoClassType.NthChild:
+                if (pc.Argument == null) return false;
+                return NthChildParser.Matches(pc.Argument, GetElementIndex(element));
+
+            case PseudoClassType.NthLastChild:
+                if (pc.Argument == null) return false;
+                return NthChildParser.Matches(pc.Argument, GetElementIndexFromEnd(element));
+
+            case PseudoClassType.FirstOfType:
+                return IsFirstOfType(element);
+
+            case PseudoClassType.LastOfType:
+                return IsLastOfType(element);
+
+            case PseudoClassType.OnlyOfType:
+                return IsFirstOfType(element) && IsLastOfType(element);
+
+            case PseudoClassType.Root:
+                return element.Parent is Dom.Document;
+
+            case PseudoClassType.Empty:
+                return element.Children.Count == 0 ||
+                       element.Children.All(c => c is TextNode tn && string.IsNullOrEmpty(tn.Data));
+
+            case PseudoClassType.Link:
+                return element.TagName.Equals("a", StringComparison.OrdinalIgnoreCase) &&
+                       element.Attributes.ContainsKey("href");
+
+            case PseudoClassType.Visited:
+                return false; // Never match :visited for privacy
+
+            case PseudoClassType.Hover:
+                return element.IsHovered;
+
+            case PseudoClassType.Focus:
+                return element.IsFocused;
+
+            case PseudoClassType.Active:
+                return element.IsActive;
+
+            case PseudoClassType.Not:
+                if (pc.SelectorArgument == null) return true;
+                return !pc.SelectorArgument.Any(sel => Matches(sel, element));
+
+            case PseudoClassType.Is:
+            case PseudoClassType.Where:
+                if (pc.SelectorArgument == null) return false;
+                return pc.SelectorArgument.Any(sel => Matches(sel, element));
+
+            default:
+                return false;
+        }
+    }
+
+    private static bool IsFirstChildElement(Element element)
+    {
+        if (element.Parent == null) return false;
+        foreach (var child in element.Parent.Children)
+        {
+            if (child is Element el) return el == element;
+        }
+        return false;
+    }
+
+    private static bool IsLastChildElement(Element element)
+    {
+        if (element.Parent == null) return false;
+        for (int i = element.Parent.Children.Count - 1; i >= 0; i--)
+        {
+            if (element.Parent.Children[i] is Element el) return el == element;
+        }
+        return false;
+    }
+
+    private static int GetElementIndex(Element element)
+    {
+        if (element.Parent == null) return 1;
+        int index = 0;
+        foreach (var child in element.Parent.Children)
+        {
+            if (child is Element)
+            {
+                index++;
+                if (child == element) return index;
+            }
+        }
+        return 1;
+    }
+
+    private static int GetElementIndexFromEnd(Element element)
+    {
+        if (element.Parent == null) return 1;
+        int index = 0;
+        for (int i = element.Parent.Children.Count - 1; i >= 0; i--)
+        {
+            if (element.Parent.Children[i] is Element)
+            {
+                index++;
+                if (element.Parent.Children[i] == element) return index;
+            }
+        }
+        return 1;
+    }
+
+    private static bool IsFirstOfType(Element element)
+    {
+        if (element.Parent == null) return false;
+        foreach (var child in element.Parent.Children)
+        {
+            if (child is Element el && el.TagName.Equals(element.TagName, StringComparison.OrdinalIgnoreCase))
+                return el == element;
+        }
+        return false;
+    }
+
+    private static bool IsLastOfType(Element element)
+    {
+        if (element.Parent == null) return false;
+        for (int i = element.Parent.Children.Count - 1; i >= 0; i--)
+        {
+            if (element.Parent.Children[i] is Element el && el.TagName.Equals(element.TagName, StringComparison.OrdinalIgnoreCase))
+                return el == element;
+        }
+        return false;
+    }
+
+    private static Element? GetPreviousSiblingElement(Element element)
+    {
+        if (element.Parent == null) return null;
+        Element? prev = null;
+        foreach (var child in element.Parent.Children)
+        {
+            if (child == element) return prev;
+            if (child is Element el) prev = el;
         }
         return null;
     }

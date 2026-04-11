@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 11 - Cookies and Storage</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+            font-size: 16px;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+        .output {
+            padding: 10px;
+            background-color: #111111;
+            color: #33ff33;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre;
+            min-height: 60px;
+            overflow: hidden;
+        }
+        .btn {
+            display: inline-block;
+            padding: 8px 16px;
+            background-color: #333333;
+            color: #ffffff;
+            border: 2px solid #111111;
+            margin: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 11: Cookies and Storage</h1>
+    <p><a href="../index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 11a: localStorage set and get</div>
+        <div class="btn" id="ls-set-btn">Set localStorage</div>
+        <div class="btn" id="ls-get-btn">Get localStorage</div>
+        <div class="btn" id="ls-clear-btn">Clear localStorage</div>
+        <div class="output" id="ls-output">Click "Set localStorage" then "Get localStorage"...</div>
+        <div class="info">EXPECT: Clicking "Set" stores key-value pairs. Clicking "Get" reads them back and displays in the output. Clicking "Clear" removes them.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 11b: sessionStorage set and get</div>
+        <div class="btn" id="ss-set-btn">Set sessionStorage</div>
+        <div class="btn" id="ss-get-btn">Get sessionStorage</div>
+        <div class="output" id="ss-output">Click "Set sessionStorage" then "Get sessionStorage"...</div>
+        <div class="info">EXPECT: Similar to localStorage, but data is per-tab/session. It should not persist after the tab is closed.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 11c: document.cookie</div>
+        <div class="btn" id="cookie-set-btn">Set Cookie</div>
+        <div class="btn" id="cookie-get-btn">Read Cookies</div>
+        <div class="output" id="cookie-output">Click "Set Cookie" then "Read Cookies"...</div>
+        <div class="info">EXPECT: Clicking "Set" writes a cookie via document.cookie. Clicking "Read" displays current cookies.</div>
+    </div>
+
+    <script>
+        // Test 11a: localStorage
+        var lsSetBtn = document.getElementById("ls-set-btn");
+        var lsGetBtn = document.getElementById("ls-get-btn");
+        var lsClearBtn = document.getElementById("ls-clear-btn");
+        var lsOutput = document.getElementById("ls-output");
+
+        lsSetBtn.addEventListener("click", function() {
+            try {
+                localStorage.setItem("test-key", "hello-world");
+                localStorage.setItem("counter", "42");
+                localStorage.setItem("timestamp", "2026-04-12");
+                lsOutput.textContent = "Set 3 items in localStorage:\n  test-key = hello-world\n  counter = 42\n  timestamp = 2026-04-12";
+            } catch (e) {
+                lsOutput.textContent = "ERROR: " + e.message;
+            }
+        });
+
+        lsGetBtn.addEventListener("click", function() {
+            try {
+                var k1 = localStorage.getItem("test-key");
+                var k2 = localStorage.getItem("counter");
+                var k3 = localStorage.getItem("timestamp");
+                var result = "localStorage contents:\n";
+                result = result + "  test-key = " + k1 + "\n";
+                result = result + "  counter = " + k2 + "\n";
+                result = result + "  timestamp = " + k3;
+                lsOutput.textContent = result;
+            } catch (e) {
+                lsOutput.textContent = "ERROR: " + e.message;
+            }
+        });
+
+        lsClearBtn.addEventListener("click", function() {
+            try {
+                localStorage.clear();
+                lsOutput.textContent = "localStorage cleared.";
+            } catch (e) {
+                lsOutput.textContent = "ERROR: " + e.message;
+            }
+        });
+
+        // Test 11b: sessionStorage
+        var ssSetBtn = document.getElementById("ss-set-btn");
+        var ssGetBtn = document.getElementById("ss-get-btn");
+        var ssOutput = document.getElementById("ss-output");
+
+        ssSetBtn.addEventListener("click", function() {
+            try {
+                sessionStorage.setItem("session-data", "tab-specific-value");
+                sessionStorage.setItem("page-views", "1");
+                ssOutput.textContent = "Set 2 items in sessionStorage:\n  session-data = tab-specific-value\n  page-views = 1";
+            } catch (e) {
+                ssOutput.textContent = "ERROR: " + e.message;
+            }
+        });
+
+        ssGetBtn.addEventListener("click", function() {
+            try {
+                var s1 = sessionStorage.getItem("session-data");
+                var s2 = sessionStorage.getItem("page-views");
+                var result = "sessionStorage contents:\n";
+                result = result + "  session-data = " + s1 + "\n";
+                result = result + "  page-views = " + s2;
+                ssOutput.textContent = result;
+            } catch (e) {
+                ssOutput.textContent = "ERROR: " + e.message;
+            }
+        });
+
+        // Test 11c: document.cookie
+        var cookieSetBtn = document.getElementById("cookie-set-btn");
+        var cookieGetBtn = document.getElementById("cookie-get-btn");
+        var cookieOutput = document.getElementById("cookie-output");
+
+        cookieSetBtn.addEventListener("click", function() {
+            try {
+                document.cookie = "username=superuser";
+                document.cookie = "theme=dark";
+                cookieOutput.textContent = "Set 2 cookies:\n  username=superuser\n  theme=dark";
+            } catch (e) {
+                cookieOutput.textContent = "ERROR: " + e.message;
+            }
+        });
+
+        cookieGetBtn.addEventListener("click", function() {
+            try {
+                var cookies = document.cookie;
+                cookieOutput.textContent = "document.cookie:\n  " + cookies;
+            } catch (e) {
+                cookieOutput.textContent = "ERROR: " + e.message;
+            }
+        });
+    </script>
+</body>
+</html>

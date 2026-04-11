@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SuperRenderer Manual Test Index</title>
+    <title>SuperRenderer Manual Tests</title>
     <style>
         body {
             font-family: Helvetica, sans-serif;
@@ -19,57 +19,58 @@
             color: #555555;
             margin-top: 24px;
         }
-        a {
-            color: #0066cc;
-        }
-        ul {
-            margin-bottom: 16px;
-        }
-        li {
-            margin-bottom: 4px;
-        }
+        a { color: #0066cc; }
+        ul { margin-bottom: 16px; }
+        li { margin-bottom: 4px; }
     </style>
 </head>
 <body>
-    <h1>SuperRenderer Manual Test Plan</h1>
-    <p>Open each test page and verify the expected behavior described on the page.</p>
+    <h1>SuperRenderer Manual Tests</h1>
+    <p>Open each section to run manual tests for the corresponding feature priority level.</p>
 
-    <h2>Layout and Box Model</h2>
+    <h2>P0 Tests (Core Rendering)</h2>
     <ul>
-        <li><a href="01-box-sizing.html">01 - Box Sizing + Min/Max</a></li>
-        <li><a href="02-overflow.html">02 - Overflow (hidden, visible, ellipsis)</a></li>
-        <li><a href="03-inline-block.html">03 - Inline-Block Layout</a></li>
-        <li><a href="04-position.html">04 - Positioning (relative, absolute, z-index)</a></li>
+        <li><a href="P0/01-box-sizing.html">01 - Box Sizing + Min/Max</a></li>
+        <li><a href="P0/02-overflow.html">02 - Overflow</a></li>
+        <li><a href="P0/03-inline-block.html">03 - Inline-Block Layout</a></li>
+        <li><a href="P0/04-position.html">04 - Positioning</a></li>
+        <li><a href="P0/05-white-space.html">05 - White-Space Modes</a></li>
+        <li><a href="P0/06-ua-stylesheet.html">06 - User-Agent Stylesheet</a></li>
+        <li><a href="P0/07-scrolling.html">07 - Scrolling</a></li>
+        <li><a href="P0/08-links.html">08 - Link Navigation</a></li>
+        <li><a href="P0/09-keyboard-shortcuts.html">09 - Keyboard Shortcuts</a></li>
+        <li><a href="P0/10-text-selection.html">10 - Text Selection</a></li>
+        <li><a href="P0/11-context-menu.html">11 - Context Menus</a></li>
+        <li><a href="P0/12-devtools.html">12 - Developer Tools</a></li>
+        <li><a href="P0/13-timers.html">13 - Timers</a></li>
+        <li><a href="P0/14-dom-events.html">14 - DOM Events</a></li>
+        <li><a href="P0/15-generators.html">15 - Generators</a></li>
+        <li><a href="P0/16-async-await.html">16 - Async/Await</a></li>
+        <li><a href="P0/17-integration.html">17 - Integration</a></li>
+        <li><a href="P0/18-external-resources.html">18 - External Resources</a></li>
     </ul>
 
-    <h2>Text and White Space</h2>
+    <h2>P1 Tests (Advanced Features)</h2>
     <ul>
-        <li><a href="05-white-space.html">05 - White-Space Modes</a></li>
-        <li><a href="06-ua-stylesheet.html">06 - User-Agent Stylesheet Defaults</a></li>
-    </ul>
-
-    <h2>Browser Features</h2>
-    <ul>
-        <li><a href="07-scrolling.html">07 - Scrolling (tall page)</a></li>
-        <li><a href="08-links.html">08 - Link Navigation</a></li>
-        <li><a href="09-keyboard-shortcuts.html">09 - Keyboard Shortcuts Reference</a></li>
-        <li><a href="10-text-selection.html">10 - Text Selection</a></li>
-        <li><a href="11-context-menu.html">11 - Context Menus</a></li>
-        <li><a href="12-devtools.html">12 - Developer Tools</a></li>
-    </ul>
-
-    <h2>JavaScript</h2>
-    <ul>
-        <li><a href="13-timers.html">13 - Timers (setTimeout, setInterval, rAF)</a></li>
-        <li><a href="14-dom-events.html">14 - DOM Events (click, bubbling, listeners)</a></li>
-        <li><a href="15-generators.html">15 - Generators (function*, yield)</a></li>
-        <li><a href="16-async-await.html">16 - Async/Await</a></li>
-    </ul>
-
-    <h2>Integration</h2>
-    <ul>
-        <li><a href="17-integration.html">17 - Cross-Feature Integration</a></li>
-        <li><a href="18-external-resources.html">18 - External CSS and JS Resources</a></li>
+        <li><a href="P1/01-selectors.html">01 - CSS Selectors</a></li>
+        <li><a href="P1/02-flexbox.html">02 - Flexbox Layout</a></li>
+        <li><a href="P1/03-border-radius.html">03 - Border Radius</a></li>
+        <li><a href="P1/04-opacity-visibility.html">04 - Opacity and Visibility</a></li>
+        <li><a href="P1/05-colors.html">05 - Colors (HSL, Named, currentcolor)</a></li>
+        <li><a href="P1/06-calc-viewport.html">06 - calc() and Viewport Units</a></li>
+        <li><a href="P1/07-text-properties.html">07 - Text Properties</a></li>
+        <li><a href="P1/08-pseudo-elements.html">08 - Pseudo-elements</a></li>
+        <li><a href="P1/09-global-keywords.html">09 - Global Keywords</a></li>
+        <li><a href="P1/10-hover-active.html">10 - Hover and Active States</a></li>
+        <li><a href="P1/11-cookies-storage.html">11 - Cookies and Storage</a></li>
+        <li><a href="P1/12-fetch.html">12 - Fetch API</a></li>
+        <li><a href="P1/13-location-history.html">13 - Location and History</a></li>
+        <li><a href="P1/14-tree-construction.html">14 - Tree Construction</a></li>
+        <li><a href="P1/15-dom-methods.html">15 - DOM Methods</a></li>
+        <li><a href="P1/16-entities.html">16 - HTML Entities</a></li>
+        <li><a href="P1/17-labels.html">17 - JS Labels</a></li>
+        <li><a href="P1/18-integration.html">18 - P1 Integration</a></li>
+        <li><a href="P1/19-images.html">19 - Image Loading</a></li>
     </ul>
 </body>
 </html>

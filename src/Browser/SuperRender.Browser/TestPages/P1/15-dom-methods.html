@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 15 - DOM Methods</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+            font-size: 16px;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+        .output {
+            padding: 10px;
+            background-color: #111111;
+            color: #33ff33;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre;
+            min-height: 60px;
+            overflow: hidden;
+        }
+        .btn {
+            display: inline-block;
+            padding: 8px 16px;
+            background-color: #333333;
+            color: #ffffff;
+            border: 2px solid #111111;
+            margin: 4px;
+        }
+        .demo-box {
+            padding: 10px;
+            margin: 5px 0;
+            background-color: #ddddff;
+            border: 1px solid #3333cc;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 15: DOM Methods</h1>
+    <p><a href="../index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 15a: cloneNode</div>
+        <p id="clone-source" class="demo-box">This is the original paragraph to be cloned.</p>
+        <div class="btn" id="clone-btn">Clone Node</div>
+        <div id="clone-container"></div>
+        <div class="output" id="clone-output">Click "Clone Node" to clone the paragraph above...</div>
+        <div class="info">EXPECT: Clicking the button creates a deep clone of the paragraph and appends it below. Each click adds another clone.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 15b: matches() and closest()</div>
+        <div id="matches-outer" class="demo-box">
+            <div id="matches-middle" class="demo-box" data-level="middle">
+                <span id="matches-inner">Inner span element</span>
+            </div>
+        </div>
+        <div class="btn" id="matches-btn">Test matches/closest</div>
+        <div class="output" id="matches-output">Click the button to test matches() and closest()...</div>
+        <div class="info">EXPECT: matches() returns true when the selector matches the element. closest() walks up the tree to find the nearest matching ancestor.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 15c: dataset attribute access</div>
+        <div id="data-elem" data-color="blue" data-size="large" data-item-count="42">
+            Element with data-color="blue", data-size="large", data-item-count="42"
+        </div>
+        <div class="btn" id="dataset-btn">Read dataset</div>
+        <div class="output" id="dataset-output">Click the button to read dataset attributes...</div>
+        <div class="info">EXPECT: Reads data-* attributes via the dataset property. data-color becomes dataset.color, data-item-count becomes dataset.itemCount (camelCase).</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 15d: toggleAttribute</div>
+        <div id="toggle-elem" class="demo-box">This element will have an attribute toggled.</div>
+        <div class="btn" id="toggle-btn">Toggle "hidden" attribute</div>
+        <div class="output" id="toggle-output">Click the button to toggle the "hidden" attribute...</div>
+        <div class="info">EXPECT: Each click adds or removes the "hidden" attribute. The output shows whether the attribute is currently present.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 15e: remove()</div>
+        <div id="remove-container">
+            <div class="demo-box" id="remove-target">This element will be removed. Click the button below.</div>
+        </div>
+        <div class="btn" id="remove-btn">Remove element</div>
+        <div class="output" id="remove-output">Click the button to remove the blue box above...</div>
+        <div class="info">EXPECT: Clicking the button removes the blue box from the DOM. The container becomes empty. Subsequent clicks report that the element is already gone.</div>
+    </div>
+
+    <script>
+        // Test 15a: cloneNode
+        var cloneBtn = document.getElementById("clone-btn");
+        var cloneSource = document.getElementById("clone-source");
+        var cloneContainer = document.getElementById("clone-container");
+        var cloneOutput = document.getElementById("clone-output");
+        var cloneCount = 0;
+
+        cloneBtn.addEventListener("click", function() {
+            try {
+                var clone = cloneSource.cloneNode(true);
+                cloneCount = cloneCount + 1;
+                clone.textContent = "Clone #" + cloneCount + " of the original paragraph.";
+                cloneContainer.appendChild(clone);
+                cloneOutput.textContent = "Cloned " + cloneCount + " time(s).\ncloneContainer now has " + cloneContainer.childNodes.length + " children.";
+            } catch (e) {
+                cloneOutput.textContent = "ERROR: " + e.message;
+            }
+        });
+
+        // Test 15b: matches/closest
+        var matchesBtn = document.getElementById("matches-btn");
+        var matchesOutput = document.getElementById("matches-output");
+
+        matchesBtn.addEventListener("click", function() {
+            try {
+                var inner = document.getElementById("matches-inner");
+                var result = "Testing matches() and closest():\n\n";
+
+                // matches
+                result = result + "inner.matches('span'): " + inner.matches("span") + "\n";
+                result = result + "inner.matches('div'):  " + inner.matches("div") + "\n";
+                result = result + "inner.matches('#matches-inner'): " + inner.matches("#matches-inner") + "\n\n";
+
+                // closest
+                var closestDiv = inner.closest("div");
+                result = result + "inner.closest('div'):  " + (closestDiv ? closestDiv.id : "null") + "\n";
+                var closestBox = inner.closest(".demo-box");
+                result = result + "inner.closest('.demo-box'): " + (closestBox ? closestBox.id : "null") + "\n";
+                var closestBody = inner.closest("body");
+                result = result + "inner.closest('body'): " + (closestBody ? closestBody.tagName : "null");
+
+                matchesOutput.textContent = result;
+            } catch (e) {
+                matchesOutput.textContent = "ERROR: " + e.message;
+            }
+        });
+
+        // Test 15c: dataset
+        var datasetBtn = document.getElementById("dataset-btn");
+        var datasetOutput = document.getElementById("dataset-output");
+
+        datasetBtn.addEventListener("click", function() {
+            try {
+                var elem = document.getElementById("data-elem");
+                var result = "dataset properties:\n";
+                result = result + "  dataset.color: " + elem.dataset.color + "\n";
+                result = result + "  dataset.size: " + elem.dataset.size + "\n";
+                result = result + "  dataset.itemCount: " + elem.dataset.itemCount + "\n\n";
+                result = result + "getAttribute fallback:\n";
+                result = result + "  data-color: " + elem.getAttribute("data-color") + "\n";
+                result = result + "  data-size: " + elem.getAttribute("data-size");
+                datasetOutput.textContent = result;
+            } catch (e) {
+                datasetOutput.textContent = "ERROR: " + e.message;
+            }
+        });
+
+        // Test 15d: toggleAttribute
+        var toggleBtn = document.getElementById("toggle-btn");
+        var toggleElem = document.getElementById("toggle-elem");
+        var toggleOutput = document.getElementById("toggle-output");
+
+        toggleBtn.addEventListener("click", function() {
+            try {
+                var result = toggleElem.toggleAttribute("hidden");
+                toggleOutput.textContent = "toggleAttribute('hidden') returned: " + result + "\n";
+                toggleOutput.textContent = toggleOutput.textContent + "hasAttribute('hidden'): " + toggleElem.hasAttribute("hidden") + "\n";
+                if (toggleElem.hasAttribute("hidden")) {
+                    toggleOutput.textContent = toggleOutput.textContent + "Element is now HIDDEN (has hidden attribute).";
+                } else {
+                    toggleOutput.textContent = toggleOutput.textContent + "Element is now VISIBLE (hidden attribute removed).";
+                }
+            } catch (e) {
+                toggleOutput.textContent = "ERROR: " + e.message;
+            }
+        });
+
+        // Test 15e: remove()
+        var removeBtn = document.getElementById("remove-btn");
+        var removeOutput = document.getElementById("remove-output");
+
+        removeBtn.addEventListener("click", function() {
+            try {
+                var target = document.getElementById("remove-target");
+                if (target) {
+                    target.remove();
+                    removeOutput.textContent = "Element removed successfully.\nContainer children: " + document.getElementById("remove-container").childNodes.length;
+                } else {
+                    removeOutput.textContent = "Element already removed (getElementById returned null).";
+                }
+            } catch (e) {
+                removeOutput.textContent = "ERROR: " + e.message;
+            }
+        });
+    </script>
+</body>
+</html>

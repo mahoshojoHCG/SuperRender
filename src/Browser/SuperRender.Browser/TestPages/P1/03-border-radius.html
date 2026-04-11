@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 03 - Border Radius</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+            font-size: 16px;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+
+        /* Test 3a: Uniform border-radius */
+        .rounded-box {
+            width: 200px;
+            height: 100px;
+            background-color: #3333cc;
+            color: #ffffff;
+            border-radius: 10px;
+            padding: 15px;
+            font-weight: bold;
+        }
+
+        /* Test 3b: Circle */
+        .circle {
+            width: 100px;
+            height: 100px;
+            background-color: #cc3333;
+            color: #ffffff;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 100px;
+            font-weight: bold;
+        }
+
+        /* Test 3c: Per-corner radius */
+        .mixed-radius {
+            width: 200px;
+            height: 100px;
+            background-color: #33cc33;
+            color: #ffffff;
+            border-top-left-radius: 0px;
+            border-top-right-radius: 20px;
+            border-bottom-right-radius: 0px;
+            border-bottom-left-radius: 40px;
+            padding: 15px;
+            font-weight: bold;
+        }
+
+        /* Test 3d: Rounded button */
+        .rounded-btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #663399;
+            color: #ffffff;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+        }
+
+        /* Test 3e: Rounded with border */
+        .rounded-border {
+            width: 200px;
+            height: 80px;
+            background-color: #ffffdd;
+            border: 3px solid #cc9933;
+            border-radius: 15px;
+            padding: 15px;
+        }
+
+        /* Test 3f: Large radius (pill shape) */
+        .pill {
+            display: inline-block;
+            padding: 8px 24px;
+            background-color: #339999;
+            color: #ffffff;
+            border-radius: 999px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 03: Border Radius</h1>
+    <p><a href="../index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 3a: Uniform border-radius (10px all corners)</div>
+        <div class="rounded-box">All four corners are rounded with 10px radius.</div>
+        <div class="info">EXPECT: Blue box with evenly rounded corners on all four sides.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 3b: Circle (border-radius: 50% on a square)</div>
+        <div class="circle">Circle</div>
+        <div class="info">EXPECT: A perfect red circle (100x100 square with 50% border-radius).</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 3c: Per-corner radius (different values)</div>
+        <div class="mixed-radius">TL: 0, TR: 20, BR: 0, BL: 40</div>
+        <div class="info">EXPECT: Green box with sharp top-left and bottom-right corners. Rounded top-right (20px) and bottom-left (40px) corners.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 3d: Rounded button style</div>
+        <div class="rounded-btn">Click Me</div>
+        <div class="info">EXPECT: Purple pill-shaped button with 25px border-radius creating a rounded capsule look.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 3e: Rounded corners with visible border</div>
+        <div class="rounded-border">Rounded with a gold border.</div>
+        <div class="info">EXPECT: Light yellow box with 3px gold border and 15px rounded corners. The border follows the curve.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 3f: Pill shape (very large radius)</div>
+        <div class="pill">Status: Active</div>
+        <div class="info">EXPECT: Teal pill/capsule shape where the left and right ends are fully semicircular.</div>
+    </div>
+</body>
+</html>

@@ -106,4 +106,35 @@ public class UrlResolverTests
         Assert.Equal("file", result.Scheme);
         Assert.Equal("/Users/test/shared/app.js", result.LocalPath);
     }
+
+    [Fact]
+    public void Resolve_RootRelativePath_UsesBaseOrigin_NotFileScheme()
+    {
+        var baseUri = new Uri("https://example.com/dir/page.html");
+        var result = UrlResolver.Resolve("/example.js", baseUri);
+
+        Assert.Equal("https", result.Scheme);
+        Assert.Equal("example.com", result.Host);
+        Assert.Equal("/example.js", result.AbsolutePath);
+    }
+
+    [Fact]
+    public void Resolve_RootRelativePath_WithHttpBase_DoesNotBecomeFile()
+    {
+        var baseUri = new Uri("https://example.com/page.html");
+        var result = UrlResolver.Resolve("/assets/style.css", baseUri);
+
+        Assert.NotEqual("file", result.Scheme);
+        Assert.Equal("https://example.com/assets/style.css", result.ToString());
+    }
+
+    [Fact]
+    public void Resolve_RootRelativePath_WithFileBase_StaysFile()
+    {
+        var baseUri = new Uri("file:///Users/test/index.html");
+        var result = UrlResolver.Resolve("/shared/lib.js", baseUri);
+
+        Assert.Equal("file", result.Scheme);
+        Assert.Equal("/shared/lib.js", result.AbsolutePath);
+    }
 }

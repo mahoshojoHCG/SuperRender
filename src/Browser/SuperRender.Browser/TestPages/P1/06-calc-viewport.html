@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 06 - calc() and Viewport Units</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+            font-size: 16px;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+
+        /* Test 6a: calc(100% - 40px) */
+        .calc-container {
+            width: 500px;
+            background-color: #eeeeee;
+            border: 1px solid #999999;
+            padding: 10px;
+        }
+        .calc-box {
+            width: calc(100% - 40px);
+            background-color: #3333cc;
+            color: #ffffff;
+            padding: 15px;
+            font-weight: bold;
+        }
+
+        /* Test 6b: 50vw */
+        .vw-box {
+            width: 50vw;
+            background-color: #cc3333;
+            color: #ffffff;
+            padding: 15px;
+            font-weight: bold;
+        }
+
+        /* Test 6c: 25vh */
+        .vh-box {
+            height: 25vh;
+            width: 200px;
+            background-color: #33cc33;
+            color: #ffffff;
+            padding: 15px;
+            font-weight: bold;
+        }
+
+        /* Test 6d: clamp() */
+        .clamp-box {
+            width: clamp(200px, 50%, 400px);
+            background-color: #663399;
+            color: #ffffff;
+            padding: 15px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 06: calc() and Viewport Units</h1>
+    <p><a href="../index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 6a: width: calc(100% - 40px)</div>
+        <div class="calc-container">
+            <div class="calc-box">
+                This box is calc(100% - 40px) wide inside a 500px container. It should be 460px wide.
+            </div>
+        </div>
+        <div class="info">EXPECT: Blue box is slightly narrower than the grey container. Specifically 460px wide (500px minus 40px).</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 6b: width: 50vw (half viewport width)</div>
+        <div class="vw-box">
+            This box is 50vw wide (half the viewport width).
+        </div>
+        <div class="info">EXPECT: Red box is exactly half the browser viewport width. Resizing the window should change its width.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 6c: height: 25vh (quarter viewport height)</div>
+        <div class="vh-box">
+            This box is 25vh tall.
+        </div>
+        <div class="info">EXPECT: Green box height is exactly one quarter of the browser viewport height. Resizing the window should change its height.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 6d: width: clamp(200px, 50%, 400px)</div>
+        <div class="clamp-box">
+            This box uses clamp(200px, 50%, 400px). It is at least 200px, at most 400px, and prefers 50% of the container.
+        </div>
+        <div class="info">EXPECT: Purple box width is clamped between 200px minimum and 400px maximum, with a preferred width of 50% of its containing block.</div>
+    </div>
+</body>
+</html>

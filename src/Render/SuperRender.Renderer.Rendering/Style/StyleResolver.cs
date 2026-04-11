@@ -11,6 +11,8 @@ public sealed class StyleResolver
 {
     private readonly List<Stylesheet> _stylesheets;
     private readonly Stylesheet? _userAgentStylesheet;
+    private float _viewportWidth = 800;
+    private float _viewportHeight = 600;
 
     public StyleResolver(List<Stylesheet> stylesheets, Stylesheet? userAgentStylesheet = null)
     {
@@ -18,8 +20,10 @@ public sealed class StyleResolver
         _userAgentStylesheet = userAgentStylesheet;
     }
 
-    public Dictionary<Node, ComputedStyle> ResolveAll(DomDocument document)
+    public Dictionary<Node, ComputedStyle> ResolveAll(DomDocument document, float viewportWidth = 800, float viewportHeight = 600)
     {
+        _viewportWidth = viewportWidth;
+        _viewportHeight = viewportHeight;
         var styles = new Dictionary<Node, ComputedStyle>();
         ResolveNode(document, null, styles);
         return styles;
@@ -152,10 +156,35 @@ public sealed class StyleResolver
         }
     }
 
-    private static void ApplyDeclaration(ComputedStyle style, Declaration decl, ComputedStyle? parentStyle)
+    private void ApplyDeclaration(ComputedStyle style, Declaration decl, ComputedStyle? parentStyle)
     {
         var prop = decl.Property.ToLowerInvariant();
         var value = decl.Value;
+
+        // Handle CSS global keywords: initial, inherit, unset, revert
+        if (value.Type == CssValueType.Keyword)
+        {
+            var kw = value.Raw.ToLowerInvariant();
+            switch (kw)
+            {
+                case "initial":
+                    PropertyDefaults.ApplyInitialValue(style, prop);
+                    return;
+                case "inherit":
+                    if (parentStyle != null)
+                        PropertyDefaults.InheritProperty(style, prop, parentStyle);
+                    return;
+                case "unset":
+                    if (PropertyDefaults.IsInherited(prop) && parentStyle != null)
+                        PropertyDefaults.InheritProperty(style, prop, parentStyle);
+                    else
+                        PropertyDefaults.ApplyInitialValue(style, prop);
+                    return;
+                case "revert":
+                    // Revert to UA default: skip this declaration (UA styles already applied)
+                    return;
+            }
+        }
 
         switch (prop)
         {
@@ -167,6 +196,7 @@ public sealed class StyleResolver
                     "inline-block" => DisplayType.InlineBlock,
                     "flow-root" => DisplayType.FlowRoot,
                     "none" => DisplayType.None,
+                    "flex" => DisplayType.Flex,
                     _ => style.Display
                 };
                 break;
@@ -290,23 +320,23 @@ public sealed class StyleResolver
                 break;
 
             case "border-color":
-                var bc = ResolveColor(value);
+                var bc = ResolveColor(value, style);
                 style.BorderTopColor = bc;
                 style.BorderRightColor = bc;
                 style.BorderBottomColor = bc;
                 style.BorderLeftColor = bc;
                 break;
             case "border-top-color":
-                style.BorderTopColor = ResolveColor(value);
+                style.BorderTopColor = ResolveColor(value, style);
                 break;
             case "border-right-color":
-                style.BorderRightColor = ResolveColor(value);
+                style.BorderRightColor = ResolveColor(value, style);
                 break;
             case "border-bottom-color":
-                style.BorderBottomColor = ResolveColor(value);
+                style.BorderBottomColor = ResolveColor(value, style);
                 break;
             case "border-left-color":
-                style.BorderLeftColor = ResolveColor(value);
+                style.BorderLeftColor = ResolveColor(value, style);
                 break;
             case "border-style":
                 var bs = value.Raw.ToLowerInvariant();
@@ -329,10 +359,10 @@ public sealed class StyleResolver
                 break;
 
             case "color":
-                style.Color = ResolveColor(value);
+                style.Color = ResolveColor(value, parentStyle);
                 break;
             case "background-color":
-                style.BackgroundColor = ResolveColor(value);
+                style.BackgroundColor = ResolveColor(value, style);
                 break;
 
             case "font-size":
@@ -381,7 +411,7 @@ public sealed class StyleResolver
                 break;
 
             case "text-decoration-color":
-                style.TextDecorationColor = ResolveColor(value);
+                style.TextDecorationColor = ResolveColor(value, style);
                 break;
 
             case "position":
@@ -419,16 +449,333 @@ public sealed class StyleResolver
                     style.ZIndexIsAuto = false;
                 }
                 break;
+
+            // P1: Inherited text properties
+            case "visibility":
+                style.Visibility = value.Raw.ToLowerInvariant() switch
+                {
+                    "visible" => VisibilityType.Visible,
+                    "hidden" => VisibilityType.Hidden,
+                    "collapse" => VisibilityType.Collapse,
+                    _ => style.Visibility
+                };
+                break;
+
+            case "text-transform":
+                style.TextTransform = value.Raw.ToLowerInvariant() switch
+                {
+                    "none" => TextTransformType.None,
+                    "uppercase" => TextTransformType.Uppercase,
+                    "lowercase" => TextTransformType.Lowercase,
+                    "capitalize" => TextTransformType.Capitalize,
+                    _ => style.TextTransform
+                };
+                break;
+
+            case "letter-spacing":
+                if (value.Raw.Equals("normal", StringComparison.OrdinalIgnoreCase))
+                    style.LetterSpacing = 0;
+                else
+                    style.LetterSpacing = ResolveLength(value, parentStyle);
+                break;
+
+            case "word-spacing":
+                if (value.Raw.Equals("normal", StringComparison.OrdinalIgnoreCase))
+                    style.WordSpacing = 0;
+                else
+                    style.WordSpacing = ResolveLength(value, parentStyle);
+                break;
+
+            case "cursor":
+                style.Cursor = value.Raw.ToLowerInvariant() switch
+                {
+                    "auto" => CursorType.Auto,
+                    "default" => CursorType.Default,
+                    "pointer" => CursorType.Pointer,
+                    "text" => CursorType.Text,
+                    "crosshair" => CursorType.Crosshair,
+                    "move" => CursorType.Move,
+                    "not-allowed" => CursorType.NotAllowed,
+                    "wait" => CursorType.Wait,
+                    "help" => CursorType.Help,
+                    _ => style.Cursor
+                };
+                break;
+
+            case "word-break":
+                style.WordBreak = value.Raw.ToLowerInvariant() switch
+                {
+                    "normal" => WordBreakType.Normal,
+                    "break-all" => WordBreakType.BreakAll,
+                    "keep-all" => WordBreakType.KeepAll,
+                    _ => style.WordBreak
+                };
+                break;
+
+            case "overflow-wrap" or "word-wrap":
+                style.OverflowWrap = value.Raw.ToLowerInvariant() switch
+                {
+                    "normal" => OverflowWrapType.Normal,
+                    "break-word" => OverflowWrapType.BreakWord,
+                    "anywhere" => OverflowWrapType.Anywhere,
+                    _ => style.OverflowWrap
+                };
+                break;
+
+            case "list-style-type":
+                style.ListStyleType = value.Raw.ToLowerInvariant();
+                break;
+
+            case "list-style":
+                // Simplified: treat entire value as list-style-type
+                style.ListStyleType = value.Raw.ToLowerInvariant();
+                break;
+
+            // P1: Opacity
+            case "opacity":
+                if (value.Type is CssValueType.Number or CssValueType.Percentage)
+                    style.Opacity = (float)Math.Clamp(value.NumericValue, 0, 1);
+                break;
+
+            // Flexbox properties
+            case "flex-direction":
+                style.FlexDirection = value.Raw.ToLowerInvariant() switch
+                {
+                    "row" => FlexDirectionType.Row,
+                    "row-reverse" => FlexDirectionType.RowReverse,
+                    "column" => FlexDirectionType.Column,
+                    "column-reverse" => FlexDirectionType.ColumnReverse,
+                    _ => style.FlexDirection
+                };
+                break;
+
+            case "flex-wrap":
+                style.FlexWrap = value.Raw.ToLowerInvariant() switch
+                {
+                    "nowrap" => FlexWrapType.Nowrap,
+                    "wrap" => FlexWrapType.Wrap,
+                    "wrap-reverse" => FlexWrapType.WrapReverse,
+                    _ => style.FlexWrap
+                };
+                break;
+
+            case "flex-flow":
+                ApplyFlexFlowShorthand(style, value.Raw);
+                break;
+
+            case "justify-content":
+                style.JustifyContent = value.Raw.ToLowerInvariant() switch
+                {
+                    "flex-start" => JustifyContentType.FlexStart,
+                    "flex-end" => JustifyContentType.FlexEnd,
+                    "center" => JustifyContentType.Center,
+                    "space-between" => JustifyContentType.SpaceBetween,
+                    "space-around" => JustifyContentType.SpaceAround,
+                    "space-evenly" => JustifyContentType.SpaceEvenly,
+                    _ => style.JustifyContent
+                };
+                break;
+
+            case "align-items":
+                style.AlignItems = value.Raw.ToLowerInvariant() switch
+                {
+                    "stretch" => AlignItemsType.Stretch,
+                    "flex-start" => AlignItemsType.FlexStart,
+                    "flex-end" => AlignItemsType.FlexEnd,
+                    "center" => AlignItemsType.Center,
+                    "baseline" => AlignItemsType.Baseline,
+                    _ => style.AlignItems
+                };
+                break;
+
+            case "align-self":
+                style.AlignSelf = value.Raw.ToLowerInvariant() switch
+                {
+                    "auto" => AlignSelfType.Auto,
+                    "stretch" => AlignSelfType.Stretch,
+                    "flex-start" => AlignSelfType.FlexStart,
+                    "flex-end" => AlignSelfType.FlexEnd,
+                    "center" => AlignSelfType.Center,
+                    "baseline" => AlignSelfType.Baseline,
+                    _ => style.AlignSelf
+                };
+                break;
+
+            case "flex-grow":
+                if (value.Type is CssValueType.Number)
+                    style.FlexGrow = (float)value.NumericValue;
+                break;
+
+            case "flex-shrink":
+                if (value.Type is CssValueType.Number)
+                    style.FlexShrink = (float)value.NumericValue;
+                break;
+
+            case "flex-basis":
+                style.FlexBasis = ResolveLength(value, parentStyle);
+                break;
+
+            case "flex":
+                ApplyFlexShorthand(style, value);
+                break;
+
+            case "gap":
+                {
+                    var gapVal = ResolveLength(value, parentStyle);
+                    if (!float.IsNaN(gapVal))
+                    {
+                        style.Gap = gapVal;
+                        style.RowGap = float.NaN;
+                        style.ColumnGap = float.NaN;
+                    }
+                }
+                break;
+
+            case "row-gap":
+                {
+                    var rgVal = ResolveLength(value, parentStyle);
+                    if (!float.IsNaN(rgVal))
+                        style.RowGap = rgVal;
+                }
+                break;
+
+            case "column-gap":
+                {
+                    var cgVal = ResolveLength(value, parentStyle);
+                    if (!float.IsNaN(cgVal))
+                        style.ColumnGap = cgVal;
+                }
+                break;
         }
     }
 
-    private static float ResolveLength(CssValue value, ComputedStyle? parentStyle)
+    private static void ApplyFlexShorthand(ComputedStyle style, CssValue value)
+    {
+        var raw = value.Raw.Trim().ToLowerInvariant();
+
+        switch (raw)
+        {
+            case "initial":
+                style.FlexGrow = 0;
+                style.FlexShrink = 1;
+                style.FlexBasis = float.NaN; // auto
+                return;
+            case "auto":
+                style.FlexGrow = 1;
+                style.FlexShrink = 1;
+                style.FlexBasis = float.NaN; // auto
+                return;
+            case "none":
+                style.FlexGrow = 0;
+                style.FlexShrink = 0;
+                style.FlexBasis = float.NaN; // auto
+                return;
+        }
+
+        var parts = raw.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        if (parts.Length >= 1 && float.TryParse(parts[0], System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var grow))
+        {
+            style.FlexGrow = grow;
+            style.FlexShrink = 1;
+            style.FlexBasis = 0; // single number: basis = 0
+
+            if (parts.Length >= 2 && float.TryParse(parts[1], System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var shrink))
+            {
+                style.FlexShrink = shrink;
+
+                if (parts.Length >= 3)
+                {
+                    if (parts[2] == "auto")
+                        style.FlexBasis = float.NaN;
+                    else
+                        style.FlexBasis = ParseLengthValue(parts[2]);
+                }
+                else
+                {
+                    style.FlexBasis = 0;
+                }
+            }
+        }
+    }
+
+    private static float ParseLengthValue(string raw)
+    {
+        if (raw == "auto") return float.NaN;
+        if (raw == "0") return 0;
+
+        // Try parsing number with unit
+        int numEnd = 0;
+        while (numEnd < raw.Length && (char.IsDigit(raw[numEnd]) || raw[numEnd] == '.' || raw[numEnd] == '-'))
+            numEnd++;
+
+        if (numEnd > 0 && float.TryParse(raw[..numEnd], System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var num))
+        {
+            var unit = raw[numEnd..].Trim().ToLowerInvariant();
+            return unit switch
+            {
+                "px" or "" => num,
+                _ => num
+            };
+        }
+
+        return float.NaN;
+    }
+
+    private static void ApplyFlexFlowShorthand(ComputedStyle style, string raw)
+    {
+        var parts = raw.Trim().ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var part in parts)
+        {
+            switch (part)
+            {
+                case "row":
+                    style.FlexDirection = FlexDirectionType.Row;
+                    break;
+                case "row-reverse":
+                    style.FlexDirection = FlexDirectionType.RowReverse;
+                    break;
+                case "column":
+                    style.FlexDirection = FlexDirectionType.Column;
+                    break;
+                case "column-reverse":
+                    style.FlexDirection = FlexDirectionType.ColumnReverse;
+                    break;
+                case "nowrap":
+                    style.FlexWrap = FlexWrapType.Nowrap;
+                    break;
+                case "wrap":
+                    style.FlexWrap = FlexWrapType.Wrap;
+                    break;
+                case "wrap-reverse":
+                    style.FlexWrap = FlexWrapType.WrapReverse;
+                    break;
+            }
+        }
+    }
+
+    private float ResolveLength(CssValue value, ComputedStyle? parentStyle)
     {
         if (value.Raw.Equals("auto", StringComparison.OrdinalIgnoreCase))
             return float.NaN;
 
         if (value.Raw == "0")
             return 0;
+
+        if (value.Type == CssValueType.Calc && value.CalcExpr != null)
+        {
+            var context = new CalcContext
+            {
+                FontSize = parentStyle?.FontSize ?? 16,
+                ContainingBlockSize = 0,
+                ViewportWidth = _viewportWidth,
+                ViewportHeight = _viewportHeight
+            };
+            return (float)value.CalcExpr.Evaluate(context);
+        }
 
         return value.Type switch
         {
@@ -437,10 +784,14 @@ public sealed class StyleResolver
                 "px" => (float)value.NumericValue,
                 "em" => (float)value.NumericValue * (parentStyle?.FontSize ?? 16f),
                 "rem" => (float)value.NumericValue * 16f,
+                "vw" => (float)(value.NumericValue * _viewportWidth / 100),
+                "vh" => (float)(value.NumericValue * _viewportHeight / 100),
+                "vmin" => (float)(value.NumericValue * Math.Min(_viewportWidth, _viewportHeight) / 100),
+                "vmax" => (float)(value.NumericValue * Math.Max(_viewportWidth, _viewportHeight) / 100),
                 _ => (float)value.NumericValue
             },
             CssValueType.Number => (float)value.NumericValue,
-            CssValueType.Percentage => (float)value.NumericValue, // percentage stored as-is, resolved during layout
+            CssValueType.Percentage => (float)value.NumericValue,
             _ => float.NaN
         };
     }
@@ -476,10 +827,16 @@ public sealed class StyleResolver
         };
     }
 
-    private static Color ResolveColor(CssValue value)
+    private static Color ResolveColor(CssValue value, ComputedStyle? contextStyle = null)
     {
         if (value.ColorValue.HasValue)
             return value.ColorValue.Value;
+
+        if (value.Raw.Equals("currentcolor", StringComparison.OrdinalIgnoreCase) ||
+            value.Raw.Equals("currentColor", StringComparison.Ordinal))
+        {
+            return contextStyle?.Color ?? Color.Black;
+        }
 
         if (value.Type == CssValueType.Color)
             return Color.FromHex(value.Raw);
@@ -538,6 +895,14 @@ public sealed class StyleResolver
         style.TextAlign = parentStyle.TextAlign;
         style.LineHeight = parentStyle.LineHeight;
         style.WhiteSpace = parentStyle.WhiteSpace;
+        style.Visibility = parentStyle.Visibility;
+        style.TextTransform = parentStyle.TextTransform;
+        style.LetterSpacing = parentStyle.LetterSpacing;
+        style.WordSpacing = parentStyle.WordSpacing;
+        style.Cursor = parentStyle.Cursor;
+        style.WordBreak = parentStyle.WordBreak;
+        style.OverflowWrap = parentStyle.OverflowWrap;
+        style.ListStyleType = parentStyle.ListStyleType;
     }
 
     private static DisplayType GetDefaultDisplay(string tagName) => tagName switch
@@ -549,15 +914,16 @@ public sealed class StyleResolver
             or "details" or "summary" or "dialog" or "dd" or "dl" or "dt"
             or "fieldset" or "form" or "hgroup" => DisplayType.Block,
         "span" or "a" or "strong" or "em" or "b" or "i" or "u"
-            or "code" or "br" or "img" or "s" or "del" or "ins" or "strike"
+            or "code" or "br" or "s" or "del" or "ins" or "strike"
             or "small" or "mark" or "cite" or "var" or "dfn" or "kbd" or "samp"
             or "abbr" or "sub" or "sup" or "q" or "time" or "data" => DisplayType.Inline,
+        "img" => DisplayType.InlineBlock, // replaced element: needs width/height
         "html" or "body" => DisplayType.Block,
         "head" or "title" or "style" or "meta" or "link" or "script" => DisplayType.None,
         _ => DisplayType.Block,
     };
 
-    private static void ApplyInlineStyle(ComputedStyle style, string cssText, ComputedStyle? parentStyle)
+    private void ApplyInlineStyle(ComputedStyle style, string cssText, ComputedStyle? parentStyle)
     {
         // Parse inline style as declarations
         // Simple parsing: split by ; then split by :

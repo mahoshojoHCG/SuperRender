@@ -2,8 +2,9 @@ namespace SuperRender.Document.Css;
 
 /// <summary>
 /// Parses a list of CSS tokens into Selector objects.
-/// Supports tag, class, id, universal selectors, compound selectors,
-/// descendant (whitespace) and child (>) combinators, and comma-separated lists.
+/// Supports: tag, class, id, universal, compound selectors,
+/// descendant/child/adjacent-sibling/general-sibling combinators,
+/// attribute selectors, pseudo-classes, pseudo-elements, and comma-separated lists.
 /// </summary>
 public sealed class SelectorParser
 {
@@ -15,9 +16,6 @@ public sealed class SelectorParser
         _tokens = tokens;
     }
 
-    /// <summary>
-    /// Parses a comma-separated list of selectors.
-    /// </summary>
     public List<Selector> ParseSelectorList()
     {
         var selectors = new List<Selector>();
@@ -32,7 +30,7 @@ public sealed class SelectorParser
             SkipWhitespace();
             if (!IsEnd() && Current().Type == CssTokenType.Comma)
             {
-                _pos++; // skip comma
+                _pos++;
                 SkipWhitespace();
             }
         }
@@ -43,18 +41,19 @@ public sealed class SelectorParser
     private Selector ParseSelector()
     {
         var components = new List<SelectorComponent>();
+        PseudoElementType? pseudoElement = null;
 
         while (!IsEnd() && Current().Type != CssTokenType.Comma)
         {
-            var simple = ParseCompoundSelector();
+            var simple = ParseCompoundSelector(out var pe);
             if (simple == null) break;
 
-            // Determine combinator to the next component
+            if (pe != null) pseudoElement = pe;
+
             var combinator = Combinator.None;
 
             if (!IsEnd() && Current().Type != CssTokenType.Comma)
             {
-                // Check for whitespace or explicit combinator
                 bool hadWhitespace = false;
                 if (!IsEnd() && Current().Type == CssTokenType.Whitespace)
                 {
@@ -62,11 +61,31 @@ public sealed class SelectorParser
                     SkipWhitespace();
                 }
 
-                if (!IsEnd() && Current().Type == CssTokenType.Delim && Current().Value == ">")
+                if (!IsEnd() && Current().Type == CssTokenType.Delim)
                 {
-                    combinator = Combinator.Child;
-                    _pos++; // skip >
-                    SkipWhitespace();
+                    var val = Current().Value;
+                    if (val == ">")
+                    {
+                        combinator = Combinator.Child;
+                        _pos++;
+                        SkipWhitespace();
+                    }
+                    else if (val == "+")
+                    {
+                        combinator = Combinator.AdjacentSibling;
+                        _pos++;
+                        SkipWhitespace();
+                    }
+                    else if (val == "~")
+                    {
+                        combinator = Combinator.GeneralSibling;
+                        _pos++;
+                        SkipWhitespace();
+                    }
+                    else if (hadWhitespace && !IsEnd() && Current().Type != CssTokenType.Comma)
+                    {
+                        combinator = Combinator.Descendant;
+                    }
                 }
                 else if (hadWhitespace && !IsEnd() && Current().Type != CssTokenType.Comma)
                 {
@@ -81,8 +100,6 @@ public sealed class SelectorParser
             });
         }
 
-        // The last component should have Combinator.None (already the case since we only
-        // set a combinator when there's a following component, but let's ensure it)
         if (components.Count > 0)
         {
             var last = components[^1];
@@ -96,57 +113,84 @@ public sealed class SelectorParser
             }
         }
 
-        return new Selector { Components = components };
+        return new Selector { Components = components, PseudoElement = pseudoElement };
     }
 
-    /// <summary>
-    /// Parses a compound selector (e.g. div.foo#bar) — consecutive simple selectors
-    /// without whitespace between them.
-    /// </summary>
-    private SimpleSelector? ParseCompoundSelector()
+    private SimpleSelector? ParseCompoundSelector(out PseudoElementType? pseudoElement)
     {
+        pseudoElement = null;
         if (IsEnd()) return null;
 
         string? tagName = null;
         string? id = null;
         var classes = new List<string>();
-
+        var attributes = new List<AttributeSelector>();
+        var pseudoClasses = new List<PseudoClass>();
         bool matched = false;
 
         while (!IsEnd())
         {
             var tok = Current();
 
-            if (tok.Type == CssTokenType.Ident)
+            if (tok.Type == CssTokenType.Ident && !matched && tagName == null)
             {
-                // Tag name
                 tagName = tok.Value;
                 _pos++;
                 matched = true;
             }
-            else if (tok.Type == CssTokenType.Delim && tok.Value == "*")
+            else if (tok.Type == CssTokenType.Delim && tok.Value == "*" && !matched)
             {
-                // Universal selector — no tag constraint
                 _pos++;
                 matched = true;
             }
             else if (tok.Type == CssTokenType.Hash)
             {
-                // ID selector
                 id = tok.Value;
                 _pos++;
                 matched = true;
             }
             else if (tok.Type == CssTokenType.Dot)
             {
-                // Class selector: . followed by Ident
-                _pos++; // skip dot
+                _pos++;
                 if (!IsEnd() && Current().Type == CssTokenType.Ident)
                 {
                     classes.Add(Current().Value);
                     _pos++;
                 }
                 matched = true;
+            }
+            else if (tok.Type == CssTokenType.Delim && tok.Value == "[")
+            {
+                var attr = ParseAttributeSelector();
+                if (attr != null) attributes.Add(attr);
+                matched = true;
+            }
+            else if (tok.Type == CssTokenType.Colon)
+            {
+                _pos++;
+                if (!IsEnd() && Current().Type == CssTokenType.Colon)
+                {
+                    // Pseudo-element (::before, ::after)
+                    _pos++;
+                    if (!IsEnd() && Current().Type == CssTokenType.Ident)
+                    {
+                        pseudoElement = Current().Value.ToLowerInvariant() switch
+                        {
+                            "before" => PseudoElementType.Before,
+                            "after" => PseudoElementType.After,
+                            _ => null
+                        };
+                        _pos++;
+                    }
+                    matched = true;
+                }
+                else
+                {
+                    // Pseudo-class
+                    var pc = ParsePseudoClass();
+                    if (pc != null) pseudoClasses.Add(pc);
+                    matched = true;
+                }
             }
             else
             {
@@ -160,8 +204,214 @@ public sealed class SelectorParser
         {
             TagName = tagName,
             Id = id,
-            Classes = classes
+            Classes = classes,
+            Attributes = attributes,
+            PseudoClasses = pseudoClasses
         };
+    }
+
+    private AttributeSelector? ParseAttributeSelector()
+    {
+        // Current position is after '['
+        _pos++; // skip [
+        SkipWhitespace();
+
+        if (IsEnd()) return null;
+
+        string attrName;
+        if (Current().Type == CssTokenType.Ident)
+        {
+            attrName = Current().Value;
+            _pos++;
+        }
+        else return null;
+
+        SkipWhitespace();
+
+        // Check for ] (existence check) or operator
+        if (!IsEnd() && Current().Type == CssTokenType.Delim && Current().Value == "]")
+        {
+            _pos++; // skip ]
+            return new AttributeSelector { Name = attrName, Op = AttributeOp.Exists };
+        }
+
+        // Parse operator
+        var op = AttributeOp.Equals;
+        if (!IsEnd())
+        {
+            var opTok = Current();
+            if (opTok.Type == CssTokenType.Delim)
+            {
+                switch (opTok.Value)
+                {
+                    case "=":
+                        op = AttributeOp.Equals;
+                        _pos++;
+                        break;
+                    case "~":
+                        _pos++;
+                        if (!IsEnd() && Current().Type == CssTokenType.Delim && Current().Value == "=")
+                        { op = AttributeOp.WordMatch; _pos++; }
+                        break;
+                    case "|":
+                        _pos++;
+                        if (!IsEnd() && Current().Type == CssTokenType.Delim && Current().Value == "=")
+                        { op = AttributeOp.DashMatch; _pos++; }
+                        break;
+                    case "^":
+                        _pos++;
+                        if (!IsEnd() && Current().Type == CssTokenType.Delim && Current().Value == "=")
+                        { op = AttributeOp.StartsWith; _pos++; }
+                        break;
+                    case "$":
+                        _pos++;
+                        if (!IsEnd() && Current().Type == CssTokenType.Delim && Current().Value == "=")
+                        { op = AttributeOp.EndsWith; _pos++; }
+                        break;
+                    case "*":
+                        _pos++;
+                        if (!IsEnd() && Current().Type == CssTokenType.Delim && Current().Value == "=")
+                        { op = AttributeOp.Contains; _pos++; }
+                        break;
+                }
+            }
+        }
+
+        SkipWhitespace();
+
+        // Parse value
+        string? value = null;
+        if (!IsEnd())
+        {
+            if (Current().Type == CssTokenType.StringLiteral)
+            {
+                value = Current().Value;
+                _pos++;
+            }
+            else if (Current().Type == CssTokenType.Ident)
+            {
+                value = Current().Value;
+                _pos++;
+            }
+        }
+
+        SkipWhitespace();
+
+        // Skip closing ]
+        if (!IsEnd() && Current().Type == CssTokenType.Delim && Current().Value == "]")
+            _pos++;
+
+        return new AttributeSelector { Name = attrName, Op = op, Value = value };
+    }
+
+    private PseudoClass? ParsePseudoClass()
+    {
+        if (IsEnd()) return null;
+
+        // Check for function-style pseudo-class (e.g., :nth-child(...), :not(...))
+        if (Current().Type == CssTokenType.Function)
+        {
+            var funcName = Current().Value.ToLowerInvariant();
+            _pos++; // skip function token
+
+            return funcName switch
+            {
+                "nth-child" => ParseNthPseudoClass(PseudoClassType.NthChild),
+                "nth-last-child" => ParseNthPseudoClass(PseudoClassType.NthLastChild),
+                "not" => ParseSelectorFunctionPseudoClass(PseudoClassType.Not),
+                "is" => ParseSelectorFunctionPseudoClass(PseudoClassType.Is),
+                "where" => ParseSelectorFunctionPseudoClass(PseudoClassType.Where),
+                _ => SkipToCloseParen()
+            };
+        }
+
+        if (Current().Type != CssTokenType.Ident) return null;
+
+        var name = Current().Value.ToLowerInvariant();
+        _pos++;
+
+        return name switch
+        {
+            "first-child" => new PseudoClass { Type = PseudoClassType.FirstChild },
+            "last-child" => new PseudoClass { Type = PseudoClassType.LastChild },
+            "only-child" => new PseudoClass { Type = PseudoClassType.OnlyChild },
+            "first-of-type" => new PseudoClass { Type = PseudoClassType.FirstOfType },
+            "last-of-type" => new PseudoClass { Type = PseudoClassType.LastOfType },
+            "only-of-type" => new PseudoClass { Type = PseudoClassType.OnlyOfType },
+            "root" => new PseudoClass { Type = PseudoClassType.Root },
+            "empty" => new PseudoClass { Type = PseudoClassType.Empty },
+            "link" => new PseudoClass { Type = PseudoClassType.Link },
+            "visited" => new PseudoClass { Type = PseudoClassType.Visited },
+            "hover" => new PseudoClass { Type = PseudoClassType.Hover },
+            "focus" => new PseudoClass { Type = PseudoClassType.Focus },
+            "active" => new PseudoClass { Type = PseudoClassType.Active },
+            _ => null
+        };
+    }
+
+    private PseudoClass ParseNthPseudoClass(PseudoClassType type)
+    {
+        // Collect argument tokens until ')'
+        var argStr = CollectFunctionArgument();
+        return new PseudoClass { Type = type, Argument = argStr };
+    }
+
+    private PseudoClass ParseSelectorFunctionPseudoClass(PseudoClassType type)
+    {
+        // Collect tokens until matching ')' and parse as selector list
+        var argTokens = CollectFunctionArgumentTokens();
+        var subParser = new SelectorParser(argTokens);
+        var selectors = subParser.ParseSelectorList();
+        return new PseudoClass { Type = type, SelectorArgument = selectors };
+    }
+
+    private string CollectFunctionArgument()
+    {
+        var parts = new List<string>();
+        int depth = 1;
+        while (!IsEnd() && depth > 0)
+        {
+            if (Current().Type == CssTokenType.LeftParen) depth++;
+            else if (Current().Type == CssTokenType.RightParen)
+            {
+                depth--;
+                if (depth == 0) { _pos++; break; }
+            }
+            if (Current().Type != CssTokenType.Whitespace)
+                parts.Add(Current().Value);
+            _pos++;
+        }
+        return string.Join("", parts);
+    }
+
+    private List<CssToken> CollectFunctionArgumentTokens()
+    {
+        var tokens = new List<CssToken>();
+        int depth = 1;
+        while (!IsEnd() && depth > 0)
+        {
+            if (Current().Type == CssTokenType.LeftParen) depth++;
+            else if (Current().Type == CssTokenType.RightParen)
+            {
+                depth--;
+                if (depth == 0) { _pos++; break; }
+            }
+            tokens.Add(Current());
+            _pos++;
+        }
+        return tokens;
+    }
+
+    private PseudoClass? SkipToCloseParen()
+    {
+        int depth = 1;
+        while (!IsEnd() && depth > 0)
+        {
+            if (Current().Type == CssTokenType.LeftParen) depth++;
+            else if (Current().Type == CssTokenType.RightParen) depth--;
+            _pos++;
+        }
+        return null;
     }
 
     private CssToken Current() => _tokens[_pos];

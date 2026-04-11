@@ -60,7 +60,9 @@ internal static class InlineLayout
                         }
                     }
 
-                    var wordWidth = measurer.MeasureWidth(word, fontSize, style.FontFamily, style.FontWeight);
+                    var transformedWord = ApplyTextTransform(word, style.TextTransform);
+                    var wordWidth = measurer.MeasureWidth(transformedWord, fontSize, style.FontFamily, style.FontWeight);
+                    wordWidth = ApplySpacing(transformedWord, wordWidth, style);
 
                     // Check if we need to wrap (not in nowrap or pre mode without pre-wrap)
                     bool canWrap = ws != WhiteSpaceType.Nowrap && ws != WhiteSpaceType.Pre;
@@ -79,7 +81,7 @@ internal static class InlineLayout
 
                     var run = new TextRun
                     {
-                        Text = word,
+                        Text = transformedWord,
                         X = cursorX,
                         Y = cursorY,
                         Width = wordWidth,
@@ -183,7 +185,9 @@ internal static class InlineLayout
                         continue;
                     }
 
-                    var wordWidth = measurer.MeasureWidth(word, fontSize, style.FontFamily, style.FontWeight);
+                    var transformedWord = ApplyTextTransform(word, style.TextTransform);
+                    var wordWidth = measurer.MeasureWidth(transformedWord, fontSize, style.FontFamily, style.FontWeight);
+                    wordWidth = ApplySpacing(transformedWord, wordWidth, style);
 
                     bool canWrap = ws != WhiteSpaceType.Nowrap && ws != WhiteSpaceType.Pre;
                     if (canWrap && cursorX - lineStartX + wordWidth > availableWidth && cursorX > lineStartX)
@@ -197,7 +201,7 @@ internal static class InlineLayout
 
                     var run = new TextRun
                     {
-                        Text = word,
+                        Text = transformedWord,
                         X = cursorX,
                         Y = cursorY,
                         Width = wordWidth,
@@ -367,7 +371,9 @@ internal static class InlineLayout
                     continue;
                 }
 
-                var wordWidth = measurer.MeasureWidth(word, fontSize, style.FontFamily, style.FontWeight);
+                var transformedWord = ApplyTextTransform(word, style.TextTransform);
+                var wordWidth = measurer.MeasureWidth(transformedWord, fontSize, style.FontFamily, style.FontWeight);
+                wordWidth = ApplySpacing(transformedWord, wordWidth, style);
 
                 bool canWrap = ws != WhiteSpaceType.Nowrap && ws != WhiteSpaceType.Pre;
                 if (canWrap && cursorX - containingBlock.X + wordWidth > containingBlock.Width && cursorX > containingBlock.X)
@@ -379,7 +385,7 @@ internal static class InlineLayout
 
                 box.TextRuns.Add(new TextRun
                 {
-                    Text = word,
+                    Text = transformedWord,
                     X = cursorX,
                     Y = cursorY,
                     Width = wordWidth,
@@ -572,5 +578,42 @@ internal static class InlineLayout
         }
 
         return maxRight;
+    }
+
+    /// <summary>
+    /// Applies CSS text-transform to a word.
+    /// </summary>
+    private static string ApplyTextTransform(string word, TextTransformType transform)
+    {
+        return transform switch
+        {
+            TextTransformType.Uppercase => word.ToUpperInvariant(),
+            TextTransformType.Lowercase => word.ToLowerInvariant(),
+            TextTransformType.Capitalize => CapitalizeWord(word),
+            _ => word
+        };
+    }
+
+    private static string CapitalizeWord(string word)
+    {
+        if (string.IsNullOrEmpty(word)) return word;
+        return char.ToUpperInvariant(word[0]) + word[1..];
+    }
+
+    /// <summary>
+    /// Adjusts measured word width for letter-spacing and word-spacing.
+    /// </summary>
+    private static float ApplySpacing(string word, float measuredWidth, ComputedStyle style)
+    {
+        float letterSpacing = style.LetterSpacing;
+        float wordSpacing = style.WordSpacing;
+
+        if (letterSpacing != 0 && word.Length > 1)
+            measuredWidth += letterSpacing * (word.Length - 1);
+
+        if (wordSpacing != 0 && word == " ")
+            measuredWidth += wordSpacing;
+
+        return measuredWidth;
     }
 }

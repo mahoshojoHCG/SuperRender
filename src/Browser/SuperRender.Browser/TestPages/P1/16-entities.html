@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test 16 - HTML Entities</title>
+    <style>
+        body {
+            font-family: Helvetica, sans-serif;
+            font-size: 14px;
+            color: #222222;
+            margin: 20px;
+            line-height: 1.5;
+        }
+        h1 {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 8px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #cccccc;
+            background-color: #f9f9f9;
+        }
+        .label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333333;
+            font-size: 16px;
+        }
+        .info {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 8px;
+        }
+        .entity-row {
+            padding: 5px 10px;
+            margin: 3px 0;
+            background-color: #ffffff;
+            border: 1px solid #eeeeee;
+            font-size: 16px;
+        }
+        .entity-name {
+            display: inline-block;
+            width: 120px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #666666;
+        }
+        .entity-char {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test 16: HTML Entities</h1>
+    <p><a href="../index.html">Back to index</a></p>
+
+    <div class="test-section">
+        <div class="label">Test 16a: Common entities</div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;amp;</span>
+            <span class="entity-char">&amp;</span> ampersand
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;lt;</span>
+            <span class="entity-char">&lt;</span> less-than
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;gt;</span>
+            <span class="entity-char">&gt;</span> greater-than
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;quot;</span>
+            <span class="entity-char">&quot;</span> quotation mark
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;apos;</span>
+            <span class="entity-char">&apos;</span> apostrophe
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;nbsp;</span>
+            <span class="entity-char">[&nbsp;]</span> non-breaking space (between brackets)
+        </div>
+        <div class="info">EXPECT: Each entity renders as its correct character: &amp; &lt; &gt; " ' and a non-breaking space.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 16b: Extended entities (typography)</div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;mdash;</span>
+            <span class="entity-char">&mdash;</span> em dash
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;ndash;</span>
+            <span class="entity-char">&ndash;</span> en dash
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;copy;</span>
+            <span class="entity-char">&copy;</span> copyright
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;reg;</span>
+            <span class="entity-char">&reg;</span> registered
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;trade;</span>
+            <span class="entity-char">&trade;</span> trademark
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;hellip;</span>
+            <span class="entity-char">&hellip;</span> horizontal ellipsis
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;laquo;</span>
+            <span class="entity-char">&laquo;</span> left guillemet
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;raquo;</span>
+            <span class="entity-char">&raquo;</span> right guillemet
+        </div>
+        <div class="info">EXPECT: Each entity renders as its correct typographic character.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 16c: Mathematical entities</div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;sum;</span>
+            <span class="entity-char">&sum;</span> summation
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;infin;</span>
+            <span class="entity-char">&infin;</span> infinity
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;pi;</span>
+            <span class="entity-char">&pi;</span> pi
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;times;</span>
+            <span class="entity-char">&times;</span> multiplication
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;divide;</span>
+            <span class="entity-char">&divide;</span> division
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;plusmn;</span>
+            <span class="entity-char">&plusmn;</span> plus-minus
+        </div>
+        <div class="info">EXPECT: Mathematical symbols render correctly.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 16d: Greek letter entities</div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;Alpha;</span>
+            <span class="entity-char">&Alpha;</span> Alpha
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;Beta;</span>
+            <span class="entity-char">&Beta;</span> Beta
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;Gamma;</span>
+            <span class="entity-char">&Gamma;</span> Gamma
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;Delta;</span>
+            <span class="entity-char">&Delta;</span> Delta
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;Omega;</span>
+            <span class="entity-char">&Omega;</span> Omega
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;alpha;</span>
+            <span class="entity-char">&alpha;</span> alpha (lowercase)
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;beta;</span>
+            <span class="entity-char">&beta;</span> beta (lowercase)
+        </div>
+        <div class="info">EXPECT: Greek capital and lowercase letters render correctly.</div>
+    </div>
+
+    <div class="test-section">
+        <div class="label">Test 16e: Arrow entities</div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;larr;</span>
+            <span class="entity-char">&larr;</span> left arrow
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;rarr;</span>
+            <span class="entity-char">&rarr;</span> right arrow
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;uarr;</span>
+            <span class="entity-char">&uarr;</span> up arrow
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;darr;</span>
+            <span class="entity-char">&darr;</span> down arrow
+        </div>
+        <div class="entity-row">
+            <span class="entity-name">&amp;harr;</span>
+            <span class="entity-char">&harr;</span> left-right arrow
+        </div>
+        <div class="info">EXPECT: Arrow characters render correctly in each direction.</div>
+    </div>
+</body>
+</html>

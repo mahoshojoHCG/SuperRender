@@ -13,7 +13,7 @@ public sealed class TextRun
     public required ComputedStyle Style { get; init; }
 }
 
-public enum LayoutBoxType { Block, Inline, AnonymousBlock, InlineBlock }
+public enum LayoutBoxType { Block, Inline, AnonymousBlock, InlineBlock, FlexContainer }
 
 public sealed class LayoutBox
 {
