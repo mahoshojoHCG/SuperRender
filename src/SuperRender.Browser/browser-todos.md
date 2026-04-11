@@ -35,7 +35,7 @@ Platform-aware shortcuts (Cmd on macOS, Ctrl on Windows/Linux) for core browser 
 - [ ] Alt+Left / Alt+Right — back/forward
 - [ ] Ctrl/Cmd+F — find in page
 - [ ] Ctrl/Cmd+Plus / Ctrl/Cmd+Minus / Ctrl/Cmd+0 — zoom in/out/reset
-- [ ] Ctrl/Cmd+Shift+I — toggle dev tools
+- [x] Ctrl/Cmd+Shift+I / F12 — toggle dev tools window
 - [ ] Ctrl/Cmd+U — view source
 - [x] Escape — stop loading / unfocus address bar
 - [ ] F11 — toggle fullscreen
@@ -224,15 +224,23 @@ No text search capability.
 
 ## 13. Developer Tools
 
-No developer tooling.
+A separate DevTools window with a Console tab. Opens via F12, Cmd/Ctrl+Shift+I, or right-click "Developer Tools". Renders in its own Vulkan window, driven from the main render loop. Console captures `console.log/warn/error` from page scripts, supports interactive JS execution with input history.
 
-### Essential
-- [ ] JavaScript console panel — display `console.log/warn/error` output, accept input, tied to active tab's JsEngine
+### Implemented
+- [x] JavaScript console window — separate Vulkan window displaying `console.log/warn/error` output with color-coded severity
+- [x] Interactive JS input — execute expressions, show results, input history (Up/Down), cursor editing
+- [x] Console output capture — `ConsoleCapture` TextWriter redirects JS console methods to per-tab `ConsoleLog`
+- [x] Error display — script errors and navigation errors logged to console in red
+- [x] Open via F12 / Cmd+Shift+I / right-click "Developer Tools"
+- [x] Close via F12 (in either window), window close button, or toolbar X button
+- [x] Clear button — clears console log
+- [x] Scrollable log area with auto-scroll on new messages
+- [x] Lazy JS engine init — console works even on welcome page (engine created on demand)
+
+### Not Yet Implemented
 - [ ] DOM inspector — tree view of document, click-to-select element, show computed styles
 - [ ] Network panel — log all HTTP requests with URL, method, status, size, timing
 - [ ] View Source with syntax highlighting — colorize HTML tags, attributes, CSS, JS
-
-### Nice-to-have
 - [ ] Element hover highlight — outline the hovered element in the page when inspecting
 - [ ] CSS property editor — modify styles in-place and see live results
 - [ ] Performance timeline — frame times, layout/paint durations

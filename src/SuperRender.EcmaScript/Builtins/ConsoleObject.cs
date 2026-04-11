@@ -8,6 +8,7 @@ public static class ConsoleObject
 {
     private static TextWriter _output = Console.Out;
     private static TextWriter _errorOutput = Console.Error;
+    private static TextWriter _warnOutput = Console.Error;
     private static readonly Dictionary<string, Stopwatch> Timers = new(StringComparer.Ordinal);
 
     public static void SetOutput(TextWriter output)
@@ -18,6 +19,11 @@ public static class ConsoleObject
     public static void SetErrorOutput(TextWriter errorOutput)
     {
         _errorOutput = errorOutput;
+    }
+
+    public static void SetWarnOutput(TextWriter warnOutput)
+    {
+        _warnOutput = warnOutput;
     }
 
     public static void Install(Realm realm)
@@ -44,7 +50,7 @@ public static class ConsoleObject
 
         BuiltinHelper.DefineMethod(console, "warn", (_, args) =>
         {
-            WriteFormatted(_errorOutput, args);
+            WriteFormatted(_warnOutput, args);
             return JsValue.Undefined;
         }, 0);
 
@@ -198,5 +204,13 @@ public static class ConsoleObject
         }
 
         return "{ " + string.Join(", ", entries) + " }";
+    }
+
+    /// <summary>
+    /// Formats a JsValue for display in the developer tools console.
+    /// </summary>
+    public static string FormatForDisplay(JsValue value)
+    {
+        return FormatValue(value);
     }
 }

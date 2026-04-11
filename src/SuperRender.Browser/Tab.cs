@@ -4,8 +4,10 @@ using SuperRender.Core.Css;
 using SuperRender.Core.Dom;
 using SuperRender.Core.Painting;
 using SuperRender.Core.Layout;
+using SuperRender.EcmaScript.Builtins;
 using SuperRender.EcmaScript.Dom;
 using SuperRender.EcmaScript.Interop;
+using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.Browser;
 
@@ -30,12 +32,25 @@ public sealed class Tab : IDisposable
     public TextSelectionState Selection { get; } = new();
     public ScrollState Scroll { get; } = new();
     public NavigationHistory History { get; } = new();
+    public ConsoleLog ConsoleLog { get; } = new();
     public TimerScheduler? Timers => _domBridge?.TimerQueue;
 
     public Tab(ITextMeasurer measurer, ResourceLoader loader)
     {
         _measurer = measurer;
         _loader = loader;
+    }
+
+    /// <summary>
+    /// Loads HTML directly into this tab without network fetch.
+    /// Sets up the rendering pipeline and JS engine.
+    /// Used for welcome page, view-source, and other locally-generated content.
+    /// </summary>
+    public void LoadHtmlDirect(string html)
+    {
+        _pipeline = new RenderPipeline(_measurer, useUserAgentStylesheet: true);
+        _pipeline.LoadHtml(html);
+        SetupJsEngine();
     }
 
     /// <summary>
@@ -131,6 +146,11 @@ public sealed class Tab : IDisposable
         catch (Exception ex)
         {
             Console.WriteLine($"[Tab] Navigation error: {ex.Message}");
+            ConsoleLog.Add(new ConsoleMessage
+            {
+                Level = ConsoleMessageLevel.Error,
+                Text = $"Navigation error: {ex.Message}",
+            });
             LoadErrorPage($"Error: {ex.Message}");
         }
         finally
@@ -199,7 +219,15 @@ public sealed class Tab : IDisposable
                 if (jsCode is not null)
                 {
                     try { _jsEngine.Execute(jsCode); }
-                    catch (Exception ex) { Console.WriteLine($"[JS] Script error ({src}): {ex.Message}"); }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[JS] Script error ({src}): {ex.Message}");
+                        ConsoleLog.Add(new ConsoleMessage
+                        {
+                            Level = ConsoleMessageLevel.Error,
+                            Text = $"Script error ({src}): {ex.Message}",
+                        });
+                    }
                 }
             }
         }
@@ -216,7 +244,15 @@ public sealed class Tab : IDisposable
             if (string.IsNullOrWhiteSpace(src) && !string.IsNullOrWhiteSpace(script.InnerText))
             {
                 try { _jsEngine.Execute(script.InnerText); }
-                catch (Exception ex) { Console.WriteLine($"[JS] Inline script error: {ex.Message}"); }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[JS] Inline script error: {ex.Message}");
+                    ConsoleLog.Add(new ConsoleMessage
+                    {
+                        Level = ConsoleMessageLevel.Error,
+                        Text = $"Inline script error: {ex.Message}",
+                    });
+                }
             }
         }
     }
@@ -226,8 +262,54 @@ public sealed class Tab : IDisposable
         if (Document is null) return;
 
         _jsEngine = new JsEngine();
+
+        // Redirect console output to the DevTools console log
+        var stdCapture = new ConsoleCapture(ConsoleLog, ConsoleMessageLevel.Log);
+        var errCapture = new ConsoleCapture(ConsoleLog, ConsoleMessageLevel.Error);
+        var warnCapture = new ConsoleCapture(ConsoleLog, ConsoleMessageLevel.Warn);
+        _jsEngine.SetConsoleOutput(stdCapture, errCapture, warnCapture);
+
         _domBridge = new DomBridge(_jsEngine, Document);
         _domBridge.Install();
+    }
+
+    /// <summary>
+    /// Executes a JavaScript expression from the DevTools console input.
+    /// Returns a formatted result string, or null if no engine is available.
+    /// Errors are logged to ConsoleLog automatically.
+    /// </summary>
+    public string? ExecuteConsoleInput(string code)
+    {
+        // Lazy-init JS engine if document exists but engine wasn't set up
+        if (_jsEngine is null && Document is not null)
+            SetupJsEngine();
+
+        if (_jsEngine is null)
+        {
+            ConsoleLog.Add(new ConsoleMessage
+            {
+                Level = ConsoleMessageLevel.Error,
+                Text = "JavaScript engine not available",
+            });
+            return null;
+        }
+
+        try
+        {
+            var result = _jsEngine.Execute(code);
+            if (result is JsUndefined)
+                return "undefined";
+            return ConsoleObject.FormatForDisplay(result);
+        }
+        catch (Exception ex)
+        {
+            ConsoleLog.Add(new ConsoleMessage
+            {
+                Level = ConsoleMessageLevel.Error,
+                Text = ex.Message,
+            });
+            return null;
+        }
     }
 
     public PaintList? Render(float width, float height)

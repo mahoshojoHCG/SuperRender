@@ -21,6 +21,7 @@ public sealed class BrowserWindow : IDisposable
     private BrowserChrome _chrome = null!;
     private InputHandler _inputHandler = null!;
     private ResourceLoader _resourceLoader = null!;
+    private DevToolsWindow? _devToolsWindow;
     private PaintList? _lastCombinedPaintList;
     private ContextMenu? _contextMenu;
     private ITextMeasurer _measurer = null!;
@@ -56,7 +57,8 @@ public sealed class BrowserWindow : IDisposable
             () => _contentScale,
             NavigateAsync,
             GoBackAsync,
-            GoForwardAsync);
+            GoForwardAsync,
+            ToggleDevTools);
 
         // Create first tab with welcome page
         var tab = _tabManager.CreateTab();
@@ -88,6 +90,9 @@ public sealed class BrowserWindow : IDisposable
 
         // Drain JS timers (before rendering so DOM changes take effect this frame)
         _tabManager.ActiveTab?.Timers?.DrainReady();
+
+        // Drain DevTools execution queue
+        DrainDevToolsExecutionQueue();
 
         var fbSize = _window.FramebufferSize;
         if (fbSize.X == 0 || fbSize.Y == 0) return;
@@ -169,6 +174,9 @@ public sealed class BrowserWindow : IDisposable
         }
 
         _renderer.RenderFrame(_lastCombinedPaintList);
+
+        // Drive the DevTools window rendering (secondary windows aren't driven by Silk.NET's Run())
+        _devToolsWindow?.RenderFrame();
     }
 
     public void OnResize(Vector2D<int> size)
@@ -192,6 +200,7 @@ public sealed class BrowserWindow : IDisposable
 
     public void Dispose()
     {
+        _devToolsWindow?.Dispose();
         _tabManager?.Dispose();
         _resourceLoader?.Dispose();
         _renderer?.Dispose();
@@ -305,6 +314,43 @@ public sealed class BrowserWindow : IDisposable
         });
     }
 
+    private void ToggleDevTools()
+    {
+        if (_devToolsWindow is { IsOpen: true })
+        {
+            _devToolsWindow.Close();
+            _devToolsWindow = null;
+        }
+        else
+        {
+            _devToolsWindow = new DevToolsWindow(
+                () => _tabManager.ActiveTab?.ConsoleLog,
+                () => _devToolsWindow = null);
+            _devToolsWindow.Open();
+        }
+    }
+
+    private void DrainDevToolsExecutionQueue()
+    {
+        if (_devToolsWindow is null) return;
+
+        while (_devToolsWindow.ExecutionQueue.TryDequeue(out var code))
+        {
+            var tab = _tabManager.ActiveTab;
+            if (tab is null) continue;
+
+            var result = tab.ExecuteConsoleInput(code);
+            if (result is not null)
+            {
+                tab.ConsoleLog.Add(new ConsoleMessage
+                {
+                    Level = ConsoleMessageLevel.Info,
+                    Text = "< " + result,
+                });
+            }
+        }
+    }
+
     private static void LoadWelcomePage(Tab tab)
     {
         var welcomeHtml = """
@@ -363,19 +409,7 @@ public sealed class BrowserWindow : IDisposable
             </html>
             """;
 
-        // Use reflection-free approach: directly create pipeline
-        var pipeline = typeof(Tab).GetField("_pipeline",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var measurer = typeof(Tab).GetField("_measurer",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-
-        if (pipeline is not null && measurer is not null)
-        {
-            var m = (ITextMeasurer)measurer.GetValue(tab)!;
-            var rp = new SuperRender.Core.RenderPipeline(m, useUserAgentStylesheet: true);
-            rp.LoadHtml(welcomeHtml);
-            pipeline.SetValue(tab, rp);
-        }
+        tab.LoadHtmlDirect(welcomeHtml);
     }
 
     /// <summary>

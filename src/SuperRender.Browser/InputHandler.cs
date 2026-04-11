@@ -18,6 +18,7 @@ public sealed class InputHandler
     private readonly Action<Uri> _navigateCallback;
     private readonly Action _goBackCallback;
     private readonly Action _goForwardCallback;
+    private readonly Action _onToggleDevTools;
     private bool _isDragging;
     private float _mouseDownX;
     private float _mouseDownY;
@@ -31,7 +32,8 @@ public sealed class InputHandler
         Func<float> getContentScale,
         Action<Uri> navigateCallback,
         Action goBackCallback,
-        Action goForwardCallback)
+        Action goForwardCallback,
+        Action onToggleDevTools)
     {
         _chrome = chrome;
         _tabs = tabs;
@@ -40,6 +42,7 @@ public sealed class InputHandler
         _navigateCallback = navigateCallback;
         _goBackCallback = goBackCallback;
         _goForwardCallback = goForwardCallback;
+        _onToggleDevTools = onToggleDevTools;
     }
 
     public void OnScroll(float deltaY)
@@ -154,6 +157,13 @@ public sealed class InputHandler
         // Global shortcuts (always active, regardless of focus)
         if (cmd)
         {
+            // Cmd+Shift+I toggles DevTools
+            if (shift && key == Key.I)
+            {
+                _onToggleDevTools();
+                return;
+            }
+
             switch (key)
             {
                 case Key.T:
@@ -184,6 +194,13 @@ public sealed class InputHandler
                     ReloadActiveTab();
                     return;
             }
+        }
+
+        // F12 toggles DevTools
+        if (key == Key.F12)
+        {
+            _onToggleDevTools();
+            return;
         }
 
         if (key == Key.F5)
@@ -565,6 +582,20 @@ public sealed class InputHandler
             Action = () => ViewSource(tab),
         });
 
+        items.Add(new ContextMenuItem
+        {
+            Label = "",
+            Action = () => { },
+            IsSeparator = true,
+        });
+
+        items.Add(new ContextMenuItem
+        {
+            Label = "Developer Tools",
+            Enabled = true,
+            Action = () => _onToggleDevTools(),
+        });
+
         return new ContextMenu(x, y, items);
     }
 
@@ -612,20 +643,7 @@ public sealed class InputHandler
         var sourceHtml = $"<html><head><style>body {{ margin: 16px; font-size: 13px; }} pre {{ white-space: pre-wrap; }}</style></head><body><pre>{EscapeHtml(html)}</pre></body></html>";
 
         var newTab = _tabs.CreateTab();
-
-        // Load source HTML via reflection (same approach as BrowserWindow.LoadWelcomePage)
-        var pipelineField = typeof(Tab).GetField("_pipeline",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var measurerField = typeof(Tab).GetField("_measurer",
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-
-        if (pipelineField is not null && measurerField is not null)
-        {
-            var m = (ITextMeasurer)measurerField.GetValue(newTab)!;
-            var rp = new SuperRender.Core.RenderPipeline(m, useUserAgentStylesheet: true);
-            rp.LoadHtml(sourceHtml);
-            pipelineField.SetValue(newTab, rp);
-        }
+        newTab.LoadHtmlDirect(sourceHtml);
 
         _chrome.AddressText = $"view-source:{tab.CurrentUri}";
         _chrome.CursorPosition = _chrome.AddressText.Length;

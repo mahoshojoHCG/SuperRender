@@ -144,11 +144,13 @@ public sealed class JsEngine
     /// <summary>
     /// Configure the output writers for console.log/warn/error.
     /// </summary>
-    public JsEngine SetConsoleOutput(TextWriter output, TextWriter? error = null)
+    public JsEngine SetConsoleOutput(TextWriter output, TextWriter? error = null, TextWriter? warn = null)
     {
         ConsoleObject.SetOutput(output);
         if (error is not null)
             ConsoleObject.SetErrorOutput(error);
+        if (warn is not null)
+            ConsoleObject.SetWarnOutput(warn);
         return this;
     }
 

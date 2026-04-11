@@ -110,7 +110,7 @@ A Vulkan-powered browser application with tabbed browsing support.
 - `BrowserChrome` — renders tab bar (32px) + address bar (36px) as PaintCommands, vertically centered text via `CenterTextY`, font-metrics-accurate cursor positioning
 - `TabManager` — tab lifecycle: create, close, switch tabs
 - `Tab` — individual browsing context: owns Document, RenderPipeline, JsEngine, DomBridge, TextSelectionState, ScrollState, NavigationHistory, TimerScheduler
-- `InputHandler` — routes keyboard/mouse to chrome or content area, handles text selection drag, address bar click-to-cursor, right-click context menus, link click navigation, DOM event dispatch, keyboard shortcuts (Cmd/Ctrl+T/W/Tab/L/R, F5, Escape, scroll keys)
+- `InputHandler` — routes keyboard/mouse to chrome or content area, handles text selection drag, address bar click-to-cursor, right-click context menus, link click navigation, DOM event dispatch, keyboard shortcuts (Cmd/Ctrl+T/W/Tab/L/R, F5, F12, Cmd+Shift+I, Escape, scroll keys)
 - `ScrollState` — per-tab vertical scroll position tracking with mouse wheel and keyboard scrolling, scrollbar geometry computation
 - `NavigationHistory` — per-tab URI history stack with back/forward cursor
 - `ContextMenu` — reusable context menu: items with hover highlighting, hit-testing, PaintList rendering
@@ -123,7 +123,7 @@ A Vulkan-powered browser application with tabbed browsing support.
 
 **Text selection:** Click-and-drag in the content area creates a text selection. `TextHitTester` maps mouse coordinates to `(runIndex, charOffset)` positions. `SelectionPainter` generates blue highlight rectangles behind selected text. `TextSelectionState` tracks start/end positions with ordered normalization.
 
-**Context menus:** Right-click the address bar for Cut/Copy/Paste/Select All. Right-click the content area for Copy (when text selected)/Select All/View Source.
+**Context menus:** Right-click the address bar for Cut/Copy/Paste/Select All. Right-click the content area for Copy (when text selected)/Select All/View Source/Developer Tools.
 
 **Content scrolling:** `ScrollState` per tab tracks `scrollY` with bounds clamping. Mouse wheel (via `mouse.Scroll` Silk.NET event), keyboard arrows/PageUp/PageDown/Home/End/Space. Scroll offset applied to content paint commands in `OnRender`. Visual scrollbar indicator (track + thumb) rendered on the right edge. Scroll-to-top on navigation.
 
@@ -131,11 +131,13 @@ A Vulkan-powered browser application with tabbed browsing support.
 
 **Back/Forward history:** `NavigationHistory` per tab stores a list of URIs with a cursor index. `Tab.NavigateAsync()` pushes to history; `GoBackAsync()`/`GoForwardAsync()` move the cursor without pushing. Back/Forward chrome buttons call these methods. Address bar and window title update after history navigation.
 
-**Keyboard shortcuts:** Platform-aware (Cmd on macOS, Ctrl on Windows/Linux). Global: Cmd+T (new tab), Cmd+W (close), Cmd+Tab/Shift+Tab (switch), Cmd+L (focus address bar), Cmd+R/F5 (reload), Escape (unfocus). Content area: arrow keys (scroll step), Page Up/Down/Space (scroll page), Home/End (top/bottom).
+**Keyboard shortcuts:** Platform-aware (Cmd on macOS, Ctrl on Windows/Linux). Global: Cmd+T (new tab), Cmd+W (close), Cmd+Tab/Shift+Tab (switch), Cmd+L (focus address bar), Cmd+R/F5 (reload), F12/Cmd+Shift+I (toggle DevTools), Escape (unfocus). Content area: arrow keys (scroll step), Page Up/Down/Space (scroll page), Home/End (top/bottom).
 
 **DOM events:** `Node` has `AddEventListener`/`RemoveEventListener`/`DispatchEvent` with capture/target/bubble propagation. `DomEvent`, `MouseEvent`, `KeyboardEvent` in Core. `JsEventWrapper` bridges to JS. `InputHandler` dispatches `mousedown`/`mouseup`/`click` to hit DOM nodes. `DOMContentLoaded` and `load` fired after page load.
 
 **Timers:** `TimerScheduler` (in EcmaScript.Dom) uses `Stopwatch` for monotonic time. `setTimeout` with real delay, `setInterval` (min 4ms), `requestAnimationFrame` (fires next frame). Timer queue drained in `BrowserWindow.OnRender` before painting. `cancelAnimationFrame`/`clearTimeout`/`clearInterval` cancel by ID.
+
+**Developer Tools:** Separate Vulkan window opened via F12/Cmd+Shift+I/right-click context menu. `DevToolsWindow` creates its own `IWindow` + `VulkanRenderer`; rendering is driven from the main window's render loop (Silk.NET only drives `Run()` on one window, so secondary windows are rendered manually via `RenderFrame()`). GLFW's `glfwPollEvents()` handles input events for all windows. `DevToolsPanel` builds PaintList for the console UI: toolbar, scrollable log area, JS input line. `ConsoleCapture` (TextWriter subclass) redirects `console.log/warn/error` to per-tab `ConsoleLog`. JS execution requests are queued via `ConcurrentQueue<string>` and drained on the main thread. `Tab.LoadHtmlDirect(html)` replaces the old reflection-based page loading and also sets up the JsEngine. `Tab.ExecuteConsoleInput(code)` lazy-initializes the JsEngine if needed.
 
 ## EcmaScript DOM Bindings
 
