@@ -3,6 +3,7 @@ using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
 using SuperRender.Browser.Networking;
+using SuperRender.Core;
 using SuperRender.Core.Layout;
 using SuperRender.Core.Painting;
 using SuperRender.Gpu;
@@ -53,7 +54,9 @@ public sealed class BrowserWindow : IDisposable
             _tabManager,
             measurer,
             () => _contentScale,
-            NavigateAsync);
+            NavigateAsync,
+            GoBackAsync,
+            GoForwardAsync);
 
         // Create first tab with welcome page
         var tab = _tabManager.CreateTab();
@@ -71,6 +74,7 @@ public sealed class BrowserWindow : IDisposable
             mouse.MouseDown += OnMouseDown;
             mouse.MouseUp += OnMouseUp;
             mouse.MouseMove += OnMouseMove;
+            mouse.Scroll += OnMouseScroll;
         }
 
         Console.WriteLine("SuperRenderer Browser started.");
@@ -81,6 +85,9 @@ public sealed class BrowserWindow : IDisposable
         // Drain pending main-thread work
         while (_mainThreadQueue.TryDequeue(out var action))
             action();
+
+        // Drain JS timers (before rendering so DOM changes take effect this frame)
+        _tabManager.ActiveTab?.Timers?.DrainReady();
 
         var fbSize = _window.FramebufferSize;
         if (fbSize.X == 0 || fbSize.Y == 0) return;
@@ -111,18 +118,43 @@ public sealed class BrowserWindow : IDisposable
 
         if (contentPaintList is not null)
         {
+            float scrollY = activeTab?.Scroll.ScrollY ?? 0;
+            float contentOffset = BrowserChrome.TotalChromeHeight - scrollY;
+
             // Selection highlights render behind text (quads drawn before text in Vulkan pipeline)
             if (activeTab?.Selection.HasSelection == true && activeTab.LayoutRoot is not null)
             {
                 var allRuns = TextHitTester.CollectTextRuns(activeTab.LayoutRoot);
                 var highlights = SelectionPainter.BuildHighlights(activeTab.Selection, allRuns, _measurer);
                 foreach (var cmd in highlights.Commands)
-                    combined.Add(OffsetCommand(cmd, BrowserChrome.TotalChromeHeight));
+                    combined.Add(OffsetCommand(cmd, contentOffset));
             }
 
             foreach (var cmd in contentPaintList.Commands)
             {
-                combined.Add(OffsetCommand(cmd, BrowserChrome.TotalChromeHeight));
+                combined.Add(OffsetCommand(cmd, contentOffset));
+            }
+
+            // Scrollbar
+            var scrollGeo = activeTab?.Scroll.GetScrollBarGeometry(BrowserChrome.TotalChromeHeight);
+            if (scrollGeo.HasValue)
+            {
+                var (trackY, trackHeight, thumbY, thumbHeight) = scrollGeo.Value;
+                float barX = logicalWidth - ScrollState.BarWidth;
+
+                // Track background
+                combined.Add(new FillRectCommand
+                {
+                    Rect = new RectF(barX, trackY, ScrollState.BarWidth, trackHeight),
+                    Color = Color.FromRgba(0, 0, 0, 20),
+                });
+
+                // Thumb
+                combined.Add(new FillRectCommand
+                {
+                    Rect = new RectF(barX + 1, thumbY, ScrollState.BarWidth - 2, thumbHeight),
+                    Color = Color.FromRgba(0, 0, 0, 80),
+                });
             }
         }
 
@@ -167,7 +199,7 @@ public sealed class BrowserWindow : IDisposable
 
     private void OnKeyDown(IKeyboard kb, Key key, int scancode)
     {
-        _inputHandler.OnKeyDown(key);
+        _inputHandler.OnKeyDown(key, kb);
     }
 
     private void OnKeyChar(IKeyboard kb, char c)
@@ -231,6 +263,11 @@ public sealed class BrowserWindow : IDisposable
         _inputHandler.OnMouseMove(physX, physY, (float)_window.FramebufferSize.X);
     }
 
+    private void OnMouseScroll(IMouse mouse, ScrollWheel wheel)
+    {
+        _inputHandler.OnScroll(wheel.Y);
+    }
+
     private async void NavigateAsync(Uri uri)
     {
         _chrome.AddressText = uri.ToString();
@@ -239,6 +276,32 @@ public sealed class BrowserWindow : IDisposable
         _mainThreadQueue.Enqueue(() =>
         {
             _window.Title = $"{_tabManager.ActiveTab?.Title ?? "SuperRenderer"} - SuperRenderer Browser";
+        });
+    }
+
+    private async void GoBackAsync()
+    {
+        var tab = _tabManager.ActiveTab;
+        if (tab is null || !tab.History.CanGoBack) return;
+        await tab.GoBackAsync().ConfigureAwait(false);
+        _mainThreadQueue.Enqueue(() =>
+        {
+            _chrome.AddressText = tab.CurrentUri?.ToString() ?? "";
+            _chrome.CursorPosition = _chrome.AddressText.Length;
+            _window.Title = $"{tab.Title} - SuperRenderer Browser";
+        });
+    }
+
+    private async void GoForwardAsync()
+    {
+        var tab = _tabManager.ActiveTab;
+        if (tab is null || !tab.History.CanGoForward) return;
+        await tab.GoForwardAsync().ConfigureAwait(false);
+        _mainThreadQueue.Enqueue(() =>
+        {
+            _chrome.AddressText = tab.CurrentUri?.ToString() ?? "";
+            _chrome.CursorPosition = _chrome.AddressText.Length;
+            _window.Title = $"{tab.Title} - SuperRenderer Browser";
         });
     }
 

@@ -9,10 +9,10 @@ Features already implemented are **not** listed here. See CLAUDE.md for the curr
 
 ## 1. Navigation & History
 
-Back/Forward buttons exist in the chrome UI and hit-test correctly, but they have no history stack behind them.
+Back/Forward buttons are wired to a per-tab history stack. `window.history` and `window.location` APIs are not yet exposed to JS.
 
-- [S] Back/Forward navigation — buttons render and hit-test but do nothing; needs a per-tab history stack
-- [ ] History stack — list of visited URIs with forward/back cursor per tab
+- [x] Back/Forward navigation — buttons trigger history navigation, address bar updates
+- [x] History stack — `NavigationHistory` class with URI list and forward/back cursor per tab
 - [ ] `window.history` API — `pushState()`, `replaceState()`, `back()`, `forward()`, `go(n)`, `state`, `popstate` event
 - [ ] `window.location` object — `href`, `origin`, `protocol`, `host`, `hostname`, `port`, `pathname`, `search`, `hash`, `assign()`, `replace()`, `reload()`
 - [ ] Fragment navigation — scroll to `#id` on same page, `hashchange` event
@@ -24,34 +24,34 @@ Back/Forward buttons exist in the chrome UI and hit-test correctly, but they hav
 
 ## 2. Keyboard Shortcuts
 
-No keyboard shortcuts are implemented beyond basic address bar text editing.
+Platform-aware shortcuts (Cmd on macOS, Ctrl on Windows/Linux) for core browser actions. Content area scrolling keys are also implemented.
 
-- [ ] Ctrl/Cmd+T — new tab
-- [ ] Ctrl/Cmd+W — close tab
-- [ ] Ctrl/Cmd+Tab / Ctrl/Cmd+Shift+Tab — next/previous tab
+- [x] Ctrl/Cmd+T — new tab
+- [x] Ctrl/Cmd+W — close tab
+- [x] Ctrl/Cmd+Tab / Ctrl/Cmd+Shift+Tab — next/previous tab
 - [ ] Ctrl/Cmd+1-9 — switch to tab by index
-- [ ] Ctrl/Cmd+L — focus address bar, select all text
-- [ ] Ctrl/Cmd+R / F5 — reload page
+- [x] Ctrl/Cmd+L — focus address bar, select all text
+- [x] Ctrl/Cmd+R / F5 — reload page
 - [ ] Alt+Left / Alt+Right — back/forward
 - [ ] Ctrl/Cmd+F — find in page
 - [ ] Ctrl/Cmd+Plus / Ctrl/Cmd+Minus / Ctrl/Cmd+0 — zoom in/out/reset
 - [ ] Ctrl/Cmd+Shift+I — toggle dev tools
 - [ ] Ctrl/Cmd+U — view source
-- [ ] Escape — stop loading / unfocus address bar (unfocus partially works)
+- [x] Escape — stop loading / unfocus address bar
 - [ ] F11 — toggle fullscreen
 
 ---
 
 ## 3. Content Scrolling & Overflow
 
-The content area has no scrolling support. Pages taller than the viewport are simply clipped.
+Vertical scrolling is implemented with `ScrollState` per tab. Mouse wheel, keyboard scrolling, and a visual scrollbar indicator are supported.
 
-- [ ] Vertical scroll offset per tab — track `scrollY`, apply offset when rendering content paint list
-- [ ] Mouse wheel scrolling — map scroll delta to `scrollY` change
-- [ ] Scroll bar widget — visual indicator on right edge showing scroll position and viewport proportion
-- [ ] Keyboard scrolling — arrow keys, Page Up/Down, Home/End, Space/Shift+Space when content is focused
+- [x] Vertical scroll offset per tab — `ScrollState` tracks `scrollY`, applied when rendering content paint list
+- [x] Mouse wheel scrolling — map scroll delta to `scrollY` change
+- [x] Scroll bar widget — visual indicator on right edge showing scroll position and viewport proportion
+- [x] Keyboard scrolling — arrow keys, Page Up/Down, Home/End, Space when content is focused
 - [ ] Smooth scrolling — animated interpolation between scroll positions
-- [ ] Scroll-to-top on navigation — reset scroll position when loading a new page
+- [x] Scroll-to-top on navigation — reset scroll position when loading a new page
 - [ ] CSS `overflow: hidden | scroll | auto` — per-element scroll containers
 - [ ] `window.scrollTo()` / `window.scrollBy()` / `Element.scrollIntoView()` JS APIs
 - [ ] Scroll event firing — `scroll` event on window and scrollable elements
@@ -136,18 +136,19 @@ Only basic CORS `Access-Control-Allow-Origin` is checked.
 
 ## 8. Event System Integration
 
-No DOM events fire. `addEventListener` is not exposed to JS.
+Core DOM event system is implemented with `addEventListener`/`removeEventListener`/`dispatchEvent` on all nodes. Capture/target/bubble propagation works. Mouse events (`mousedown`, `mouseup`, `click`) are dispatched from InputHandler. `DOMContentLoaded` and `load` fire after page load.
 
-- [ ] `EventTarget` base — `addEventListener()`, `removeEventListener()`, `dispatchEvent()`
-- [ ] `Event` object — `type`, `target`, `currentTarget`, `bubbles`, `cancelable`, `preventDefault()`, `stopPropagation()`
-- [ ] Event propagation — capture phase, target phase, bubble phase
-- [ ] `click` event — fire on mouse up over same element as mouse down
-- [ ] `mousedown`, `mouseup`, `mousemove`, `mouseover`, `mouseout`, `mouseenter`, `mouseleave`
+- [x] `EventTarget` base — `addEventListener()`, `removeEventListener()`, `dispatchEvent()`
+- [x] `Event` object — `type`, `target`, `currentTarget`, `bubbles`, `cancelable`, `preventDefault()`, `stopPropagation()`
+- [x] Event propagation — capture phase, target phase, bubble phase
+- [x] `click` event — fire on mouse up over same element as mouse down
+- [x] `mousedown`, `mouseup` — dispatched from InputHandler content area
+- [ ] `mousemove`, `mouseover`, `mouseout`, `mouseenter`, `mouseleave`
 - [ ] `keydown`, `keyup`, `keypress` (content area, when not in address bar)
 - [ ] `input`, `change` events (for future form elements)
 - [ ] `submit` event (for future `<form>`)
-- [ ] `DOMContentLoaded` event on document
-- [ ] `load` event on window and elements
+- [x] `DOMContentLoaded` event on document
+- [x] `load` event on window and elements
 - [ ] `scroll` event
 - [ ] `resize` event on window
 - [ ] `focus`, `blur` events
@@ -157,13 +158,13 @@ No DOM events fire. `addEventListener` is not exposed to JS.
 
 ## 9. Timers & Animation Loop
 
-`setTimeout` runs callbacks immediately instead of after a delay. `setInterval` is a no-op stub.
+`TimerScheduler` provides a real timer queue drained each frame in the render loop. `setTimeout`, `setInterval`, and `requestAnimationFrame` work with actual delays.
 
-- [ ] Timer queue — schedule callbacks with real delays, drain during frame loop
-- [ ] `setTimeout` with actual delay — enqueue callback + delay, fire when elapsed
-- [ ] `setInterval` — repeating timer, returns ID for `clearInterval`
-- [ ] `requestAnimationFrame` — per-frame callback tied to render loop
-- [ ] `cancelAnimationFrame`
+- [x] Timer queue — schedule callbacks with real delays, drain during frame loop
+- [x] `setTimeout` with actual delay — enqueue callback + delay, fire when elapsed
+- [x] `setInterval` — repeating timer, returns ID for `clearInterval`
+- [x] `requestAnimationFrame` — per-frame callback tied to render loop
+- [x] `cancelAnimationFrame`
 - [ ] Microtask queue — `queueMicrotask()`, `Promise.then()` scheduling
 
 ---
@@ -283,12 +284,12 @@ Basic tab create/switch/close works but lacks polish.
 
 ## 17. Link Navigation
 
-`<a href>` elements render text but clicks do not navigate.
+Click on `<a href>` navigates the tab. `target="_blank"` opens in a new tab. Hit-testing uses `LayoutBoxHitTester` to find the deepest layout box at a coordinate and walks up to find the enclosing `<a>` element.
 
-- [ ] Click on `<a>` to navigate — hit-test against `<a>` elements in layout, trigger navigation to `href`
+- [x] Click on `<a>` to navigate — hit-test against `<a>` elements in layout, trigger navigation to `href`
 - [ ] Hover cursor change — show pointer cursor over links (requires Silk.NET cursor API)
 - [ ] Status bar on link hover — show destination URL at bottom of window
-- [ ] `target="_blank"` — open link in new tab
+- [x] `target="_blank"` — open link in new tab
 - [ ] `rel="noopener"` / `rel="noreferrer"` handling
 - [ ] `javascript:` URI scheme handling (execute JS)
 - [ ] `mailto:` / `tel:` URI scheme — attempt OS handler

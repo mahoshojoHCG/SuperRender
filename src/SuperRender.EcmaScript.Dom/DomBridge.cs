@@ -15,6 +15,8 @@ public sealed class DomBridge
     private JsDocumentWrapper? _documentWrapper;
     private JsWindowWrapper? _windowWrapper;
 
+    public TimerScheduler TimerQueue { get; } = new();
+
     public DomBridge(JsEngine engine, Document document)
     {
         _engine = engine;
@@ -28,7 +30,7 @@ public sealed class DomBridge
     public void Install()
     {
         _documentWrapper = (JsDocumentWrapper)_cache.GetOrCreate(_document);
-        _windowWrapper = new JsWindowWrapper(_documentWrapper, _engine.Realm);
+        _windowWrapper = new JsWindowWrapper(_documentWrapper, _engine.Realm, TimerQueue);
 
         _engine.SetValue("document", _documentWrapper);
         _engine.SetValue("window", _windowWrapper);

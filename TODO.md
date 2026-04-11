@@ -22,42 +22,40 @@ Detailed todo files:
 
 Without these, the browser cannot display or interact with even the simplest multi-page website.
 
-### Browser — Content scrolling
-Pages taller than the viewport are silently clipped. This is the single most visible deficiency.
-- Vertical scroll offset per tab, mouse wheel scrolling, scroll bar widget
-- Keyboard scrolling (arrows, Page Up/Down, Home/End, Space)
-- Scroll-to-top on navigation
+### Browser — Content scrolling ~~DONE~~
+~~Pages taller than the viewport are silently clipped. This is the single most visible deficiency.~~
+Implemented: `ScrollState` per tab with mouse wheel, keyboard scrolling (arrows, Page Up/Down, Home/End, Space), scroll-to-top on navigation, visual scrollbar indicator.
+- Remaining: smooth scrolling, CSS `overflow`, `window.scrollTo()` JS API, scroll events
 - *Details:* [browser-todos.md §3](src/SuperRender.Browser/browser-todos.md)
 
-### Browser — Link navigation
-`<a href>` elements render as text but clicking does nothing. Users cannot follow links.
-- Click on `<a>` to navigate, hit-test against layout
-- `target="_blank"` to open in new tab
+### Browser — Link navigation ~~DONE~~
+~~`<a href>` elements render as text but clicking does nothing. Users cannot follow links.~~
+Implemented: `LayoutBoxHitTester` hit-tests layout boxes, finds `<a>` ancestor, navigates on click. `target="_blank"` opens in new tab.
+- Remaining: hover cursor, status bar, `rel="noopener"`, `javascript:` URIs
 - *Details:* [browser-todos.md §17](src/SuperRender.Browser/browser-todos.md)
 
-### Browser — Back/Forward history
-Buttons exist in the chrome but have no history stack. There is no way to go back after navigating.
-- Per-tab history stack with forward/back cursor
-- Wire up Back/Forward button hit-test handlers
+### Browser — Back/Forward history ~~DONE~~
+~~Buttons exist in the chrome but have no history stack. There is no way to go back after navigating.~~
+Implemented: `NavigationHistory` per tab with URI list and cursor. Back/Forward buttons wired to history navigation.
+- Remaining: `window.history` API, `window.location` object
 - *Details:* [browser-todos.md §1](src/SuperRender.Browser/browser-todos.md)
 
-### Browser — Keyboard shortcuts
-No keyboard shortcuts beyond address bar text editing. The browser is mouse-only.
-- Ctrl/Cmd+T (new tab), Ctrl/Cmd+W (close tab), Ctrl/Cmd+Tab (switch tab)
-- Ctrl/Cmd+L (focus address bar), Ctrl/Cmd+R / F5 (reload), Escape (stop/unfocus)
+### Browser — Keyboard shortcuts ~~DONE~~
+~~No keyboard shortcuts beyond address bar text editing. The browser is mouse-only.~~
+Implemented: Cmd/Ctrl+T (new tab), Cmd/Ctrl+W (close tab), Cmd/Ctrl+Tab (switch tab), Cmd/Ctrl+L (focus address bar), Cmd/Ctrl+R / F5 (reload), Escape (unfocus). Platform-aware (Cmd on macOS, Ctrl elsewhere).
+- Remaining: Ctrl+1-9 (tab by index), Alt+Left/Right (back/forward), Ctrl+F, zoom, F11
 - *Details:* [browser-todos.md §2](src/SuperRender.Browser/browser-todos.md)
 
-### Browser — DOM event system
-No `addEventListener`, no event propagation. Virtually all interactive JS depends on this.
-- `EventTarget` base interface, `Event` object, capture/target/bubble propagation
-- `click`, `mousedown`/`mouseup`/`mousemove`, `keydown`/`keyup`
-- `DOMContentLoaded`, `load`, `scroll`, `resize`, `focus`/`blur`
+### Browser — DOM event system ~~DONE~~
+~~No `addEventListener`, no event propagation. Virtually all interactive JS depends on this.~~
+Implemented: `EventTarget` on Node with `addEventListener`/`removeEventListener`/`dispatchEvent`. Full capture/target/bubble propagation. `DomEvent`, `MouseEvent`, `KeyboardEvent` classes. `mousedown`/`mouseup`/`click` dispatched from InputHandler. `DOMContentLoaded`/`load` fired on page load. JS `JsEventWrapper` exposes event properties.
+- Remaining: `mousemove`/`mouseover`/`mouseout`, `keydown`/`keyup` in content area, `scroll`/`resize`/`focus`/`blur` events
 - *Details:* [browser-todos.md §8](src/SuperRender.Browser/browser-todos.md), [html-todos.md §3.5](src/SuperRender.Core/html-todos.md)
 
-### Browser — Timers with real delays
-`setTimeout` fires immediately, `setInterval` is a no-op. Breaks any JS that depends on timing.
-- Timer queue drained during render frame loop
-- `requestAnimationFrame` tied to render loop
+### Browser — Timers with real delays ~~DONE~~
+~~`setTimeout` fires immediately, `setInterval` is a no-op. Breaks any JS that depends on timing.~~
+Implemented: `TimerScheduler` with monotonic Stopwatch clock. `setTimeout` with real delay, `setInterval` (min 4ms), `requestAnimationFrame` tied to render loop. Timer queue drained each frame in `OnRender`.
+- Remaining: microtask queue (`queueMicrotask`, `Promise.then()` scheduling)
 - *Details:* [browser-todos.md §9](src/SuperRender.Browser/browser-todos.md)
 
 ### CSS — Positioning (apply in layout)
@@ -617,7 +615,7 @@ Customizable chrome colors, dark mode tab/address bar.
 
 | Priority | Count | Description |
 |----------|-------|-------------|
-| **P0** | 13 | Critical blockers for basic browsing |
+| **P0** | 13 (6 done) | Critical blockers for basic browsing |
 | **P1** | 18 | High-priority for real-world site compatibility |
 | **P2** | 25 | Medium-priority quality and completeness |
 | **P3** | 27 | Low-priority polish and advanced specs |

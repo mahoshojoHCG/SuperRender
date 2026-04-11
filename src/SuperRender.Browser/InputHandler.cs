@@ -1,4 +1,5 @@
 using SuperRender.Browser.Networking;
+using SuperRender.Core.Dom;
 using SuperRender.Core.Layout;
 using SuperRender.Core.Painting;
 using Silk.NET.Input;
@@ -15,20 +16,37 @@ public sealed class InputHandler
     private readonly ITextMeasurer _measurer;
     private readonly Func<float> _getContentScale;
     private readonly Action<Uri> _navigateCallback;
+    private readonly Action _goBackCallback;
+    private readonly Action _goForwardCallback;
     private bool _isDragging;
+    private float _mouseDownX;
+    private float _mouseDownY;
+    private Node? _mouseDownNode;
+    private const float ClickThreshold = 5f;
 
     public InputHandler(
         BrowserChrome chrome,
         TabManager tabs,
         ITextMeasurer measurer,
         Func<float> getContentScale,
-        Action<Uri> navigateCallback)
+        Action<Uri> navigateCallback,
+        Action goBackCallback,
+        Action goForwardCallback)
     {
         _chrome = chrome;
         _tabs = tabs;
         _measurer = measurer;
         _getContentScale = getContentScale;
         _navigateCallback = navigateCallback;
+        _goBackCallback = goBackCallback;
+        _goForwardCallback = goForwardCallback;
+    }
+
+    public void OnScroll(float deltaY)
+    {
+        var tab = _tabs.ActiveTab;
+        if (tab is null) return;
+        tab.Scroll.ScrollBy(-deltaY * ScrollState.ScrollStep);
     }
 
     public void OnMouseDown(float physicalX, float physicalY, float viewportWidth)
@@ -37,6 +55,9 @@ public sealed class InputHandler
         float x = physicalX / scale;
         float y = physicalY / scale;
         float logicalWidth = viewportWidth / scale;
+
+        _mouseDownX = x;
+        _mouseDownY = y;
 
         if (y < BrowserChrome.TotalChromeHeight)
         {
@@ -75,18 +96,40 @@ public sealed class InputHandler
                     if (_tabs.ActiveTab?.CurrentUri is not null)
                         _navigateCallback(_tabs.ActiveTab.CurrentUri);
                     break;
+
+                case ChromeHitArea.BackButton:
+                    _goBackCallback();
+                    break;
+
+                case ChromeHitArea.ForwardButton:
+                    _goForwardCallback();
+                    break;
             }
         }
         else
         {
             // Click in content area - unfocus address bar, start text selection
             _chrome.AddressBarFocused = false;
+            _mouseDownNode = null;
 
             var tab = _tabs.ActiveTab;
             if (tab?.LayoutRoot is not null)
             {
                 float contentX = x;
-                float contentY = y - BrowserChrome.TotalChromeHeight;
+                float contentY = y - BrowserChrome.TotalChromeHeight + tab.Scroll.ScrollY;
+
+                // Hit-test layout boxes for DOM event dispatch
+                var hitBox = LayoutBoxHitTester.HitTest(tab.LayoutRoot, contentX, contentY);
+                if (hitBox?.DomNode is not null)
+                {
+                    _mouseDownNode = hitBox.DomNode;
+                    hitBox.DomNode.DispatchEvent(new MouseEvent
+                    {
+                        Type = "mousedown", Bubbles = true, Cancelable = true,
+                        ClientX = contentX, ClientY = contentY, Button = 0,
+                    });
+                }
+
                 var allRuns = TextHitTester.CollectTextRuns(tab.LayoutRoot);
                 var hit = TextHitTester.HitTest(allRuns, contentX, contentY, _measurer);
                 if (hit.HasValue)
@@ -103,20 +146,80 @@ public sealed class InputHandler
         }
     }
 
-    public void OnKeyDown(Key key)
+    public void OnKeyDown(Key key, IKeyboard kb)
     {
-        if (!_chrome.AddressBarFocused) return;
+        bool cmd = IsCommandModifier(kb);
+        bool shift = IsShiftPressed(kb);
 
+        // Global shortcuts (always active, regardless of focus)
+        if (cmd)
+        {
+            switch (key)
+            {
+                case Key.T:
+                    _tabs.CreateTab();
+                    _chrome.AddressText = "";
+                    _chrome.CursorPosition = 0;
+                    _chrome.AddressBarFocused = true;
+                    return;
+                case Key.W:
+                    _tabs.CloseTab(_tabs.ActiveTabIndex);
+                    UpdateAddressFromTab();
+                    return;
+                case Key.Tab:
+                    if (_tabs.Tabs.Count > 1)
+                    {
+                        int nextIdx = shift
+                            ? (_tabs.ActiveTabIndex - 1 + _tabs.Tabs.Count) % _tabs.Tabs.Count
+                            : (_tabs.ActiveTabIndex + 1) % _tabs.Tabs.Count;
+                        _tabs.SwitchTab(nextIdx);
+                        UpdateAddressFromTab();
+                    }
+                    return;
+                case Key.L:
+                    _chrome.AddressBarFocused = true;
+                    _chrome.CursorPosition = _chrome.AddressText.Length;
+                    return;
+                case Key.R:
+                    ReloadActiveTab();
+                    return;
+            }
+        }
+
+        if (key == Key.F5)
+        {
+            ReloadActiveTab();
+            return;
+        }
+
+        if (key == Key.Escape)
+        {
+            if (_chrome.AddressBarFocused)
+            {
+                _chrome.AddressBarFocused = false;
+                UpdateAddressFromTab();
+            }
+            return;
+        }
+
+        // Address bar key handling
+        if (_chrome.AddressBarFocused)
+        {
+            HandleAddressBarKey(key);
+            return;
+        }
+
+        // Content area key handling (scrolling)
+        HandleContentKey(key);
+    }
+
+    private void HandleAddressBarKey(Key key)
+    {
         switch (key)
         {
             case Key.Enter:
                 TriggerNavigation();
                 _chrome.AddressBarFocused = false;
-                break;
-
-            case Key.Escape:
-                _chrome.AddressBarFocused = false;
-                UpdateAddressFromTab();
                 break;
 
             case Key.Backspace:
@@ -129,9 +232,7 @@ public sealed class InputHandler
 
             case Key.Delete:
                 if (_chrome.CursorPosition < _chrome.AddressText.Length)
-                {
                     _chrome.AddressText = _chrome.AddressText.Remove(_chrome.CursorPosition, 1);
-                }
                 break;
 
             case Key.Left:
@@ -151,6 +252,51 @@ public sealed class InputHandler
                 break;
         }
     }
+
+    private void HandleContentKey(Key key)
+    {
+        var scroll = _tabs.ActiveTab?.Scroll;
+        if (scroll is null) return;
+
+        switch (key)
+        {
+            case Key.Up:
+                scroll.ScrollBy(-ScrollState.ScrollStep);
+                break;
+            case Key.Down:
+                scroll.ScrollBy(ScrollState.ScrollStep);
+                break;
+            case Key.PageUp:
+                scroll.PageUp();
+                break;
+            case Key.PageDown:
+            case Key.Space:
+                scroll.PageDown();
+                break;
+            case Key.Home:
+                scroll.ScrollToTop();
+                break;
+            case Key.End:
+                scroll.ScrollToBottom();
+                break;
+        }
+    }
+
+    private void ReloadActiveTab()
+    {
+        if (_tabs.ActiveTab?.CurrentUri is not null)
+            _navigateCallback(_tabs.ActiveTab.CurrentUri);
+    }
+
+    private static bool IsCommandModifier(IKeyboard kb)
+    {
+        if (OperatingSystem.IsMacOS())
+            return kb.IsKeyPressed(Key.SuperLeft) || kb.IsKeyPressed(Key.SuperRight);
+        return kb.IsKeyPressed(Key.ControlLeft) || kb.IsKeyPressed(Key.ControlRight);
+    }
+
+    private static bool IsShiftPressed(IKeyboard kb)
+        => kb.IsKeyPressed(Key.ShiftLeft) || kb.IsKeyPressed(Key.ShiftRight);
 
     public void OnCharInput(char c)
     {
@@ -195,7 +341,72 @@ public sealed class InputHandler
 
     public void OnMouseUp(float physicalX, float physicalY, float viewportWidth)
     {
+        bool wasDragging = _isDragging;
         _isDragging = false;
+
+        float scale = _getContentScale();
+        float x = physicalX / scale;
+        float y = physicalY / scale;
+
+        float dx = x - _mouseDownX;
+        float dy = y - _mouseDownY;
+        bool isClick = (dx * dx + dy * dy) < ClickThreshold * ClickThreshold;
+
+        if (y >= BrowserChrome.TotalChromeHeight)
+        {
+            var tab = _tabs.ActiveTab;
+            if (tab?.LayoutRoot is not null)
+            {
+                float contentX = x;
+                float contentY = y - BrowserChrome.TotalChromeHeight + tab.Scroll.ScrollY;
+
+                // Dispatch mouseup event
+                var hitBox = LayoutBoxHitTester.HitTest(tab.LayoutRoot, contentX, contentY);
+                var mouseUpNode = hitBox?.DomNode;
+                if (mouseUpNode is not null)
+                {
+                    mouseUpNode.DispatchEvent(new MouseEvent
+                    {
+                        Type = "mouseup", Bubbles = true, Cancelable = true,
+                        ClientX = contentX, ClientY = contentY, Button = 0,
+                    });
+                }
+
+                // Dispatch click if mousedown and mouseup target the same node (or ancestor)
+                if (isClick && _mouseDownNode is not null)
+                {
+                    var clickTarget = _mouseDownNode;
+                    clickTarget.DispatchEvent(new MouseEvent
+                    {
+                        Type = "click", Bubbles = true, Cancelable = true,
+                        ClientX = contentX, ClientY = contentY, Button = 0,
+                    });
+                }
+
+                // Link navigation (on click, not drag)
+                if (isClick && tab.CurrentUri is not null)
+                {
+                    var anchor = LayoutBoxHitTester.FindAnchorAncestor(hitBox);
+                    if (anchor is not null)
+                    {
+                        var href = anchor.GetAttribute("href");
+                        if (!string.IsNullOrWhiteSpace(href))
+                        {
+                            var resolvedUri = UrlResolver.Resolve(href, tab.CurrentUri);
+                            var target = anchor.GetAttribute("target");
+                            if (target is not null && target.Equals("_blank", StringComparison.OrdinalIgnoreCase))
+                            {
+                                _tabs.CreateTab();
+                            }
+                            _navigateCallback(resolvedUri);
+                            tab.Selection.Clear();
+                        }
+                    }
+                }
+            }
+        }
+
+        _mouseDownNode = null;
     }
 
     public void OnMouseMove(float physicalX, float physicalY, float viewportWidth)
@@ -210,7 +421,7 @@ public sealed class InputHandler
         if (tab?.LayoutRoot is null) return;
 
         float contentX = x;
-        float contentY = y - BrowserChrome.TotalChromeHeight;
+        float contentY = y - BrowserChrome.TotalChromeHeight + (tab.Scroll?.ScrollY ?? 0);
         var allRuns = TextHitTester.CollectTextRuns(tab.LayoutRoot);
         var hit = TextHitTester.HitTest(allRuns, contentX, contentY, _measurer);
         if (hit.HasValue)

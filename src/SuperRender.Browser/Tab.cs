@@ -28,6 +28,9 @@ public sealed class Tab : IDisposable
     public LayoutBox? LayoutRoot => _pipeline?.LayoutRoot;
     public bool IsLoading { get; private set; }
     public TextSelectionState Selection { get; } = new();
+    public ScrollState Scroll { get; } = new();
+    public NavigationHistory History { get; } = new();
+    public TimerScheduler? Timers => _domBridge?.TimerQueue;
 
     public Tab(ITextMeasurer measurer, ResourceLoader loader)
     {
@@ -36,14 +39,42 @@ public sealed class Tab : IDisposable
     }
 
     /// <summary>
-    /// Navigate this tab to a URL. Fetches HTML, parses, loads external CSS/JS with CORS checks,
+    /// Navigate this tab to a URL. Pushes to history stack.
+    /// Fetches HTML, parses, loads external CSS/JS with CORS checks,
     /// sets up JS engine with DOM bindings, and executes scripts.
     /// </summary>
     public async Task NavigateAsync(Uri uri)
     {
+        History.Push(uri);
+        await NavigateInternalAsync(uri).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Navigate to the previous history entry.
+    /// </summary>
+    public async Task GoBackAsync()
+    {
+        var uri = History.GoBack();
+        if (uri is not null)
+            await NavigateInternalAsync(uri).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Navigate to the next history entry.
+    /// </summary>
+    public async Task GoForwardAsync()
+    {
+        var uri = History.GoForward();
+        if (uri is not null)
+            await NavigateInternalAsync(uri).ConfigureAwait(false);
+    }
+
+    private async Task NavigateInternalAsync(Uri uri)
+    {
         IsLoading = true;
         CurrentUri = uri;
         Title = uri.Host;
+        Scroll.ScrollToTop();
 
         try
         {
@@ -80,10 +111,22 @@ public sealed class Tab : IDisposable
             // Execute inline scripts
             ExecuteInlineScripts();
 
+            // Fire DOMContentLoaded on document
+            Document?.DispatchEvent(new DomEvent
+            {
+                Type = "DOMContentLoaded", Bubbles = true, Cancelable = false,
+            });
+
             // Extract title
             var titleElement = FindElement(Document!, "title");
             if (titleElement is not null && !string.IsNullOrWhiteSpace(titleElement.InnerText))
                 Title = titleElement.InnerText.Trim();
+
+            // Fire load event on document (after all resources loaded)
+            Document?.DispatchEvent(new DomEvent
+            {
+                Type = "load", Bubbles = false, Cancelable = false,
+            });
         }
         catch (Exception ex)
         {
@@ -196,6 +239,15 @@ public sealed class Tab : IDisposable
             _lastPaintList = paintList;
 
         _lastPaintList ??= _pipeline.Render(width, height);
+
+        // Update scroll bounds from layout
+        if (_pipeline.LayoutRoot is not null)
+        {
+            var rootDims = _pipeline.LayoutRoot.Dimensions;
+            float contentBottom = rootDims.MarginRect.Bottom;
+            Scroll.Update(contentBottom, height);
+        }
+
         return _lastPaintList;
     }
 

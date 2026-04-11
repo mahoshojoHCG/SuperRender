@@ -126,6 +126,42 @@ internal class JsNodeWrapper : JsObject
         DefineOwnProperty("hasChildNodes", PropertyDescriptor.Data(
             JsFunction.CreateNative("hasChildNodes", (_, _) =>
                 DomNode.Children.Count > 0 ? True : False, 0)));
+
+        // EventTarget methods
+        DefineOwnProperty("addEventListener", PropertyDescriptor.Data(
+            JsFunction.CreateNative("addEventListener", (_, args) =>
+            {
+                if (args.Length < 2 || args[1] is not JsFunction handler) return Undefined;
+                var type = args[0].ToJsString();
+                bool capture = args.Length > 2 && args[2].ToBoolean();
+                Action<DomEvent> wrapper = evt =>
+                    handler.Call(Undefined, [new JsEventWrapper(evt, Cache, Cache.Realm)]);
+                Cache.StoreEventHandler(DomNode, type, handler, capture, wrapper);
+                DomNode.AddEventListener(type, wrapper, capture);
+                return Undefined;
+            }, 2)));
+
+        DefineOwnProperty("removeEventListener", PropertyDescriptor.Data(
+            JsFunction.CreateNative("removeEventListener", (_, args) =>
+            {
+                if (args.Length < 2 || args[1] is not JsFunction handler) return Undefined;
+                var type = args[0].ToJsString();
+                bool capture = args.Length > 2 && args[2].ToBoolean();
+                var wrapper = Cache.RetrieveEventHandler(DomNode, type, handler, capture);
+                if (wrapper is not null)
+                {
+                    DomNode.RemoveEventListener(type, wrapper, capture);
+                    Cache.RemoveEventHandler(DomNode, type, handler, capture);
+                }
+                return Undefined;
+            }, 2)));
+
+        DefineOwnProperty("dispatchEvent", PropertyDescriptor.Data(
+            JsFunction.CreateNative("dispatchEvent", (_, args) =>
+            {
+                // Basic stub: in a full implementation this would accept a JsEventWrapper
+                return True;
+            }, 1)));
     }
 
     protected static JsFunction Getter(Func<JsValue> fn)

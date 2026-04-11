@@ -103,4 +103,84 @@ public abstract class Node
             OwnerDocument.NeedsLayout = true;
         Parent?.MarkDirty();
     }
+
+    // --- EventTarget functionality ---
+
+    private List<EventListener>? _eventListeners;
+
+    public void AddEventListener(string type, Action<DomEvent> handler, bool capture = false)
+    {
+        _eventListeners ??= [];
+        _eventListeners.Add(new EventListener { Type = type, Handler = handler, Capture = capture });
+    }
+
+    public void RemoveEventListener(string type, Action<DomEvent> handler, bool capture = false)
+    {
+        _eventListeners?.RemoveAll(l => l.Type == type && l.Handler == handler && l.Capture == capture);
+    }
+
+    /// <summary>
+    /// Dispatches an event through the capture → target → bubble phases.
+    /// Returns true if the event's default action was not prevented.
+    /// </summary>
+    public bool DispatchEvent(DomEvent evt)
+    {
+        evt.Target = this;
+
+        // Build propagation path (target → root)
+        var path = new List<Node>();
+        Node? current = this;
+        while (current is not null)
+        {
+            path.Add(current);
+            current = current.Parent;
+        }
+
+        // Capture phase (root → parent of target)
+        for (int i = path.Count - 1; i > 0; i--)
+        {
+            if (evt.PropagationStopped) break;
+            evt.CurrentTarget = path[i];
+            evt.EventPhase = 1; // CAPTURING_PHASE
+            path[i].InvokeListeners(evt, capture: true);
+        }
+
+        // Target phase
+        if (!evt.PropagationStopped)
+        {
+            evt.CurrentTarget = this;
+            evt.EventPhase = 2; // AT_TARGET
+            InvokeListeners(evt, capture: true);
+            InvokeListeners(evt, capture: false);
+        }
+
+        // Bubble phase (parent of target → root)
+        if (evt.Bubbles && !evt.PropagationStopped)
+        {
+            for (int i = 1; i < path.Count; i++)
+            {
+                if (evt.PropagationStopped) break;
+                evt.CurrentTarget = path[i];
+                evt.EventPhase = 3; // BUBBLING_PHASE
+                path[i].InvokeListeners(evt, capture: false);
+            }
+        }
+
+        return !evt.DefaultPrevented;
+    }
+
+    private void InvokeListeners(DomEvent evt, bool capture)
+    {
+        if (_eventListeners is null) return;
+        // Snapshot to allow modification during iteration
+        foreach (var listener in _eventListeners.ToArray())
+        {
+            if (evt.ImmediatePropagationStopped) break;
+            if (listener.Type == evt.Type && listener.Capture == capture)
+            {
+                try { listener.Handler(evt); }
+                catch (Exception ex) { Console.WriteLine($"[Event] Error in {evt.Type} handler: {ex.Message}"); }
+            }
+        }
+    }
 }

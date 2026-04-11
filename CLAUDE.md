@@ -37,9 +37,12 @@ dotnet run --project src/SuperRender.EcmaScript.Console  # Launch the JS console
 - `Painter` — generates FillRect/DrawText commands from layout tree, text-decoration rendering (underline, line-through, overline)
 - `SelectionPainter` — generates highlight FillRect commands for text selection ranges
 - `TextHitTester` — hit-tests mouse coordinates against laid-out TextRuns to find character positions
+- `LayoutBoxHitTester` — hit-tests layout boxes by coordinate to find clicked DOM elements, walks to `<a>` ancestors for link navigation
 - `TextSelectionState` — tracks selection start/end as `TextPosition(RunIndex, CharOffset)`
 - `VulkanRenderer` — frame loop with quad pipeline (backgrounds/borders) + text pipeline (font atlas with alpha blending), HiDPI content scale support
 - `DomMutationApi` — runtime DOM modification with automatic re-layout
+- `DomEvent` / `MouseEvent` / `KeyboardEvent` — DOM event classes with capture/target/bubble propagation
+- `EventListener` — registered event handler on a DOM node (type, handler, capture flag)
 - `UserAgentStylesheet` — default browser CSS styles (body margin, heading sizes/bold, list indent, text-level semantics: bold, italic, underline, strikethrough, monospace, link styling)
 
 ## EcmaScript Engine
@@ -103,11 +106,13 @@ Node.js-style interactive REPL powered by the EcmaScript engine.
 A Vulkan-powered browser application with tabbed browsing support.
 
 **Key components:**
-- `BrowserWindow` — main orchestrator: owns renderer, tab manager, chrome, input handler
+- `BrowserWindow` — main orchestrator: owns renderer, tab manager, chrome, input handler; drains timer queue and main-thread queue each frame
 - `BrowserChrome` — renders tab bar (32px) + address bar (36px) as PaintCommands, vertically centered text via `CenterTextY`, font-metrics-accurate cursor positioning
 - `TabManager` — tab lifecycle: create, close, switch tabs
-- `Tab` — individual browsing context: owns Document, RenderPipeline, JsEngine, DomBridge, TextSelectionState
-- `InputHandler` — routes keyboard/mouse to chrome or content area, handles text selection drag, address bar click-to-cursor, right-click context menus
+- `Tab` — individual browsing context: owns Document, RenderPipeline, JsEngine, DomBridge, TextSelectionState, ScrollState, NavigationHistory, TimerScheduler
+- `InputHandler` — routes keyboard/mouse to chrome or content area, handles text selection drag, address bar click-to-cursor, right-click context menus, link click navigation, DOM event dispatch, keyboard shortcuts (Cmd/Ctrl+T/W/Tab/L/R, F5, Escape, scroll keys)
+- `ScrollState` — per-tab vertical scroll position tracking with mouse wheel and keyboard scrolling, scrollbar geometry computation
+- `NavigationHistory` — per-tab URI history stack with back/forward cursor
 - `ContextMenu` — reusable context menu: items with hover highlighting, hit-testing, PaintList rendering
 - `ClipboardHelper` — cross-platform clipboard access (pbcopy/pbpaste on macOS, xclip on Linux, PowerShell on Windows)
 - `ResourceLoader` — HTTP client for fetching HTML/CSS/JS resources
@@ -120,18 +125,32 @@ A Vulkan-powered browser application with tabbed browsing support.
 
 **Context menus:** Right-click the address bar for Cut/Copy/Paste/Select All. Right-click the content area for Copy (when text selected)/Select All/View Source.
 
+**Content scrolling:** `ScrollState` per tab tracks `scrollY` with bounds clamping. Mouse wheel (via `mouse.Scroll` Silk.NET event), keyboard arrows/PageUp/PageDown/Home/End/Space. Scroll offset applied to content paint commands in `OnRender`. Visual scrollbar indicator (track + thumb) rendered on the right edge. Scroll-to-top on navigation.
+
+**Link navigation:** `LayoutBoxHitTester.HitTest()` finds the deepest layout box at a coordinate. `FindAnchorAncestor()` walks up the DOM tree to find `<a>` elements. Click (mouseup within 5px of mousedown) on a link extracts `href`, resolves against current URI, navigates. `target="_blank"` opens in a new tab.
+
+**Back/Forward history:** `NavigationHistory` per tab stores a list of URIs with a cursor index. `Tab.NavigateAsync()` pushes to history; `GoBackAsync()`/`GoForwardAsync()` move the cursor without pushing. Back/Forward chrome buttons call these methods. Address bar and window title update after history navigation.
+
+**Keyboard shortcuts:** Platform-aware (Cmd on macOS, Ctrl on Windows/Linux). Global: Cmd+T (new tab), Cmd+W (close), Cmd+Tab/Shift+Tab (switch), Cmd+L (focus address bar), Cmd+R/F5 (reload), Escape (unfocus). Content area: arrow keys (scroll step), Page Up/Down/Space (scroll page), Home/End (top/bottom).
+
+**DOM events:** `Node` has `AddEventListener`/`RemoveEventListener`/`DispatchEvent` with capture/target/bubble propagation. `DomEvent`, `MouseEvent`, `KeyboardEvent` in Core. `JsEventWrapper` bridges to JS. `InputHandler` dispatches `mousedown`/`mouseup`/`click` to hit DOM nodes. `DOMContentLoaded` and `load` fired after page load.
+
+**Timers:** `TimerScheduler` (in EcmaScript.Dom) uses `Stopwatch` for monotonic time. `setTimeout` with real delay, `setInterval` (min 4ms), `requestAnimationFrame` (fires next frame). Timer queue drained in `BrowserWindow.OnRender` before painting. `cancelAnimationFrame`/`clearTimeout`/`clearInterval` cancel by ID.
+
 ## EcmaScript DOM Bindings
 
 Bridges C# DOM objects to the JS runtime with correct Web API naming conventions.
 
 **Key components:**
-- `DomBridge` — entry point: installs `document` and `window` globals into JsEngine
-- `JsNodeWrapper` — wraps Node: nodeType, parentNode, childNodes, appendChild, removeChild, insertBefore
+- `DomBridge` — entry point: installs `document` and `window` globals into JsEngine, owns `TimerScheduler`
+- `JsNodeWrapper` — wraps Node: nodeType, parentNode, childNodes, appendChild, removeChild, insertBefore, addEventListener, removeEventListener, dispatchEvent
 - `JsElementWrapper` — wraps Element: tagName, id, className, classList, getAttribute/setAttribute, querySelector/querySelectorAll, innerHTML, style
 - `JsDocumentWrapper` — wraps Document: createElement, createTextNode, getElementById, getElementsByTagName/ClassName, body, head, title
-- `JsWindowWrapper` — window global: document, innerWidth/Height, devicePixelRatio, setTimeout/clearTimeout
+- `JsWindowWrapper` — window global: document, innerWidth/Height, devicePixelRatio, setTimeout/clearTimeout (real delays via TimerScheduler), setInterval/clearInterval, requestAnimationFrame/cancelAnimationFrame
+- `JsEventWrapper` — wraps DomEvent/MouseEvent/KeyboardEvent for JS: type, target, currentTarget, preventDefault, stopPropagation, clientX/Y, key/code
 - `JsCssStyleDeclaration` — element.style accessor: camelCase property get/set → inline style attribute
-- `NodeWrapperCache` — ConditionalWeakTable for 1:1 C# node ↔ JS wrapper identity
+- `TimerScheduler` — monotonic timer queue: setTimeout/setInterval/requestAnimationFrame with real delays, drained per frame
+- `NodeWrapperCache` — ConditionalWeakTable for 1:1 C# node ↔ JS wrapper identity, event handler mapping for removeEventListener
 
 ## Gpu Rendering Infrastructure
 
