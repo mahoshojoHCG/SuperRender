@@ -55,7 +55,12 @@ public sealed class ComputedStyle
 
     // Text
     public float FontSize { get; set; } = 16f;
-    public string FontFamily { get; set; } = "sans-serif";
+    public IReadOnlyList<string> FontFamilies { get; set; } = ["sans-serif"];
+    public string FontFamily
+    {
+        get => FontFamilies.Count > 0 ? FontFamilies[0] : "sans-serif";
+        set => FontFamilies = [value];
+    }
     public int FontWeight { get; set; } = 400;
     public FontStyleType FontStyle { get; set; } = FontStyleType.Normal;
     public TextAlign TextAlign { get; set; } = TextAlign.Left;
@@ -101,7 +106,7 @@ public sealed class ComputedStyle
             BorderBottomStyle = BorderBottomStyle,
             BorderLeftStyle = BorderLeftStyle,
             FontSize = FontSize,
-            FontFamily = FontFamily,
+            FontFamilies = FontFamilies,
             FontWeight = FontWeight,
             FontStyle = FontStyle,
             TextAlign = TextAlign,

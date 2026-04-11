@@ -10,6 +10,7 @@ public sealed unsafe class VulkanRenderer : IDisposable
     private SwapchainManager _swapchain;
     private PipelineManager _pipelines;
     private readonly BufferManager _buffers;
+    private readonly SystemFontLocator _fontLocator;
     private readonly FontAtlas _fontAtlas;
     private readonly QuadRenderer _quadRenderer;
     private readonly TextRenderer _textRenderer;
@@ -48,7 +49,8 @@ public sealed unsafe class VulkanRenderer : IDisposable
     {
         ContentScale = contentScale;
         _ctx = new VulkanContext(window);
-        _fontAtlas = new FontAtlas(contentScale);
+        _fontLocator = new SystemFontLocator();
+        _fontAtlas = new FontAtlas(_fontLocator, contentScale);
         _quadRenderer = new QuadRenderer();
         _textRenderer = new TextRenderer(_fontAtlas);
 
@@ -92,6 +94,14 @@ public sealed unsafe class VulkanRenderer : IDisposable
 
         // Build draw segments from paint list (respects command order and clip rects)
         var segments = BuildDrawSegments(paintList);
+
+        // Re-upload font atlas texture if new glyphs were rendered on demand
+        if (_fontAtlas.IsDirty)
+        {
+            _buffers.UpdateTextureImage(_atlasImage, _fontAtlas.PixelData,
+                _fontAtlas.AtlasWidth, _fontAtlas.AtlasHeight);
+            _fontAtlas.ClearDirty();
+        }
 
         // Collect all quad and text data across segments into single buffers
         var allQuadVerts = new List<QuadVertex>();
@@ -545,6 +555,7 @@ public sealed unsafe class VulkanRenderer : IDisposable
         _pipelines.Dispose();
         _swapchain.Dispose();
         _fontAtlas.Dispose();
+        _fontLocator.Dispose();
         _ctx.Dispose();
     }
 }

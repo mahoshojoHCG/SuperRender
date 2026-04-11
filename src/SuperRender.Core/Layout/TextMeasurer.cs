@@ -3,6 +3,7 @@ namespace SuperRender.Core.Layout;
 public interface ITextMeasurer
 {
     float MeasureWidth(string text, float fontSize);
+    float MeasureWidth(string text, float fontSize, string fontFamily, int fontWeight);
     float GetLineHeight(float fontSize, float lineHeightMultiplier);
     float GetAscent(float fontSize);
 }
@@ -17,6 +18,9 @@ public sealed class MonospaceTextMeasurer : ITextMeasurer
     }
 
     public float MeasureWidth(string text, float fontSize)
+        => text.Length * fontSize * _charWidthRatio;
+
+    public float MeasureWidth(string text, float fontSize, string fontFamily, int fontWeight)
         => text.Length * fontSize * _charWidthRatio;
 
     public float GetLineHeight(float fontSize, float lineHeightMultiplier)

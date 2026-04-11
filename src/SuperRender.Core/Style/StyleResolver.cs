@@ -336,7 +336,7 @@ public sealed class StyleResolver
                 style.FontSize = ResolveFontSize(value, parentStyle);
                 break;
             case "font-family":
-                style.FontFamily = value.Raw.Trim().Trim('"', '\'');
+                style.FontFamilies = FontFamilyParser.Parse(value.Raw);
                 break;
 
             case "text-align":
@@ -529,7 +529,7 @@ public sealed class StyleResolver
     {
         style.Color = parentStyle.Color;
         style.FontSize = parentStyle.FontSize;
-        style.FontFamily = parentStyle.FontFamily;
+        style.FontFamilies = parentStyle.FontFamilies;
         style.FontWeight = parentStyle.FontWeight;
         style.FontStyle = parentStyle.FontStyle;
         style.TextAlign = parentStyle.TextAlign;

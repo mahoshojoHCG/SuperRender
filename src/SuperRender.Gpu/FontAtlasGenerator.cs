@@ -4,8 +4,8 @@ namespace SuperRender.Gpu;
 
 public static class FontAtlasGenerator
 {
-    public const int AtlasWidth = 1024;
-    public const int AtlasHeight = 2048; // Increased to fit regular + bold + monospace
+    public const int AtlasWidth = 2048;
+    public const int AtlasHeight = 4096;
     public const float BaseFontSize = 32f;
 
     private const int FirstChar = 32;
@@ -13,43 +13,51 @@ public static class FontAtlasGenerator
     private const int GlyphCount = LastChar - FirstChar + 1; // 95
     private const int Padding = 2;
 
-    // Per-platform fallback font paths, tried in order.
-    private static readonly string[][] MacFontPaths =
-    [
-        ["/System/Library/Fonts/Helvetica.ttc"],
-        ["/System/Library/Fonts/SFNSText.ttf", "/System/Library/Fonts/SFNS.ttf"],
-        ["/Library/Fonts/Arial.ttf", "/Library/Fonts/Arial Unicode.ttf"],
-        ["/System/Library/Fonts/HelveticaNeue.ttc"],
-        ["/System/Library/Fonts/Geneva.ttf"],
-        ["/System/Library/Fonts/LucidaGrande.ttc"],
-        ["/System/Library/Fonts/Supplemental/Arial.ttf"],
-        ["/System/Library/Fonts/Menlo.ttc"],
-        ["/System/Library/Fonts/Monaco.ttf"],
-    ];
-
-    private static readonly string[][] WindowsFontPaths =
-    [
-        [@"C:\Windows\Fonts\segoeui.ttf"],
-        [@"C:\Windows\Fonts\arial.ttf"],
-        [@"C:\Windows\Fonts\verdana.ttf"],
-        [@"C:\Windows\Fonts\tahoma.ttf"],
-        [@"C:\Windows\Fonts\calibri.ttf"],
-        [@"C:\Windows\Fonts\consola.ttf"],
-    ];
-
-    private static readonly string[][] LinuxFontPaths =
-    [
-        ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"],
-        ["/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"],
-        ["/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf"],
-        ["/usr/share/fonts/TTF/DejaVuSans.ttf"],
-        ["/usr/share/fonts/noto/NotoSans-Regular.ttf"],
-        ["/usr/share/fonts/liberation-sans/LiberationSans-Regular.ttf"],
-        ["/usr/share/fonts/ubuntu/Ubuntu-R.ttf"],
-        ["/usr/share/fonts/truetype/freefont/FreeSans.ttf"],
-    ];
-
+    /// <summary>
+    /// Generates a font atlas using a <see cref="SystemFontLocator"/> to discover fonts.
+    /// Falls back to a minimal bitmap font if no system fonts are found.
+    /// </summary>
     public static byte[] GenerateAtlas(
+        out Dictionary<char, GlyphInfo> glyphs,
+        out Dictionary<char, GlyphInfo> boldGlyphs,
+        out Dictionary<char, GlyphInfo> monoGlyphs,
+        float contentScale = 1.0f)
+    {
+        using var locator = new SystemFontLocator();
+
+        // Resolve sans-serif for regular and bold
+        var sansEntry = locator.Resolve(["sans-serif"]);
+        string? regularPath = sansEntry?.RegularPath;
+        string? boldPath = sansEntry?.BoldPath ?? regularPath;
+
+        // Resolve monospace
+        var monoEntry = locator.Resolve(["monospace"]);
+        string? monoPath = monoEntry?.RegularPath;
+
+        if (regularPath == null)
+        {
+            Console.WriteLine("Warning: No system font found. Using fallback bitmap font.");
+            var fallback = GenerateFallbackAtlas(out glyphs);
+            boldGlyphs = glyphs;
+            monoGlyphs = glyphs;
+            return fallback;
+        }
+
+        return GenerateAtlas(
+            regularPath,
+            boldPath ?? regularPath,
+            monoPath ?? regularPath,
+            out glyphs, out boldGlyphs, out monoGlyphs,
+            contentScale);
+    }
+
+    /// <summary>
+    /// Generates a font atlas using explicit font file paths.
+    /// </summary>
+    public static byte[] GenerateAtlas(
+        string regularFontPath,
+        string boldFontPath,
+        string monoFontPath,
         out Dictionary<char, GlyphInfo> glyphs,
         out Dictionary<char, GlyphInfo> boldGlyphs,
         out Dictionary<char, GlyphInfo> monoGlyphs,
@@ -62,9 +70,50 @@ public static class FontAtlasGenerator
         var pixels = new byte[AtlasWidth * AtlasHeight];
 
         var lib = new FreeTypeLibrary();
-        var fontPath = FindSystemFont();
 
-        if (fontPath == null)
+        Console.WriteLine($"Using system font: {regularFontPath}");
+
+        // Generate regular glyphs in top portion of atlas
+        int nextRowY = GenerateVariantGlyphs(lib, regularFontPath, renderSize, pixels, glyphs, 0);
+
+        // Generate bold glyphs
+        Console.WriteLine($"Using bold font: {boldFontPath}");
+        nextRowY = GenerateVariantGlyphs(lib, boldFontPath, renderSize, pixels, boldGlyphs, nextRowY + Padding);
+        if (boldGlyphs.Count == 0) boldGlyphs = glyphs;
+
+        // Generate monospace glyphs
+        Console.WriteLine($"Using monospace font: {monoFontPath}");
+        GenerateVariantGlyphs(lib, monoFontPath, renderSize, pixels, monoGlyphs, nextRowY + Padding);
+        if (monoGlyphs.Count == 0) monoGlyphs = glyphs;
+
+        lib.Dispose();
+        AtlasRenderSize = renderSize;
+        Console.WriteLine($"Font atlas generated: {glyphs.Count}+{boldGlyphs.Count}+{monoGlyphs.Count} glyphs, renderSize={renderSize:F0}");
+        return pixels;
+    }
+
+    /// <summary>
+    /// Generates a font atlas using a <see cref="SystemFontLocator"/> that has already
+    /// been created and populated. Avoids redundant font scanning when the locator
+    /// is shared.
+    /// </summary>
+    public static byte[] GenerateAtlas(
+        SystemFontLocator locator,
+        out Dictionary<char, GlyphInfo> glyphs,
+        out Dictionary<char, GlyphInfo> boldGlyphs,
+        out Dictionary<char, GlyphInfo> monoGlyphs,
+        float contentScale = 1.0f)
+    {
+        // Resolve sans-serif for regular and bold
+        var sansEntry = locator.Resolve(["sans-serif"]);
+        string? regularPath = sansEntry?.RegularPath;
+        string? boldPath = sansEntry?.BoldPath ?? regularPath;
+
+        // Resolve monospace
+        var monoEntry = locator.Resolve(["monospace"]);
+        string? monoPath = monoEntry?.RegularPath;
+
+        if (regularPath == null)
         {
             Console.WriteLine("Warning: No system font found. Using fallback bitmap font.");
             var fallback = GenerateFallbackAtlas(out glyphs);
@@ -73,27 +122,12 @@ public static class FontAtlasGenerator
             return fallback;
         }
 
-        Console.WriteLine($"Using system font: {fontPath}");
-
-        // Generate regular glyphs in top portion of atlas
-        int nextRowY = GenerateVariantGlyphs(lib, fontPath, renderSize, pixels, glyphs, 0);
-
-        // Generate bold glyphs
-        var boldPath = FindBoldFont() ?? fontPath;
-        Console.WriteLine($"Using bold font: {boldPath}");
-        nextRowY = GenerateVariantGlyphs(lib, boldPath, renderSize, pixels, boldGlyphs, nextRowY + Padding);
-        if (boldGlyphs.Count == 0) boldGlyphs = glyphs;
-
-        // Generate monospace glyphs
-        var monoPath = FindMonospaceFont() ?? fontPath;
-        Console.WriteLine($"Using monospace font: {monoPath}");
-        GenerateVariantGlyphs(lib, monoPath, renderSize, pixels, monoGlyphs, nextRowY + Padding);
-        if (monoGlyphs.Count == 0) monoGlyphs = glyphs;
-
-        lib.Dispose();
-        AtlasRenderSize = renderSize;
-        Console.WriteLine($"Font atlas generated: {glyphs.Count}+{boldGlyphs.Count}+{monoGlyphs.Count} glyphs, renderSize={renderSize:F0}");
-        return pixels;
+        return GenerateAtlas(
+            regularPath,
+            boldPath ?? regularPath,
+            monoPath ?? regularPath,
+            out glyphs, out boldGlyphs, out monoGlyphs,
+            contentScale);
     }
 
     private static unsafe int GenerateVariantGlyphs(
@@ -200,131 +234,12 @@ public static class FontAtlasGenerator
     /// On HiDPI this is <c>BaseFontSize * contentScale</c>.
     /// TextRenderer and BitmapFontTextMeasurer scale against this value.
     /// </summary>
-    public static float AtlasRenderSize { get; private set; } = BaseFontSize;
+    public static float AtlasRenderSize { get; internal set; } = BaseFontSize;
 
     /// <summary>
     /// Font ascent in pixels at <see cref="AtlasRenderSize"/>. Set after GenerateAtlas is called.
     /// </summary>
-    public static float Ascent { get; private set; } = BaseFontSize * 0.8f;
-
-    private static string? FindSystemFont()
-    {
-        var candidates = OperatingSystem.IsMacOS() ? MacFontPaths
-            : OperatingSystem.IsWindows() ? WindowsFontPaths
-            : LinuxFontPaths;
-
-        foreach (var group in candidates)
-        {
-            foreach (var path in group)
-            {
-                if (File.Exists(path))
-                    return path;
-            }
-        }
-
-        // Brute-force search common directories
-        var searchDirs = OperatingSystem.IsMacOS()
-            ? new[] { "/System/Library/Fonts", "/Library/Fonts" }
-            : OperatingSystem.IsWindows()
-                ? new[] { @"C:\Windows\Fonts" }
-                : new[] { "/usr/share/fonts" };
-
-        foreach (var dir in searchDirs)
-        {
-            if (!Directory.Exists(dir)) continue;
-            foreach (var file in Directory.EnumerateFiles(dir, "*.ttf", SearchOption.AllDirectories))
-                return file;
-            foreach (var file in Directory.EnumerateFiles(dir, "*.ttc", SearchOption.AllDirectories))
-                return file;
-        }
-
-        return null;
-    }
-
-    private static string? FindBoldFont()
-    {
-        if (OperatingSystem.IsMacOS())
-        {
-            // Try common bold variants
-            foreach (var path in new[]
-            {
-                "/System/Library/Fonts/Helvetica.ttc", // face index 1 is often bold; for now use same file
-                "/Library/Fonts/Arial Bold.ttf",
-                "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
-            })
-            {
-                if (File.Exists(path)) return path;
-            }
-        }
-        else if (OperatingSystem.IsWindows())
-        {
-            foreach (var path in new[]
-            {
-                @"C:\Windows\Fonts\segoeuib.ttf",
-                @"C:\Windows\Fonts\arialbd.ttf",
-                @"C:\Windows\Fonts\verdanab.ttf",
-            })
-            {
-                if (File.Exists(path)) return path;
-            }
-        }
-        else // Linux
-        {
-            foreach (var path in new[]
-            {
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-                "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-                "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
-            })
-            {
-                if (File.Exists(path)) return path;
-            }
-        }
-        return null;
-    }
-
-    private static string? FindMonospaceFont()
-    {
-        if (OperatingSystem.IsMacOS())
-        {
-            foreach (var path in new[]
-            {
-                "/System/Library/Fonts/Menlo.ttc",
-                "/System/Library/Fonts/Monaco.ttf",
-                "/System/Library/Fonts/SFMono-Regular.otf",
-                "/System/Library/Fonts/Courier.ttc",
-                "/Library/Fonts/Courier New.ttf",
-            })
-            {
-                if (File.Exists(path)) return path;
-            }
-        }
-        else if (OperatingSystem.IsWindows())
-        {
-            foreach (var path in new[]
-            {
-                @"C:\Windows\Fonts\consola.ttf",
-                @"C:\Windows\Fonts\cour.ttf",
-                @"C:\Windows\Fonts\lucon.ttf",
-            })
-            {
-                if (File.Exists(path)) return path;
-            }
-        }
-        else // Linux
-        {
-            foreach (var path in new[]
-            {
-                "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
-                "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
-                "/usr/share/fonts/truetype/noto/NotoSansMono-Regular.ttf",
-            })
-            {
-                if (File.Exists(path)) return path;
-            }
-        }
-        return null;
-    }
+    public static float Ascent { get; internal set; } = BaseFontSize * 0.8f;
 
     /// <summary>
     /// Minimal 5x7 bitmap fallback if no system fonts are available.

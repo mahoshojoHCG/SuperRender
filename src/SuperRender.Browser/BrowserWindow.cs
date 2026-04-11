@@ -448,6 +448,7 @@ public sealed class BrowserWindow : IDisposable
                 FontWeight = t.FontWeight,
                 FontStyle = t.FontStyle,
                 FontFamily = t.FontFamily,
+                FontFamilies = t.FontFamilies,
             },
             PushClipCommand c => new PushClipCommand
             {

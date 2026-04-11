@@ -172,6 +172,75 @@ public sealed unsafe class BufferManager : IDisposable
         return (image, imageMemory);
     }
 
+    /// <summary>
+    /// Re-uploads pixel data to an existing GPU texture image.
+    /// The image must have been created with TransferDst usage.
+    /// </summary>
+    public void UpdateTextureImage(Image image, byte[] pixels, int width, int height)
+    {
+        var (stagingBuffer, stagingMemory) = CreateAndUploadBuffer(
+            pixels.AsSpan(), BufferUsageFlags.TransferSrcBit);
+
+        var cmdPool = CreateTransientCommandPool();
+        var cmd = BeginSingleTimeCommands(cmdPool);
+
+        // Transition from ShaderReadOnly to TransferDst
+        var barrier = new ImageMemoryBarrier
+        {
+            SType = StructureType.ImageMemoryBarrier,
+            OldLayout = ImageLayout.ShaderReadOnlyOptimal,
+            NewLayout = ImageLayout.TransferDstOptimal,
+            SrcQueueFamilyIndex = Vk.QueueFamilyIgnored,
+            DstQueueFamilyIndex = Vk.QueueFamilyIgnored,
+            Image = image,
+            SubresourceRange = new ImageSubresourceRange
+            {
+                AspectMask = ImageAspectFlags.ColorBit,
+                BaseMipLevel = 0, LevelCount = 1,
+                BaseArrayLayer = 0, LayerCount = 1,
+            },
+            SrcAccessMask = AccessFlags.ShaderReadBit,
+            DstAccessMask = AccessFlags.TransferWriteBit,
+        };
+
+        _ctx.Vk.CmdPipelineBarrier(cmd,
+            PipelineStageFlags.FragmentShaderBit, PipelineStageFlags.TransferBit,
+            0, 0, null, 0, null, 1, &barrier);
+
+        // Copy staging buffer to image
+        var region = new BufferImageCopy
+        {
+            BufferOffset = 0,
+            BufferRowLength = 0,
+            BufferImageHeight = 0,
+            ImageSubresource = new ImageSubresourceLayers
+            {
+                AspectMask = ImageAspectFlags.ColorBit,
+                MipLevel = 0, BaseArrayLayer = 0, LayerCount = 1,
+            },
+            ImageOffset = new Offset3D(0, 0, 0),
+            ImageExtent = new Extent3D((uint)width, (uint)height, 1),
+        };
+
+        _ctx.Vk.CmdCopyBufferToImage(cmd, stagingBuffer, image, ImageLayout.TransferDstOptimal, 1, &region);
+
+        // Transition back to ShaderReadOnly
+        barrier.OldLayout = ImageLayout.TransferDstOptimal;
+        barrier.NewLayout = ImageLayout.ShaderReadOnlyOptimal;
+        barrier.SrcAccessMask = AccessFlags.TransferWriteBit;
+        barrier.DstAccessMask = AccessFlags.ShaderReadBit;
+
+        _ctx.Vk.CmdPipelineBarrier(cmd,
+            PipelineStageFlags.TransferBit, PipelineStageFlags.FragmentShaderBit,
+            0, 0, null, 0, null, 1, &barrier);
+
+        EndSingleTimeCommands(cmd, cmdPool);
+
+        // Cleanup staging
+        _ctx.Vk.DestroyBuffer(_ctx.Device, stagingBuffer, null);
+        _ctx.Vk.FreeMemory(_ctx.Device, stagingMemory, null);
+    }
+
     private void TransitionAndCopyBufferToImage(Buffer buffer, Image image, uint width, uint height)
     {
         var cmdPool = CreateTransientCommandPool();

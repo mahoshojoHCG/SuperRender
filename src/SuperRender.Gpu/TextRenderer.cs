@@ -46,7 +46,12 @@ public sealed class TextRenderer
         var color = new Vector4(cmd.Color.R, cmd.Color.G, cmd.Color.B, cmd.Color.A);
 
         // Select glyph set based on font properties
-        var glyphs = SelectGlyphs(cmd.FontFamily, cmd.FontWeight);
+        var (glyphs, variant) = cmd.FontFamilies.Count > 0
+            ? SelectGlyphsWithVariant(cmd.FontFamilies, cmd.FontWeight)
+            : SelectGlyphsWithVariant(cmd.FontFamily, cmd.FontWeight);
+
+        // Ensure all characters in the text are in the atlas
+        _fontAtlas.EnsureGlyphs(cmd.Text, variant);
 
         float cursorX = cmd.X;
         float baselineY = cmd.Y;
@@ -107,18 +112,38 @@ public sealed class TextRenderer
         }
     }
 
-    private Dictionary<char, GlyphInfo> SelectGlyphs(string fontFamily, int fontWeight)
+    private (Dictionary<char, GlyphInfo> glyphs, GlyphVariant variant)
+        SelectGlyphsWithVariant(IReadOnlyList<string> fontFamilies, int fontWeight)
     {
-        bool isMono = !string.IsNullOrEmpty(fontFamily)
-            && (fontFamily.Contains("monospace", StringComparison.OrdinalIgnoreCase)
-             || fontFamily.Contains("Menlo", StringComparison.OrdinalIgnoreCase)
-             || fontFamily.Contains("Courier", StringComparison.OrdinalIgnoreCase)
-             || fontFamily.Contains("Consolas", StringComparison.OrdinalIgnoreCase));
+        foreach (var family in fontFamilies)
+        {
+            if (IsMonospaceFamily(family))
+                return (_fontAtlas.MonospaceGlyphs, GlyphVariant.Monospace);
+        }
 
-        if (isMono)
-            return _fontAtlas.MonospaceGlyphs;
         if (fontWeight >= 700)
-            return _fontAtlas.BoldGlyphs;
-        return _fontAtlas.Glyphs;
+            return (_fontAtlas.BoldGlyphs, GlyphVariant.Bold);
+        return (_fontAtlas.Glyphs, GlyphVariant.Regular);
+    }
+
+    private (Dictionary<char, GlyphInfo> glyphs, GlyphVariant variant)
+        SelectGlyphsWithVariant(string fontFamily, int fontWeight)
+    {
+        if (!string.IsNullOrEmpty(fontFamily) && IsMonospaceFamily(fontFamily))
+            return (_fontAtlas.MonospaceGlyphs, GlyphVariant.Monospace);
+
+        if (fontWeight >= 700)
+            return (_fontAtlas.BoldGlyphs, GlyphVariant.Bold);
+        return (_fontAtlas.Glyphs, GlyphVariant.Regular);
+    }
+
+    private static bool IsMonospaceFamily(string family)
+    {
+        return family.Equals("monospace", StringComparison.OrdinalIgnoreCase)
+            || family.Equals("ui-monospace", StringComparison.OrdinalIgnoreCase)
+            || family.Contains("Mono", StringComparison.OrdinalIgnoreCase)
+            || family.Contains("Courier", StringComparison.OrdinalIgnoreCase)
+            || family.Contains("Consolas", StringComparison.OrdinalIgnoreCase)
+            || family.Contains("Menlo", StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -487,7 +487,7 @@ internal static class BlockLayout
         {
             Color = parentStyle.Color,
             FontSize = parentStyle.FontSize,
-            FontFamily = parentStyle.FontFamily,
+            FontFamilies = parentStyle.FontFamilies,
             FontWeight = parentStyle.FontWeight,
             FontStyle = parentStyle.FontStyle,
             TextAlign = parentStyle.TextAlign,

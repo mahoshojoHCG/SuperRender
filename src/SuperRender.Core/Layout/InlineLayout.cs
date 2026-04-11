@@ -55,7 +55,7 @@ internal static class InlineLayout
                         }
                     }
 
-                    var wordWidth = measurer.MeasureWidth(word, fontSize);
+                    var wordWidth = measurer.MeasureWidth(word, fontSize, style.FontFamily, style.FontWeight);
 
                     // Check if we need to wrap (not in nowrap or pre mode without pre-wrap)
                     bool canWrap = ws != WhiteSpaceType.Nowrap && ws != WhiteSpaceType.Pre;
@@ -173,7 +173,7 @@ internal static class InlineLayout
                         continue;
                     }
 
-                    var wordWidth = measurer.MeasureWidth(word, fontSize);
+                    var wordWidth = measurer.MeasureWidth(word, fontSize, style.FontFamily, style.FontWeight);
 
                     bool canWrap = ws != WhiteSpaceType.Nowrap && ws != WhiteSpaceType.Pre;
                     if (canWrap && cursorX - lineStartX + wordWidth > availableWidth && cursorX > lineStartX)
@@ -352,7 +352,7 @@ internal static class InlineLayout
                     continue;
                 }
 
-                var wordWidth = measurer.MeasureWidth(word, fontSize);
+                var wordWidth = measurer.MeasureWidth(word, fontSize, style.FontFamily, style.FontWeight);
 
                 bool canWrap = ws != WhiteSpaceType.Nowrap && ws != WhiteSpaceType.Pre;
                 if (canWrap && cursorX - containingBlock.X + wordWidth > containingBlock.Width && cursorX > containingBlock.X)

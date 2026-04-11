@@ -169,6 +169,7 @@ public sealed class Painter
                 FontWeight = run.Style.FontWeight,
                 FontStyle = run.Style.FontStyle,
                 FontFamily = run.Style.FontFamily,
+                FontFamilies = run.Style.FontFamilies,
             });
         }
     }

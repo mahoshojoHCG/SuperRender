@@ -11,7 +11,7 @@ A complete HTML+CSS rendering engine built with C# (.NET 10), using Silk.NET + V
 - `src/SuperRender.EcmaScript.Console/` — Interactive JS console (Node.js-style REPL)
 - `src/SuperRender.Browser/` — Browser application with tabs, address bar, networking, CORS, HiDPI
 - `src/SuperRender.Demo/` — Minimal Vulkan demo app (uses Gpu library)
-- `tests/SuperRender.Tests/` — xUnit tests for Core (140 tests)
+- `tests/SuperRender.Tests/` — xUnit tests for Core (156 tests)
 - `tests/SuperRender.EcmaScript.Tests/` — xUnit tests for EcmaScript (430 tests)
 - `tests/SuperRender.Browser.Tests/` — xUnit tests for Browser + DOM bindings (140 tests)
 
@@ -19,7 +19,7 @@ A complete HTML+CSS rendering engine built with C# (.NET 10), using Silk.NET + V
 
 ```bash
 dotnet build              # Build all projects (warnings are errors)
-dotnet test               # Run all unit tests (710 total)
+dotnet test               # Run all unit tests (726 total)
 dotnet run --project src/SuperRender.Demo  # Launch the demo window (requires Vulkan)
 dotnet run --project src/SuperRender.Browser  # Launch the browser (requires Vulkan)
 dotnet run --project src/SuperRender.EcmaScript.Console  # Launch the JS console REPL
@@ -33,7 +33,7 @@ dotnet run --project src/SuperRender.EcmaScript.Console  # Launch the JS console
 - `RenderPipeline` — orchestrator with dirty-flag optimization
 - `HtmlParser` — state-machine tokenizer + tree builder
 - `CssParser` — tokenizer + parser with shorthand expansion (margin/padding/border)
-- `StyleResolver` — cascade, specificity, `!important`, inherited properties (color, font-size, font-family, font-weight, font-style, text-align, line-height, white-space), `hidden` attribute, box-sizing, min/max constraints, overflow, z-index
+- `StyleResolver` — cascade, specificity, `!important`, inherited properties (color, font-size, font-family, font-weight, font-style, text-align, line-height, white-space), `hidden` attribute, box-sizing, min/max constraints, overflow, z-index, CSS font-family list parsing (comma-separated with fallback)
 - `LayoutEngine` — block layout, inline layout with word-wrap, anonymous block wrapping (style-isolated), inline-block layout with shrink-to-fit and vertical alignment, position:relative/absolute with shrink-to-fit, white-space modes (normal/pre/nowrap/pre-wrap/pre-line)
 - `Painter` — generates FillRect/DrawText/PushClip/PopClip commands from layout tree, text-decoration rendering (underline, line-through, overline), z-index ordering for positioned elements, overflow:hidden clipping, list markers (bullets for ul, numbers for ol)
 - `SelectionPainter` — generates highlight FillRect commands for text selection ranges
@@ -91,7 +91,7 @@ Node.js-style interactive REPL powered by the EcmaScript engine.
 
 - **macOS**: MoltenVK is bundled via `Silk.NET.MoltenVK.Native`. `VulkanContext.EnsureMoltenVK()` symlinks the dylib and sets `VK_DRIVER_FILES` before window creation.
 - **Shaders**: GLSL sources in `Shaders/`, compiled to SPIR-V at runtime via shaderc. Pre-compiled `.spv` can be placed in `Resources/Shaders/`.
-- **Fonts**: System fonts loaded via FreeType (`FreeTypeSharp`). Fallback chains: Helvetica (macOS), Segoe UI (Windows), DejaVu Sans (Linux).
+- **Fonts**: Dynamic font atlas with on-demand glyph rendering via FreeType (`FreeTypeSharp`). System font discovery by family name via `SystemFontLocator`. Platform-specific generic family defaults (serif, sans-serif, monospace, cursive, fantasy, system-ui) via `GenericFontFamilies`. CJK fallback fonts (PingFang SC on macOS, Microsoft YaHei on Windows, Noto Sans CJK on Linux). CSS font-family comma-separated list support with `FontFamilyParser`.
 
 ## Development Guidelines
 
@@ -166,8 +166,11 @@ Shared Vulkan rendering library used by both Demo and Browser.
 - `VulkanContext` — Vulkan instance/device/queues + MoltenVK setup for macOS
 - `SwapchainManager` — swapchain, render pass, framebuffers
 - `PipelineManager` — quad pipeline (solid rects) + text pipeline (font atlas sampling)
-- `BufferManager` — GPU buffer allocation, vertex/index upload, texture creation
-- `VulkanRenderer` — segment-based frame loop with per-segment scissor clipping, HiDPI content scale support
-- `FontAtlasGenerator` — FreeType-based multi-font atlas (1024x2048, BaseFontSize=32, HiDPI-scaled): regular + bold + monospace variants
-- `QuadRenderer` / `TextRenderer` — PaintList → GPU vertex batch builders, font variant selection (bold/monospace) via DrawTextCommand properties
-- `BitmapFontTextMeasurer` — ITextMeasurer implementation using font atlas metrics
+- `BufferManager` — GPU buffer allocation, vertex/index upload, texture creation and update
+- `VulkanRenderer` — segment-based frame loop with per-segment scissor clipping, HiDPI content scale support, dynamic atlas texture re-upload
+- `FontAtlas` — dynamic glyph atlas (2048x4096, BaseFontSize=32, HiDPI-scaled): pre-renders ASCII + common symbols at startup, renders additional glyphs (CJK, Unicode) on demand via FreeType. Regular + bold + monospace variants. CJK fallback font chain. `IsDirty` flag triggers GPU texture re-upload.
+- `FontAtlasGenerator` — static helpers for atlas generation with explicit font paths
+- `SystemFontLocator` — scans system font directories, uses FreeType to read family/style names from font files, builds case-insensitive family→path index. Handles `.ttf`, `.otf`, `.ttc` (multi-face collections). Resolves CSS font-family lists with generic family fallback.
+- `GenericFontFamilies` — maps CSS generic families (serif, sans-serif, monospace, cursive, fantasy, system-ui) to platform-specific real font family names. Provides CJK fallback font lists per platform.
+- `QuadRenderer` / `TextRenderer` — PaintList → GPU vertex batch builders, font variant selection (bold/monospace) via DrawTextCommand properties and font-family list walking
+- `BitmapFontTextMeasurer` — ITextMeasurer implementation using font atlas metrics, font-family-aware measurement (selects correct glyph set for monospace/bold)
