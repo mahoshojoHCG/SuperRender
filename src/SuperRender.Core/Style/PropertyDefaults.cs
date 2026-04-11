@@ -7,6 +7,8 @@ public static class PropertyDefaults
         "color",
         "font-size",
         "font-family",
+        "font-weight",
+        "font-style",
         "text-align",
         "line-height",
     ];

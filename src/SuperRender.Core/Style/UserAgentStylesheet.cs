@@ -39,31 +39,37 @@ public static class UserAgentStylesheet
         /* === Headings === */
         h1 {
             font-size: 32px;
+            font-weight: bold;
             margin-top: 21px;
             margin-bottom: 21px;
         }
         h2 {
             font-size: 24px;
+            font-weight: bold;
             margin-top: 20px;
             margin-bottom: 20px;
         }
         h3 {
             font-size: 18.72px;
+            font-weight: bold;
             margin-top: 19px;
             margin-bottom: 19px;
         }
         h4 {
             font-size: 16px;
+            font-weight: bold;
             margin-top: 21px;
             margin-bottom: 21px;
         }
         h5 {
             font-size: 13.28px;
+            font-weight: bold;
             margin-top: 22px;
             margin-bottom: 22px;
         }
         h6 {
             font-size: 10.72px;
+            font-weight: bold;
             margin-top: 25px;
             margin-bottom: 25px;
         }
@@ -124,6 +130,41 @@ public static class UserAgentStylesheet
 
         /* === Small === */
         small {
+            font-size: 13.28px;
+        }
+
+        /* === Bold text === */
+        strong, b {
+            font-weight: bold;
+        }
+
+        /* === Italic text === */
+        em, i, cite, var, dfn, address {
+            font-style: italic;
+        }
+
+        /* === Underline === */
+        u, ins {
+            text-decoration: underline;
+        }
+
+        /* === Strikethrough === */
+        s, del, strike {
+            text-decoration: line-through;
+        }
+
+        /* === Links === underline (color already set above) */
+        a {
+            text-decoration: underline;
+        }
+
+        /* === Monospace === */
+        kbd, samp {
+            font-family: monospace;
+        }
+
+        /* === Subscript / Superscript === */
+        sub, sup {
             font-size: 13.28px;
         }
         """;

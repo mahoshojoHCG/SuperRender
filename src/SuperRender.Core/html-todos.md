@@ -224,23 +224,24 @@ Elements are recognized for display only. Missing:
 
 ### 4.2 Text-level semantics
 
-Elements recognized as inline for display. Missing per-element default styles (user-agent stylesheet):
-- [ ] `<strong>` — default `font-weight: bold`
-- [ ] `<em>` — default `font-style: italic`
-- [ ] `<b>` — default `font-weight: bold`
-- [ ] `<i>` — default `font-style: italic`
-- [ ] `<u>` — default `text-decoration: underline`
-- [ ] `<s>`, `<del>` — default `text-decoration: line-through`
-- [ ] `<ins>` — default `text-decoration: underline`
-- [ ] `<mark>` — default highlighted background
-- [ ] `<small>` — default smaller font size
-- [ ] `<sub>`, `<sup>` — default vertical-align and font-size
+Elements recognized as inline for display. Per-element default styles (user-agent stylesheet):
+- [x] `<strong>` — default `font-weight: bold`
+- [x] `<em>` — default `font-style: italic`
+- [x] `<b>` — default `font-weight: bold`
+- [x] `<i>` — default `font-style: italic`
+- [x] `<u>` — default `text-decoration: underline`
+- [x] `<s>`, `<del>` — default `text-decoration: line-through`
+- [x] `<ins>` — default `text-decoration: underline`
+- [x] `<mark>` — default highlighted background
+- [x] `<small>` — default smaller font size
+- [P] `<sub>`, `<sup>` — default font-size smaller (missing vertical-align)
 - [ ] `<abbr>` — default dotted underline on some UAs
-- [ ] `<code>`, `<kbd>`, `<samp>`, `<var>` — default monospace font
-- [ ] `<pre>` — default `white-space: pre`, monospace font
-- [ ] `<blockquote>` — default margin
+- [x] `<code>`, `<kbd>`, `<samp>` — default monospace font
+- [P] `<pre>` — default monospace font (missing `white-space: pre`)
+- [x] `<blockquote>` — default margin
 - [ ] `<q>` — automatic quotation marks via CSS `quotes`
-- [ ] `<cite>`, `<dfn>` — default italic on some UAs
+- [x] `<cite>`, `<dfn>` — default italic
+- [ ] `<var>` — default italic (already in UA stylesheet but not listed as done because `<var>` needs testing)
 - [ ] `<time>`, `<data>`, `<output>` — no special visual but machine-readable
 - [ ] `<ruby>`, `<rt>`, `<rp>` — ruby annotation layout
 - [ ] `<bdi>`, `<bdo>` — bidirectional isolation/override
@@ -326,32 +327,33 @@ Head-content elements are hidden (`display: none`). Missing:
 
 ## 5. User-Agent Stylesheet
 
-Currently: only default display types (block/inline/none) assigned per tag name. A proper UA stylesheet should define default visual styles.
+Currently: default display types, heading sizes/margins, paragraph margins, body margin, blockquote indent, hr border, lists padding, mark highlight, small size, pre/code monospace, link blue color, and text-level element styles (bold, italic, underline, strikethrough) are all defined in the UA stylesheet. Font-weight, font-style, and text-decoration-line CSS properties are fully supported in the cascade, including inheritance for font-weight and font-style.
 
-- [ ] Heading sizes: `h1` = 2em, `h2` = 1.5em, `h3` = 1.17em, `h4` = 1em, `h5` = 0.83em, `h6` = 0.67em
-- [ ] Heading/paragraph default margins (`h1` = 0.67em top/bottom, `p` = 1em top/bottom, etc.)
-- [ ] `<strong>`, `<b>` → `font-weight: bold`
-- [ ] `<em>`, `<i>`, `<cite>`, `<dfn>`, `<var>` → `font-style: italic`
-- [ ] `<u>`, `<ins>` → `text-decoration: underline`
-- [ ] `<s>`, `<del>`, `<strike>` → `text-decoration: line-through`
-- [ ] `<code>`, `<kbd>`, `<samp>`, `<tt>` → `font-family: monospace`
-- [ ] `<pre>` → `white-space: pre`, `font-family: monospace`
-- [ ] `<blockquote>` → margin indentation
-- [ ] `<ul>`, `<ol>` → `padding-left: 40px`, list markers
+- [x] Heading sizes: `h1` = 2em, `h2` = 1.5em, `h3` = 1.17em, `h4` = 1em, `h5` = 0.83em, `h6` = 0.67em
+- [x] Heading/paragraph default margins (`h1` = 0.67em top/bottom, `p` = 1em top/bottom, etc.)
+- [x] `<strong>`, `<b>` → `font-weight: bold`
+- [x] `<em>`, `<i>`, `<cite>`, `<dfn>`, `<var>` → `font-style: italic`
+- [x] `<u>`, `<ins>` → `text-decoration: underline`
+- [x] `<s>`, `<del>`, `<strike>` → `text-decoration: line-through`
+- [x] `<code>`, `<kbd>`, `<samp>` → `font-family: monospace`
+- [P] `<pre>` → `font-family: monospace` (missing `white-space: pre`)
+- [x] `<blockquote>` → margin indentation
+- [P] `<ul>`, `<ol>` → `padding-left: 40px` (missing list markers)
 - [ ] `<li>` → `display: list-item`
 - [ ] `<dd>` → `margin-left: 40px`
-- [ ] `<hr>` → border, margin
-- [ ] `<a>` → `color: blue/purple`, `text-decoration: underline`
-- [ ] `<mark>` → `background-color: yellow`
-- [ ] `<small>` → `font-size: smaller`
-- [ ] `<sub>` → `vertical-align: sub`, `font-size: smaller`
-- [ ] `<sup>` → `vertical-align: super`, `font-size: smaller`
+- [x] `<hr>` → border, margin
+- [x] `<a>` → `color: blue`, `text-decoration: underline`
+- [x] `<mark>` → `background-color: yellow`
+- [x] `<small>` → `font-size: smaller`
+- [P] `<sub>` → `font-size: smaller` (missing `vertical-align: sub`)
+- [P] `<sup>` → `font-size: smaller` (missing `vertical-align: super`)
 - [ ] `<table>` → `border-collapse: separate`, `border-spacing: 2px`
 - [ ] `<th>` → `font-weight: bold`, `text-align: center`
 - [ ] `<fieldset>` → border, padding, margin
 - [ ] `<legend>` → positioning at fieldset border
 - [ ] `<input>`, `<textarea>`, `<select>`, `<button>` → form control default styles
 - [ ] Hidden attribute: `[hidden] { display: none }`
+- [ ] `<tt>` → `font-family: monospace`
 
 ---
 

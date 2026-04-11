@@ -1,4 +1,5 @@
 using SuperRender.Core.Layout;
+using SuperRender.Core.Style;
 
 namespace SuperRender.Core.Painting;
 
@@ -112,6 +113,48 @@ public sealed class Painter
                 Y = run.Y,
                 FontSize = run.Style.FontSize,
                 Color = run.Style.Color,
+                FontWeight = run.Style.FontWeight,
+                FontStyle = run.Style.FontStyle,
+            });
+
+            PaintTextDecoration(run, list);
+        }
+    }
+
+    private static void PaintTextDecoration(TextRun run, PaintList list)
+    {
+        var decoration = run.Style.TextDecorationLine;
+        if (decoration == TextDecorationLine.None) return;
+
+        var color = run.Style.TextDecorationColor ?? run.Style.Color;
+        float thickness = Math.Max(1f, run.Style.FontSize / 16f);
+
+        if ((decoration & TextDecorationLine.Underline) != 0)
+        {
+            float underlineY = run.Y + run.Style.FontSize;
+            list.Add(new FillRectCommand
+            {
+                Rect = new RectF(run.X, underlineY, run.Width, thickness),
+                Color = color,
+            });
+        }
+
+        if ((decoration & TextDecorationLine.LineThrough) != 0)
+        {
+            float strikeY = run.Y + run.Style.FontSize * 0.5f;
+            list.Add(new FillRectCommand
+            {
+                Rect = new RectF(run.X, strikeY, run.Width, thickness),
+                Color = color,
+            });
+        }
+
+        if ((decoration & TextDecorationLine.Overline) != 0)
+        {
+            list.Add(new FillRectCommand
+            {
+                Rect = new RectF(run.X, run.Y, run.Width, thickness),
+                Color = color,
             });
         }
     }

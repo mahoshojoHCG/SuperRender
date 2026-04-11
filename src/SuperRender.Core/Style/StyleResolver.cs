@@ -249,6 +249,28 @@ public sealed class StyleResolver
                     style.LineHeight = (float)value.NumericValue / 100f;
                 break;
 
+            case "font-weight":
+                style.FontWeight = ResolveFontWeight(value, parentStyle);
+                break;
+
+            case "font-style":
+                style.FontStyle = value.Raw.ToLowerInvariant() switch
+                {
+                    "normal" => FontStyleType.Normal,
+                    "italic" => FontStyleType.Italic,
+                    "oblique" => FontStyleType.Oblique,
+                    _ => style.FontStyle
+                };
+                break;
+
+            case "text-decoration" or "text-decoration-line":
+                style.TextDecorationLine = ResolveTextDecorationLine(value);
+                break;
+
+            case "text-decoration-color":
+                style.TextDecorationColor = ResolveColor(value);
+                break;
+
             case "position":
                 style.Position = value.Raw.ToLowerInvariant() switch
                 {
@@ -345,11 +367,48 @@ public sealed class StyleResolver
         return Color.Black;
     }
 
+    private static int ResolveFontWeight(CssValue value, ComputedStyle? parentStyle)
+    {
+        var raw = value.Raw.ToLowerInvariant();
+        return raw switch
+        {
+            "normal" => 400,
+            "bold" => 700,
+            "bolder" => Math.Min((parentStyle?.FontWeight ?? 400) + 300, 900),
+            "lighter" => Math.Max((parentStyle?.FontWeight ?? 400) - 100, 100),
+            _ => value.Type == CssValueType.Number
+                ? Math.Clamp((int)value.NumericValue, 100, 900)
+                : parentStyle?.FontWeight ?? 400
+        };
+    }
+
+    private static TextDecorationLine ResolveTextDecorationLine(CssValue value)
+    {
+        var raw = value.Raw.ToLowerInvariant().Trim();
+        if (raw == "none")
+            return TextDecorationLine.None;
+
+        var result = TextDecorationLine.None;
+        foreach (var part in raw.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            result |= part switch
+            {
+                "underline" => TextDecorationLine.Underline,
+                "overline" => TextDecorationLine.Overline,
+                "line-through" => TextDecorationLine.LineThrough,
+                _ => TextDecorationLine.None
+            };
+        }
+        return result;
+    }
+
     private static void InheritFromParent(ComputedStyle style, ComputedStyle parentStyle)
     {
         style.Color = parentStyle.Color;
         style.FontSize = parentStyle.FontSize;
         style.FontFamily = parentStyle.FontFamily;
+        style.FontWeight = parentStyle.FontWeight;
+        style.FontStyle = parentStyle.FontStyle;
         style.TextAlign = parentStyle.TextAlign;
         style.LineHeight = parentStyle.LineHeight;
     }
@@ -359,9 +418,13 @@ public sealed class StyleResolver
         "div" or "p" or "h1" or "h2" or "h3" or "h4" or "h5" or "h6"
             or "ul" or "ol" or "li" or "header" or "footer" or "main"
             or "section" or "article" or "nav" or "aside" or "hr"
-            or "blockquote" or "pre" => DisplayType.Block,
+            or "blockquote" or "pre" or "address" or "figure" or "figcaption"
+            or "details" or "summary" or "dialog" or "dd" or "dl" or "dt"
+            or "fieldset" or "form" or "hgroup" => DisplayType.Block,
         "span" or "a" or "strong" or "em" or "b" or "i" or "u"
-            or "code" or "br" or "img" => DisplayType.Inline,
+            or "code" or "br" or "img" or "s" or "del" or "ins" or "strike"
+            or "small" or "mark" or "cite" or "var" or "dfn" or "kbd" or "samp"
+            or "abbr" or "sub" or "sup" or "q" or "time" or "data" => DisplayType.Inline,
         "html" or "body" => DisplayType.Block,
         "head" or "title" or "style" or "meta" or "link" or "script" => DisplayType.None,
         _ => DisplayType.Block,

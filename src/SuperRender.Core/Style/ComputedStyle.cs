@@ -4,6 +4,16 @@ namespace SuperRender.Core.Style;
 
 public enum TextAlign { Left, Right, Center, Justify }
 public enum PositionType { Static, Relative, Absolute }
+public enum FontStyleType { Normal, Italic, Oblique }
+
+[Flags]
+public enum TextDecorationLine
+{
+    None = 0,
+    Underline = 1,
+    Overline = 2,
+    LineThrough = 4,
+}
 
 public sealed class ComputedStyle
 {
@@ -25,8 +35,12 @@ public sealed class ComputedStyle
     // Text
     public float FontSize { get; set; } = 16f;
     public string FontFamily { get; set; } = "sans-serif";
+    public int FontWeight { get; set; } = 400;
+    public FontStyleType FontStyle { get; set; } = FontStyleType.Normal;
     public TextAlign TextAlign { get; set; } = TextAlign.Left;
     public float LineHeight { get; set; } = 1.2f;
+    public TextDecorationLine TextDecorationLine { get; set; } = TextDecorationLine.None;
+    public Color? TextDecorationColor { get; set; }
 
     // Position
     public PositionType Position { get; set; } = PositionType.Static;
@@ -51,8 +65,12 @@ public sealed class ComputedStyle
             BorderStyle = BorderStyle,
             FontSize = FontSize,
             FontFamily = FontFamily,
+            FontWeight = FontWeight,
+            FontStyle = FontStyle,
             TextAlign = TextAlign,
             LineHeight = LineHeight,
+            TextDecorationLine = TextDecorationLine,
+            TextDecorationColor = TextDecorationColor,
             Position = Position,
             Top = Top,
             Left = Left,

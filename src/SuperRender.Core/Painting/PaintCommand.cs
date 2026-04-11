@@ -1,4 +1,5 @@
 using SuperRender.Core.Layout;
+using SuperRender.Core.Style;
 
 namespace SuperRender.Core.Painting;
 
@@ -24,6 +25,8 @@ public sealed class DrawTextCommand : PaintCommand
     public required float Y { get; init; }
     public required float FontSize { get; init; }
     public required Color Color { get; init; }
+    public int FontWeight { get; init; } = 400;
+    public FontStyleType FontStyle { get; init; } = FontStyleType.Normal;
 }
 
 public sealed class PaintList

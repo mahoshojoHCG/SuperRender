@@ -11,14 +11,14 @@ A complete HTML+CSS rendering engine built with C# (.NET 10), using Silk.NET + V
 - `src/SuperRender.EcmaScript.Console/` — Interactive JS console (Node.js-style REPL)
 - `src/SuperRender.Browser/` — Browser application with tabs, address bar, networking, CORS, HiDPI
 - `src/SuperRender.Demo/` — Minimal Vulkan demo app (uses Gpu library)
-- `tests/SuperRender.Tests/` — xUnit tests for Core (68 tests)
+- `tests/SuperRender.Tests/` — xUnit tests for Core (98 tests)
 - `tests/SuperRender.EcmaScript.Tests/` — xUnit tests for EcmaScript (421 tests)
 
 ## Build & Run
 
 ```bash
 dotnet build              # Build all projects (warnings are errors)
-dotnet test               # Run all unit tests (489 total)
+dotnet test               # Run all unit tests (519 total)
 dotnet run --project src/SuperRender.Demo  # Launch the demo window (requires Vulkan)
 dotnet run --project src/SuperRender.Browser  # Launch the browser (requires Vulkan)
 dotnet run --project src/SuperRender.EcmaScript.Console  # Launch the JS console REPL
@@ -32,15 +32,15 @@ dotnet run --project src/SuperRender.EcmaScript.Console  # Launch the JS console
 - `RenderPipeline` — orchestrator with dirty-flag optimization
 - `HtmlParser` — state-machine tokenizer + tree builder
 - `CssParser` — tokenizer + parser with shorthand expansion (margin/padding/border)
-- `StyleResolver` — cascade, specificity, `!important`, inherited properties
+- `StyleResolver` — cascade, specificity, `!important`, inherited properties (color, font-size, font-family, font-weight, font-style, text-align, line-height)
 - `LayoutEngine` — block layout, inline layout with word-wrap, anonymous block wrapping
-- `Painter` — generates FillRect/DrawText commands from layout tree
+- `Painter` — generates FillRect/DrawText commands from layout tree, text-decoration rendering (underline, line-through, overline)
 - `SelectionPainter` — generates highlight FillRect commands for text selection ranges
 - `TextHitTester` — hit-tests mouse coordinates against laid-out TextRuns to find character positions
 - `TextSelectionState` — tracks selection start/end as `TextPosition(RunIndex, CharOffset)`
 - `VulkanRenderer` — frame loop with quad pipeline (backgrounds/borders) + text pipeline (font atlas with alpha blending), HiDPI content scale support
 - `DomMutationApi` — runtime DOM modification with automatic re-layout
-- `UserAgentStylesheet` — default browser CSS styles (body margin, heading sizes, list indent, etc.)
+- `UserAgentStylesheet` — default browser CSS styles (body margin, heading sizes/bold, list indent, text-level semantics: bold, italic, underline, strikethrough, monospace, link styling)
 
 ## EcmaScript Engine
 
