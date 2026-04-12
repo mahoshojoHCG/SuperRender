@@ -11,6 +11,8 @@ public sealed unsafe class BufferManager : IDisposable
     private readonly PersistentBuffer _quadIndexBuf;
     private readonly PersistentBuffer _textVertexBuf;
     private readonly PersistentBuffer _textIndexBuf;
+    private readonly PersistentBuffer _imageVertexBuf;
+    private readonly PersistentBuffer _imageIndexBuf;
     private bool _disposed;
 
     public BufferManager(VulkanContext ctx)
@@ -20,6 +22,8 @@ public sealed unsafe class BufferManager : IDisposable
         _quadIndexBuf = new PersistentBuffer(ctx, BufferUsageFlags.IndexBufferBit);
         _textVertexBuf = new PersistentBuffer(ctx, BufferUsageFlags.VertexBufferBit);
         _textIndexBuf = new PersistentBuffer(ctx, BufferUsageFlags.IndexBufferBit);
+        _imageVertexBuf = new PersistentBuffer(ctx, BufferUsageFlags.VertexBufferBit);
+        _imageIndexBuf = new PersistentBuffer(ctx, BufferUsageFlags.IndexBufferBit);
     }
 
     public void UploadQuads(uint frameIndex, ReadOnlySpan<QuadVertex> vertices, ReadOnlySpan<uint> indices)
@@ -62,6 +66,26 @@ public sealed unsafe class BufferManager : IDisposable
 
     public bool HasQuadData => _quadVertexBuf.IsAllocated;
     public bool HasTextData => _textVertexBuf.IsAllocated;
+    public bool HasImageData => _imageVertexBuf.IsAllocated;
+
+    public void UploadImageQuads(uint frameIndex, ReadOnlySpan<TextVertex> vertices, ReadOnlySpan<uint> indices)
+    {
+        if (vertices.IsEmpty || indices.IsEmpty) return;
+
+        var vertBytes = MemoryMarshal.AsBytes(vertices);
+        _imageVertexBuf.EnsureCapacity((ulong)vertBytes.Length);
+        _imageVertexBuf.WriteSlot(frameIndex, vertBytes);
+
+        var idxBytes = MemoryMarshal.AsBytes(indices);
+        _imageIndexBuf.EnsureCapacity((ulong)idxBytes.Length);
+        _imageIndexBuf.WriteSlot(frameIndex, idxBytes);
+    }
+
+    public (Buffer Buffer, ulong Offset) GetImageVertexBinding(uint frameIndex) =>
+        _imageVertexBuf.GetBinding(frameIndex);
+
+    public (Buffer Buffer, ulong Offset) GetImageIndexBinding(uint frameIndex) =>
+        _imageIndexBuf.GetBinding(frameIndex);
 
     #region Texture operations (staging pattern, unchanged)
 
@@ -109,6 +133,52 @@ public sealed unsafe class BufferManager : IDisposable
         TransitionAndCopyBufferToImage(stagingBuffer, image, (uint)width, (uint)height);
 
         // Cleanup staging
+        _ctx.Vk.DestroyBuffer(_ctx.Device, stagingBuffer, null);
+        _ctx.Vk.FreeMemory(_ctx.Device, stagingMemory, null);
+
+        return (image, imageMemory);
+    }
+
+    public (Image image, DeviceMemory memory) CreateRgbaTextureImage(byte[] pixels, int width, int height)
+    {
+        var (stagingBuffer, stagingMemory) = CreateStagingBuffer(pixels.AsSpan());
+
+        var imageInfo = new ImageCreateInfo
+        {
+            SType = StructureType.ImageCreateInfo,
+            ImageType = ImageType.Type2D,
+            Extent = new Extent3D { Width = (uint)width, Height = (uint)height, Depth = 1 },
+            MipLevels = 1,
+            ArrayLayers = 1,
+            Format = Format.R8G8B8A8Unorm,
+            Tiling = ImageTiling.Optimal,
+            InitialLayout = ImageLayout.Undefined,
+            Usage = ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit,
+            SharingMode = SharingMode.Exclusive,
+            Samples = SampleCountFlags.Count1Bit,
+        };
+
+        var result = _ctx.Vk.CreateImage(_ctx.Device, in imageInfo, null, out var image);
+        if (result != Result.Success)
+            throw new InvalidOperationException($"Failed to create RGBA image: {result}");
+
+        _ctx.Vk.GetImageMemoryRequirements(_ctx.Device, image, out var memReqs);
+
+        var allocInfo = new MemoryAllocateInfo
+        {
+            SType = StructureType.MemoryAllocateInfo,
+            AllocationSize = memReqs.Size,
+            MemoryTypeIndex = FindMemoryType(memReqs.MemoryTypeBits, MemoryPropertyFlags.DeviceLocalBit),
+        };
+
+        result = _ctx.Vk.AllocateMemory(_ctx.Device, in allocInfo, null, out var imageMemory);
+        if (result != Result.Success)
+            throw new InvalidOperationException($"Failed to allocate RGBA image memory: {result}");
+
+        _ctx.Vk.BindImageMemory(_ctx.Device, image, imageMemory, 0);
+
+        TransitionAndCopyBufferToImage(stagingBuffer, image, (uint)width, (uint)height);
+
         _ctx.Vk.DestroyBuffer(_ctx.Device, stagingBuffer, null);
         _ctx.Vk.FreeMemory(_ctx.Device, stagingMemory, null);
 
@@ -464,6 +534,8 @@ public sealed unsafe class BufferManager : IDisposable
         _quadIndexBuf.Dispose();
         _textVertexBuf.Dispose();
         _textIndexBuf.Dispose();
+        _imageVertexBuf.Dispose();
+        _imageIndexBuf.Dispose();
     }
 
     /// <summary>

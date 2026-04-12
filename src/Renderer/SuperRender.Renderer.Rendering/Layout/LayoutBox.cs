@@ -11,6 +11,8 @@ public sealed class TextRun
     public float Width { get; set; }
     public float Height { get; set; }
     public required ComputedStyle Style { get; init; }
+    /// <summary>True if this run was generated from a ::before/::after pseudo-element.</summary>
+    public bool IsPseudoElement { get; init; }
 }
 
 public enum LayoutBoxType { Block, Inline, AnonymousBlock, InlineBlock, FlexContainer }

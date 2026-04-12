@@ -23,6 +23,11 @@ public sealed unsafe class VulkanRenderer : IDisposable
     private DescriptorPool _descriptorPool;
     private DescriptorSet _textDescriptorSet;
 
+    // GPU image texture cache
+    private readonly Dictionary<string, GpuImageTexture> _gpuImageTextures = new(StringComparer.Ordinal);
+    private DescriptorPool _imageDescriptorPool;
+    private uint _imageDescriptorPoolMaxSets = 32;
+
     // Sync
     private Silk.NET.Vulkan.Semaphore[] _imageAvailableSemaphores = [];
     private Silk.NET.Vulkan.Semaphore[] _renderFinishedSemaphores = [];
@@ -63,12 +68,14 @@ public sealed unsafe class VulkanRenderer : IDisposable
 
         CreateFontAtlasTexture();
         CreateDescriptorResources();
+        CreateImageDescriptorPool();
         CreateCommandPool();
         AllocateCommandBuffers();
         CreateSyncObjects();
     }
 
-    public void RenderFrame(PaintList? paintList)
+    public void RenderFrame(PaintList? paintList,
+        Func<string, (byte[]? pixels, int width, int height)>? imageProvider = null)
     {
         if (paintList == null) return;
 
@@ -92,7 +99,10 @@ public sealed unsafe class VulkanRenderer : IDisposable
         vk.ResetFences(_ctx.Device, 1, in _inFlightFences[_currentFrame]);
 
         // Build draw segments from paint list (respects command order and clip rects)
-        var segments = BuildDrawSegments(paintList);
+        var segments = BuildDrawSegments(paintList, imageProvider);
+
+        // Ensure GPU textures exist for all referenced images
+        EnsureImageTextures(segments, imageProvider);
 
         // Re-upload font atlas texture if new glyphs were rendered on demand
         if (_fontAtlas.IsDirty)
@@ -115,6 +125,8 @@ public sealed unsafe class VulkanRenderer : IDisposable
         var allQuadIdx = new List<uint>();
         var allTextVerts = new List<TextVertex>();
         var allTextIdx = new List<uint>();
+        var allImageVerts = new List<TextVertex>();
+        var allImageIdx = new List<uint>();
 
         foreach (var seg in segments)
         {
@@ -122,12 +134,17 @@ public sealed unsafe class VulkanRenderer : IDisposable
             seg.QuadVertexOffset = (uint)allQuadVerts.Count;
             seg.TextIndexOffset = (uint)allTextIdx.Count;
             seg.TextVertexOffset = (uint)allTextVerts.Count;
+            seg.ImageIndexOffset = (uint)allImageIdx.Count;
+            seg.ImageVertexOffset = (uint)allImageVerts.Count;
 
             allQuadIdx.AddRange(seg.QuadIndices);
             allQuadVerts.AddRange(seg.QuadVertices);
 
             allTextIdx.AddRange(seg.TextIndices);
             allTextVerts.AddRange(seg.TextVertices);
+
+            allImageIdx.AddRange(seg.ImageIndices);
+            allImageVerts.AddRange(seg.ImageVertices);
         }
 
         // Upload directly into persistent mapped GPU buffers (no per-frame alloc/free)
@@ -137,6 +154,9 @@ public sealed unsafe class VulkanRenderer : IDisposable
         _buffers.UploadTextQuads(_currentFrame,
             CollectionsMarshal.AsSpan(allTextVerts),
             CollectionsMarshal.AsSpan(allTextIdx));
+        _buffers.UploadImageQuads(_currentFrame,
+            CollectionsMarshal.AsSpan(allImageVerts),
+            CollectionsMarshal.AsSpan(allImageIdx));
 
         // Record command buffer
         var cmd = _commandBuffers[_currentFrame];
@@ -271,6 +291,33 @@ public sealed unsafe class VulkanRenderer : IDisposable
                 vk.CmdBindIndexBuffer(cmd, tiBuf, tiOff, IndexType.Uint32);
                 vk.CmdDrawIndexed(cmd, seg.TextIndexCount, 1, seg.TextIndexOffset, (int)seg.TextVertexOffset, 0);
             }
+
+            // Draw images for this segment
+            if (_pipelines.ImagePipeline.Handle != 0 && seg.ImageDraws.Count > 0 && _buffers.HasImageData)
+            {
+                vk.CmdBindPipeline(cmd, PipelineBindPoint.Graphics, _pipelines.ImagePipeline);
+                vk.CmdSetScissor(cmd, 0, 1, &scissor);
+                vk.CmdPushConstants(cmd, _pipelines.ImagePipelineLayout,
+                    ShaderStageFlags.VertexBit, 0, 64, &projection);
+
+                var (ivBuf, ivOff) = _buffers.GetImageVertexBinding(_currentFrame);
+                vk.CmdBindVertexBuffers(cmd, 0, 1, &ivBuf, &ivOff);
+                var (iiBuf, iiOff) = _buffers.GetImageIndexBinding(_currentFrame);
+                vk.CmdBindIndexBuffer(cmd, iiBuf, iiOff, IndexType.Uint32);
+
+                foreach (var draw in seg.ImageDraws)
+                {
+                    if (_gpuImageTextures.TryGetValue(draw.ImageUrl, out var gpuTex))
+                    {
+                        var descSet = gpuTex.DescriptorSet;
+                        vk.CmdBindDescriptorSets(cmd, PipelineBindPoint.Graphics,
+                            _pipelines.ImagePipelineLayout, 0, 1, &descSet, 0, null);
+                        vk.CmdDrawIndexed(cmd, draw.IndexCount, 1,
+                            seg.ImageIndexOffset + draw.FirstIndex,
+                            (int)seg.ImageVertexOffset, 0);
+                    }
+                }
+            }
         }
 
         vk.CmdEndRenderPass(cmd);
@@ -287,6 +334,9 @@ public sealed unsafe class VulkanRenderer : IDisposable
         public List<uint> QuadIndices { get; } = [];
         public List<TextVertex> TextVertices { get; } = [];
         public List<uint> TextIndices { get; } = [];
+        public List<TextVertex> ImageVertices { get; } = [];
+        public List<uint> ImageIndices { get; } = [];
+        public List<ImageDraw> ImageDraws { get; } = [];
 
         // Scissor rect in logical pixels
         public float ScissorX, ScissorY, ScissorW, ScissorH;
@@ -296,12 +346,22 @@ public sealed unsafe class VulkanRenderer : IDisposable
         public uint QuadVertexOffset;
         public uint TextIndexOffset;
         public uint TextVertexOffset;
+        public uint ImageIndexOffset;
+        public uint ImageVertexOffset;
 
         public uint QuadIndexCount => (uint)QuadIndices.Count;
         public uint TextIndexCount => (uint)TextIndices.Count;
     }
 
-    private List<DrawSegment> BuildDrawSegments(PaintList paintList)
+    private sealed class ImageDraw
+    {
+        public required string ImageUrl { get; init; }
+        public required uint FirstIndex { get; init; }
+        public required uint IndexCount { get; init; }
+    }
+
+    private List<DrawSegment> BuildDrawSegments(PaintList paintList,
+        Func<string, (byte[]? pixels, int width, int height)>? imageProvider)
     {
         float logicalWidth = _swapchain.Extent.Width / ContentScale;
         float logicalHeight = _swapchain.Extent.Height / ContentScale;
@@ -322,7 +382,8 @@ public sealed unsafe class VulkanRenderer : IDisposable
                 case PushClipCommand clip:
                 {
                     // Flush current segment if it has content
-                    if (current.QuadIndices.Count > 0 || current.TextIndices.Count > 0)
+                    if (current.QuadIndices.Count > 0 || current.TextIndices.Count > 0
+                        || current.ImageIndices.Count > 0)
                     {
                         segments.Add(current);
                         current = new DrawSegment();
@@ -346,7 +407,8 @@ public sealed unsafe class VulkanRenderer : IDisposable
                 case PopClipCommand:
                 {
                     // Flush current segment
-                    if (current.QuadIndices.Count > 0 || current.TextIndices.Count > 0)
+                    if (current.QuadIndices.Count > 0 || current.TextIndices.Count > 0
+                        || current.ImageIndices.Count > 0)
                     {
                         segments.Add(current);
                         current = new DrawSegment();
@@ -361,23 +423,50 @@ public sealed unsafe class VulkanRenderer : IDisposable
 
                 case FillRectCommand fill:
                     QuadRenderer.AddFilledRect(current.QuadVertices, current.QuadIndices,
-                        fill.Rect.X, fill.Rect.Y, fill.Rect.Width, fill.Rect.Height, fill.Color);
+                        fill.Rect.X, fill.Rect.Y, fill.Rect.Width, fill.Rect.Height, fill.Color,
+                        fill.RadiusTL, fill.RadiusTR, fill.RadiusBR, fill.RadiusBL);
                     break;
 
                 case StrokeRectCommand stroke:
-                    QuadRenderer.AddStrokeRect(current.QuadVertices, current.QuadIndices,
-                        stroke.Rect.X, stroke.Rect.Y, stroke.Rect.Width, stroke.Rect.Height,
-                        stroke.LineWidth, stroke.Color);
+                    if (stroke.RadiusTL > 0 || stroke.RadiusTR > 0 ||
+                        stroke.RadiusBR > 0 || stroke.RadiusBL > 0)
+                    {
+                        QuadRenderer.AddFilledRect(current.QuadVertices, current.QuadIndices,
+                            stroke.Rect.X, stroke.Rect.Y, stroke.Rect.Width, stroke.Rect.Height,
+                            stroke.Color,
+                            stroke.RadiusTL, stroke.RadiusTR, stroke.RadiusBR, stroke.RadiusBL);
+                    }
+                    else
+                    {
+                        QuadRenderer.AddStrokeRect(current.QuadVertices, current.QuadIndices,
+                            stroke.Rect.X, stroke.Rect.Y, stroke.Rect.Width, stroke.Rect.Height,
+                            stroke.LineWidth, stroke.Color);
+                    }
                     break;
 
                 case DrawTextCommand text:
                     _textRenderer.EmitTextQuads(current.TextVertices, current.TextIndices, text);
                     break;
+
+                case DrawImageCommand img:
+                {
+                    uint firstIndex = (uint)current.ImageIndices.Count;
+                    ImageRenderer.EmitImageQuad(current.ImageVertices, current.ImageIndices,
+                        img.Rect.X, img.Rect.Y, img.Rect.Width, img.Rect.Height, img.Opacity);
+                    current.ImageDraws.Add(new ImageDraw
+                    {
+                        ImageUrl = img.ImageUrl,
+                        FirstIndex = firstIndex,
+                        IndexCount = 6,
+                    });
+                    break;
+                }
             }
         }
 
         // Add final segment
-        if (current.QuadIndices.Count > 0 || current.TextIndices.Count > 0)
+        if (current.QuadIndices.Count > 0 || current.TextIndices.Count > 0
+            || current.ImageIndices.Count > 0)
             segments.Add(current);
 
         return segments;
@@ -470,6 +559,215 @@ public sealed unsafe class VulkanRenderer : IDisposable
         _ctx.Vk.UpdateDescriptorSets(_ctx.Device, 1, in write, 0, null);
     }
 
+    private void CreateImageDescriptorPool()
+    {
+        if (_pipelines.TextDescriptorSetLayout.Handle == 0) return;
+
+        var poolSize = new DescriptorPoolSize
+        {
+            Type = DescriptorType.CombinedImageSampler,
+            DescriptorCount = _imageDescriptorPoolMaxSets,
+        };
+
+        var poolInfo = new DescriptorPoolCreateInfo
+        {
+            SType = StructureType.DescriptorPoolCreateInfo,
+            Flags = DescriptorPoolCreateFlags.FreeDescriptorSetBit,
+            PoolSizeCount = 1,
+            PPoolSizes = &poolSize,
+            MaxSets = _imageDescriptorPoolMaxSets,
+        };
+        _ctx.Vk.CreateDescriptorPool(_ctx.Device, in poolInfo, null, out _imageDescriptorPool);
+    }
+
+    private void EnsureImageTextures(List<DrawSegment> segments,
+        Func<string, (byte[]? pixels, int width, int height)>? imageProvider)
+    {
+        if (imageProvider is null || _pipelines.TextDescriptorSetLayout.Handle == 0) return;
+
+        foreach (var seg in segments)
+        {
+            foreach (var draw in seg.ImageDraws)
+            {
+                if (_gpuImageTextures.ContainsKey(draw.ImageUrl)) continue;
+
+                var (pixels, width, height) = imageProvider(draw.ImageUrl);
+                if (pixels is null || width <= 0 || height <= 0) continue;
+
+                var gpuTex = UploadImageTexture(pixels, width, height);
+                if (gpuTex is not null)
+                    _gpuImageTextures[draw.ImageUrl] = gpuTex;
+            }
+        }
+    }
+
+    private GpuImageTexture? UploadImageTexture(byte[] pixels, int width, int height)
+    {
+        try
+        {
+            var (image, memory) = _buffers.CreateRgbaTextureImage(pixels, width, height);
+
+            var viewInfo = new ImageViewCreateInfo
+            {
+                SType = StructureType.ImageViewCreateInfo,
+                Image = image,
+                ViewType = ImageViewType.Type2D,
+                Format = Format.R8G8B8A8Unorm,
+                SubresourceRange = new ImageSubresourceRange
+                {
+                    AspectMask = ImageAspectFlags.ColorBit,
+                    BaseMipLevel = 0, LevelCount = 1,
+                    BaseArrayLayer = 0, LayerCount = 1,
+                },
+            };
+            _ctx.Vk.CreateImageView(_ctx.Device, in viewInfo, null, out var imageView);
+
+            var samplerInfo = new SamplerCreateInfo
+            {
+                SType = StructureType.SamplerCreateInfo,
+                MagFilter = Filter.Linear,
+                MinFilter = Filter.Linear,
+                AddressModeU = SamplerAddressMode.ClampToEdge,
+                AddressModeV = SamplerAddressMode.ClampToEdge,
+                AddressModeW = SamplerAddressMode.ClampToEdge,
+                AnisotropyEnable = false,
+                BorderColor = BorderColor.IntOpaqueBlack,
+                UnnormalizedCoordinates = false,
+                CompareEnable = false,
+                MipmapMode = SamplerMipmapMode.Linear,
+            };
+            _ctx.Vk.CreateSampler(_ctx.Device, in samplerInfo, null, out var sampler);
+
+            // Allocate descriptor set from image pool
+            var descriptorSet = AllocateImageDescriptorSet(imageView, sampler);
+            if (descriptorSet.Handle == 0)
+            {
+                _ctx.Vk.DestroySampler(_ctx.Device, sampler, null);
+                _ctx.Vk.DestroyImageView(_ctx.Device, imageView, null);
+                _ctx.Vk.DestroyImage(_ctx.Device, image, null);
+                _ctx.Vk.FreeMemory(_ctx.Device, memory, null);
+                return null;
+            }
+
+            return new GpuImageTexture
+            {
+                VkImage = image,
+                Memory = memory,
+                View = imageView,
+                Sampler = sampler,
+                DescriptorSet = descriptorSet,
+            };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[GPU] Failed to upload image texture: {ex.Message}");
+            return null;
+        }
+    }
+
+    private DescriptorSet AllocateImageDescriptorSet(ImageView imageView, Sampler sampler)
+    {
+        if (_imageDescriptorPool.Handle == 0) return default;
+
+        var layout = _pipelines.TextDescriptorSetLayout;
+        var allocInfo = new DescriptorSetAllocateInfo
+        {
+            SType = StructureType.DescriptorSetAllocateInfo,
+            DescriptorPool = _imageDescriptorPool,
+            DescriptorSetCount = 1,
+            PSetLayouts = &layout,
+        };
+
+        var result = _ctx.Vk.AllocateDescriptorSets(_ctx.Device, in allocInfo, out var descriptorSet);
+        if (result != Result.Success)
+        {
+            // Pool exhausted — grow and retry
+            GrowImageDescriptorPool();
+            result = _ctx.Vk.AllocateDescriptorSets(_ctx.Device, in allocInfo, out descriptorSet);
+            if (result != Result.Success) return default;
+        }
+
+        var imageInfo = new DescriptorImageInfo
+        {
+            ImageLayout = ImageLayout.ShaderReadOnlyOptimal,
+            ImageView = imageView,
+            Sampler = sampler,
+        };
+
+        var write = new WriteDescriptorSet
+        {
+            SType = StructureType.WriteDescriptorSet,
+            DstSet = descriptorSet,
+            DstBinding = 0,
+            DstArrayElement = 0,
+            DescriptorType = DescriptorType.CombinedImageSampler,
+            DescriptorCount = 1,
+            PImageInfo = &imageInfo,
+        };
+
+        _ctx.Vk.UpdateDescriptorSets(_ctx.Device, 1, in write, 0, null);
+        return descriptorSet;
+    }
+
+    private void GrowImageDescriptorPool()
+    {
+        _ctx.Vk.DeviceWaitIdle(_ctx.Device);
+
+        // Re-create all GPU image textures' descriptor sets in a new, larger pool
+        if (_imageDescriptorPool.Handle != 0)
+            _ctx.Vk.DestroyDescriptorPool(_ctx.Device, _imageDescriptorPool, null);
+
+        _imageDescriptorPoolMaxSets *= 2;
+
+        var poolSize = new DescriptorPoolSize
+        {
+            Type = DescriptorType.CombinedImageSampler,
+            DescriptorCount = _imageDescriptorPoolMaxSets,
+        };
+
+        var poolInfo = new DescriptorPoolCreateInfo
+        {
+            SType = StructureType.DescriptorPoolCreateInfo,
+            Flags = DescriptorPoolCreateFlags.FreeDescriptorSetBit,
+            PoolSizeCount = 1,
+            PPoolSizes = &poolSize,
+            MaxSets = _imageDescriptorPoolMaxSets,
+        };
+        _ctx.Vk.CreateDescriptorPool(_ctx.Device, in poolInfo, null, out _imageDescriptorPool);
+
+        // Re-allocate descriptor sets for all existing GPU textures
+        foreach (var kvp in _gpuImageTextures)
+        {
+            var tex = kvp.Value;
+            tex.DescriptorSet = AllocateImageDescriptorSet(tex.View, tex.Sampler);
+        }
+    }
+
+    private void DestroyImageTextures()
+    {
+        foreach (var kvp in _gpuImageTextures)
+        {
+            var tex = kvp.Value;
+            _ctx.Vk.DestroySampler(_ctx.Device, tex.Sampler, null);
+            _ctx.Vk.DestroyImageView(_ctx.Device, tex.View, null);
+            _ctx.Vk.DestroyImage(_ctx.Device, tex.VkImage, null);
+            _ctx.Vk.FreeMemory(_ctx.Device, tex.Memory, null);
+        }
+        _gpuImageTextures.Clear();
+
+        if (_imageDescriptorPool.Handle != 0)
+            _ctx.Vk.DestroyDescriptorPool(_ctx.Device, _imageDescriptorPool, null);
+    }
+
+    private sealed class GpuImageTexture
+    {
+        public Image VkImage;
+        public DeviceMemory Memory;
+        public ImageView View;
+        public Sampler Sampler;
+        public DescriptorSet DescriptorSet;
+    }
+
     private void CreateCommandPool()
     {
         var poolInfo = new CommandPoolCreateInfo
@@ -533,6 +831,10 @@ public sealed unsafe class VulkanRenderer : IDisposable
         if (_descriptorPool.Handle != 0)
             _ctx.Vk.DestroyDescriptorPool(_ctx.Device, _descriptorPool, null);
         CreateDescriptorResources();
+
+        // Recreate image descriptor pool and re-assign descriptor sets
+        DestroyImageTextures();
+        CreateImageDescriptorPool();
     }
 
     public void Dispose()
@@ -553,6 +855,8 @@ public sealed unsafe class VulkanRenderer : IDisposable
 
         if (_descriptorPool.Handle != 0)
             _ctx.Vk.DestroyDescriptorPool(_ctx.Device, _descriptorPool, null);
+
+        DestroyImageTextures();
 
         _ctx.Vk.DestroySampler(_ctx.Device, _atlasSampler, null);
         _ctx.Vk.DestroyImageView(_ctx.Device, _atlasImageView, null);

@@ -160,6 +160,11 @@ public sealed class CssParser
             return ExpandPerSideBorderShorthand(property, trimmed, important);
         }
 
+        if (property == "border-radius")
+        {
+            return ExpandBorderRadiusShorthand(trimmed, important);
+        }
+
         if (property == "flex")
         {
             return ExpandFlexShorthand(trimmed, important);
@@ -279,8 +284,13 @@ public sealed class CssParser
             }
             else if (val.Type == CssValueType.Keyword)
             {
+                // Check if it's currentcolor
+                if (val.Raw.Equals("currentcolor", StringComparison.OrdinalIgnoreCase) && color == null)
+                {
+                    color = val;
+                }
                 // Check if it's a color name
-                if (Document.Color.TryFromName(val.Raw, out _) && color == null)
+                else if (Document.Color.TryFromName(val.Raw, out _) && color == null)
                 {
                     color = new CssValue
                     {
@@ -342,7 +352,11 @@ public sealed class CssParser
             }
             else if (val.Type == CssValueType.Keyword)
             {
-                if (Document.Color.TryFromName(val.Raw, out _) && color == null)
+                if (val.Raw.Equals("currentcolor", StringComparison.OrdinalIgnoreCase) && color == null)
+                {
+                    color = val;
+                }
+                else if (Document.Color.TryFromName(val.Raw, out _) && color == null)
                 {
                     color = new CssValue
                     {
@@ -370,6 +384,44 @@ public sealed class CssParser
             declarations.Add(new Declaration { Property = $"border-{side}-color", Value = color, Important = important });
 
         return declarations;
+    }
+
+    private static List<Declaration> ExpandBorderRadiusShorthand(List<CssToken> valueTokens, bool important)
+    {
+        // border-radius: TL TR BR BL  (or 1/2/3 value syntax like margin/padding)
+        var parts = SplitByWhitespace(valueTokens);
+        var values = parts.Select(p => ParseValueTokens(p)).ToList();
+
+        CssValue tl, tr, br, bl;
+        switch (values.Count)
+        {
+            case 1:
+                tl = tr = br = bl = values[0];
+                break;
+            case 2:
+                tl = br = values[0];
+                tr = bl = values[1];
+                break;
+            case 3:
+                tl = values[0];
+                tr = bl = values[1];
+                br = values[2];
+                break;
+            default: // 4+
+                tl = values[0];
+                tr = values[1];
+                br = values[2];
+                bl = values[3];
+                break;
+        }
+
+        return
+        [
+            new Declaration { Property = "border-top-left-radius", Value = tl, Important = important },
+            new Declaration { Property = "border-top-right-radius", Value = tr, Important = important },
+            new Declaration { Property = "border-bottom-right-radius", Value = br, Important = important },
+            new Declaration { Property = "border-bottom-left-radius", Value = bl, Important = important },
+        ];
     }
 
     private static List<Declaration> ExpandFlexShorthand(List<CssToken> valueTokens, bool important)
@@ -473,6 +525,34 @@ public sealed class CssParser
     #endregion
 
     #region Value Parsing
+
+    /// <summary>
+    /// Parses an inline style string (e.g. "border: 1px solid red; padding: 5px")
+    /// into a list of expanded declarations, handling shorthand expansion.
+    /// </summary>
+    public static List<Declaration> ParseInlineStyleDeclarations(string cssText)
+    {
+        // Wrap in a dummy rule so the parser's declaration block parser handles it
+        var parser = new CssParser($"x {{ {cssText} }}");
+        parser._tokens = new CssTokenizer($"x {{ {cssText} }}").Tokenize().ToList();
+        parser._pos = 0;
+        var rule = parser.ParseRule();
+        return rule?.Declarations ?? [];
+    }
+
+    /// <summary>
+    /// Parses a raw CSS value string into a <see cref="CssValue"/> using the full
+    /// tokenizer (handles functions like rgb(), hsl(), calc(), etc.).
+    /// Used by inline style parsing.
+    /// </summary>
+    public static CssValue ParseValueText(string rawValue)
+    {
+        var tokenizer = new CssTokenizer(rawValue);
+        var tokens = tokenizer.Tokenize()
+            .Where(t => t.Type != CssTokenType.EndOfFile)
+            .ToList();
+        return ParseValueTokens(tokens);
+    }
 
     private static CssValue ParseValueTokens(List<CssToken> tokens)
     {

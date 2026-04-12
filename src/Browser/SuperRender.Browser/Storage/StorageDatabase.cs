@@ -30,6 +30,17 @@ public sealed class StorageDatabase : IDisposable
                 key TEXT NOT NULL,
                 value TEXT NOT NULL,
                 PRIMARY KEY (origin, key)
+            );
+            CREATE TABLE IF NOT EXISTS cookies (
+                name TEXT NOT NULL,
+                value TEXT NOT NULL,
+                domain TEXT NOT NULL,
+                path TEXT NOT NULL,
+                expires TEXT,
+                secure INTEGER NOT NULL DEFAULT 0,
+                http_only INTEGER NOT NULL DEFAULT 0,
+                same_site TEXT NOT NULL DEFAULT 'Lax',
+                PRIMARY KEY (domain, path, name)
             )
             """;
         cmd.ExecuteNonQuery();
@@ -98,5 +109,75 @@ public sealed class StorageDatabase : IDisposable
     public void Dispose()
     {
         _connection.Dispose();
+    }
+
+    // --- Cookie persistence ---
+
+    public void SaveCookie(string name, string value, string domain, string path,
+        DateTimeOffset? expires, bool secure, bool httpOnly, string sameSite)
+    {
+        using var cmd = _connection.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO cookies (name, value, domain, path, expires, secure, http_only, same_site)
+            VALUES (@name, @value, @domain, @path, @expires, @secure, @httpOnly, @sameSite)
+            ON CONFLICT(domain, path, name) DO UPDATE SET
+                value = excluded.value,
+                expires = excluded.expires,
+                secure = excluded.secure,
+                http_only = excluded.http_only,
+                same_site = excluded.same_site
+            """;
+        cmd.Parameters.AddWithValue("@name", name);
+        cmd.Parameters.AddWithValue("@value", value);
+        cmd.Parameters.AddWithValue("@domain", domain);
+        cmd.Parameters.AddWithValue("@path", path);
+        cmd.Parameters.AddWithValue("@expires", expires.HasValue ? expires.Value.ToString("O") : (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@secure", secure ? 1 : 0);
+        cmd.Parameters.AddWithValue("@httpOnly", httpOnly ? 1 : 0);
+        cmd.Parameters.AddWithValue("@sameSite", sameSite);
+        cmd.ExecuteNonQuery();
+    }
+
+    public void DeleteCookie(string name, string domain, string path)
+    {
+        using var cmd = _connection.CreateCommand();
+        cmd.CommandText = "DELETE FROM cookies WHERE name = @name AND domain = @domain AND path = @path";
+        cmd.Parameters.AddWithValue("@name", name);
+        cmd.Parameters.AddWithValue("@domain", domain);
+        cmd.Parameters.AddWithValue("@path", path);
+        cmd.ExecuteNonQuery();
+    }
+
+    public List<(string Name, string Value, string Domain, string Path,
+        DateTimeOffset? Expires, bool Secure, bool HttpOnly, string SameSite)> LoadAllCookies()
+    {
+        using var cmd = _connection.CreateCommand();
+        cmd.CommandText = "SELECT name, value, domain, path, expires, secure, http_only, same_site FROM cookies";
+        var result = new List<(string, string, string, string, DateTimeOffset?, bool, bool, string)>();
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            DateTimeOffset? expires = reader.IsDBNull(4) ? null
+                : DateTimeOffset.Parse(reader.GetString(4), System.Globalization.CultureInfo.InvariantCulture);
+            result.Add((
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.GetString(2),
+                reader.GetString(3),
+                expires,
+                reader.GetInt32(5) != 0,
+                reader.GetInt32(6) != 0,
+                reader.GetString(7)
+            ));
+        }
+        return result;
+    }
+
+    public void PurgeExpiredCookies()
+    {
+        using var cmd = _connection.CreateCommand();
+        cmd.CommandText = "DELETE FROM cookies WHERE expires IS NOT NULL AND expires <= @now";
+        cmd.Parameters.AddWithValue("@now", DateTimeOffset.UtcNow.ToString("O"));
+        cmd.ExecuteNonQuery();
     }
 }

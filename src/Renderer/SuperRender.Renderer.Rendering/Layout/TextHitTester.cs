@@ -18,6 +18,10 @@ public static class TextHitTester
 
     private static void CollectTextRunsRecursive(LayoutBox box, List<TextRun> runs, RectF? clipRect)
     {
+        // Skip visibility:hidden boxes — their text should not be selectable
+        if (box.Style.Visibility == Style.VisibilityType.Hidden)
+            return;
+
         // Update clip region for overflow:hidden boxes
         if (box.Style.Overflow == Style.OverflowType.Hidden)
         {
@@ -29,7 +33,8 @@ public static class TextHitTester
         {
             foreach (var run in box.TextRuns)
             {
-                if (!string.IsNullOrEmpty(run.Text) && IsRunVisible(run, clipRect))
+                // Exclude pseudo-element runs (::before/::after) from selection
+                if (!string.IsNullOrEmpty(run.Text) && !run.IsPseudoElement && IsRunVisible(run, clipRect))
                     runs.Add(run);
             }
             // Don't recurse into children — this box's TextRuns already include them
@@ -108,16 +113,21 @@ public static class TextHitTester
         // Find character offset within the best run
         var best = allRuns[bestRun];
         float fontSize = best.Style.FontSize;
+        float letterSpacing = best.Style.LetterSpacing;
         float relX = x - best.X;
         if (relX <= 0) return (bestRun, 0);
 
         string text = best.Text;
         for (int i = 1; i <= text.Length; i++)
         {
-            float w = measurer.MeasureWidth(text[..i], fontSize, best.Style.FontFamily, best.Style.FontWeight);
+            float w = measurer.MeasureWidth(text[..i], fontSize, best.Style.FontFamily, best.Style.FontWeight)
+                    + letterSpacing * i;
             if (w > relX)
             {
-                float prevW = i > 1 ? measurer.MeasureWidth(text[..(i - 1)], fontSize, best.Style.FontFamily, best.Style.FontWeight) : 0;
+                float prevW = i > 1
+                    ? measurer.MeasureWidth(text[..(i - 1)], fontSize, best.Style.FontFamily, best.Style.FontWeight)
+                      + letterSpacing * (i - 1)
+                    : 0;
                 int offset = (relX - prevW < w - relX) ? i - 1 : i;
                 return (bestRun, offset);
             }

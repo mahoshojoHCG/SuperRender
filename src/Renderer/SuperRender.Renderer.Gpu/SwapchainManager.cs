@@ -118,6 +118,18 @@ public sealed unsafe class SwapchainManager : IDisposable
 
         foreach (var format in formats)
         {
+            // Prefer B8G8R8A8Unorm — CSS colors are already sRGB; using an sRGB format
+            // would double-gamma-encode them, making colours appear lighter.
+            if (format.Format == Format.B8G8R8A8Unorm &&
+                format.ColorSpace == ColorSpaceKHR.SpaceSrgbNonlinearKhr)
+            {
+                return format;
+            }
+        }
+
+        // Fallback: accept sRGB if Unorm is unavailable
+        foreach (var format in formats)
+        {
             if (format.Format == Format.B8G8R8A8Srgb &&
                 format.ColorSpace == ColorSpaceKHR.SpaceSrgbNonlinearKhr)
             {

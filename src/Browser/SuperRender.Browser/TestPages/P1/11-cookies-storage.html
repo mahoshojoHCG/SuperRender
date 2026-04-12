@@ -157,9 +157,9 @@
 
         cookieSetBtn.addEventListener("click", function() {
             try {
-                document.cookie = "username=superuser";
-                document.cookie = "theme=dark";
-                cookieOutput.textContent = "Set 2 cookies:\n  username=superuser\n  theme=dark";
+                document.cookie = "username=superuser; max-age=86400";
+                document.cookie = "theme=dark; max-age=86400";
+                cookieOutput.textContent = "Set 2 persistent cookies (24h expiry):\n  username=superuser\n  theme=dark";
             } catch (e) {
                 cookieOutput.textContent = "ERROR: " + e.message;
             }

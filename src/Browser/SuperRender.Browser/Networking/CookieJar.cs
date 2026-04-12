@@ -1,13 +1,23 @@
+using SuperRender.Browser.Storage;
+
 namespace SuperRender.Browser.Networking;
 
 /// <summary>
-/// In-memory cookie storage. Stores cookies per domain/path and handles
-/// matching, expiry, and SameSite enforcement.
+/// Cookie storage with optional SQLite persistence for cookies with explicit expiry.
+/// Session cookies (no Expires/Max-Age) are in-memory only.
 /// </summary>
 public sealed class CookieJar
 {
     private readonly List<CookieEntry> _cookies = [];
     private readonly object _lock = new();
+    private readonly StorageDatabase? _db;
+
+    public CookieJar(StorageDatabase? db = null)
+    {
+        _db = db;
+        if (_db is not null)
+            LoadFromDatabase();
+    }
 
     /// <summary>
     /// Parse a Set-Cookie header and store the resulting cookie.
@@ -50,6 +60,13 @@ public sealed class CookieJar
                 SameSite = cookie.SameSite,
                 CreatedAt = DateTimeOffset.UtcNow,
             });
+        }
+
+        // Persist cookies that have an explicit expiry (non-session cookies)
+        if (_db is not null && effectiveExpiry.HasValue)
+        {
+            _db.SaveCookie(cookie.Name, cookie.Value, cookie.Domain!, cookie.Path!,
+                effectiveExpiry, cookie.Secure, cookie.HttpOnly, cookie.SameSite.ToString());
         }
     }
 
@@ -152,6 +169,8 @@ public sealed class CookieJar
                 string.Equals(c.Domain, domain, StringComparison.OrdinalIgnoreCase) &&
                 c.Path == path);
         }
+
+        _db?.DeleteCookie(name, domain, path);
     }
 
     private void PurgeExpired()
@@ -195,6 +214,32 @@ public sealed class CookieJar
     private static bool IsSameOriginDomain(string hostA, string hostB)
     {
         return string.Equals(hostA, hostB, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void LoadFromDatabase()
+    {
+        if (_db is null) return;
+
+        _db.PurgeExpiredCookies();
+        var entries = _db.LoadAllCookies();
+        lock (_lock)
+        {
+            foreach (var (name, value, domain, path, expires, secure, httpOnly, sameSite) in entries)
+            {
+                _cookies.Add(new CookieEntry
+                {
+                    Name = name,
+                    Value = value,
+                    Domain = domain,
+                    Path = path,
+                    Expires = expires,
+                    Secure = secure,
+                    HttpOnly = httpOnly,
+                    SameSite = Enum.TryParse<SameSitePolicy>(sameSite, true, out var sp) ? sp : SameSitePolicy.Lax,
+                    CreatedAt = DateTimeOffset.UtcNow,
+                });
+            }
+        }
     }
 
     private sealed class CookieEntry

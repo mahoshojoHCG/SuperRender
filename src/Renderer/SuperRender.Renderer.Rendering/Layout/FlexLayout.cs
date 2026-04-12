@@ -22,7 +22,9 @@ internal static class FlexLayout
             ? (float.IsNaN(style.RowGap) ? style.Gap : style.RowGap)
             : (float.IsNaN(style.ColumnGap) ? style.Gap : style.ColumnGap);
 
-        float availableMain = isRow ? dims.Width : (!float.IsNaN(style.Height) ? style.Height : float.PositiveInfinity);
+        float resolvedContainerHeight = LayoutHelper.ResolveHeight(style, 0);
+        float availableMain = isRow ? dims.Width : (!float.IsNaN(resolvedContainerHeight) ? resolvedContainerHeight : float.PositiveInfinity);
+        float containerCrossSize = isRow ? resolvedContainerHeight : dims.Width;
 
         // Collect flex items (skip absolutely positioned children)
         var flexItems = new List<LayoutBox>();
@@ -46,7 +48,9 @@ internal static class FlexLayout
             if (float.IsNaN(basis))
             {
                 // flex-basis: auto -- use width/height if set, otherwise intrinsic size
-                basis = isRow ? itemStyle.Width : itemStyle.Height;
+                basis = isRow
+                    ? LayoutHelper.ResolveWidth(itemStyle, dims.Width)
+                    : LayoutHelper.ResolveHeight(itemStyle, availableMain);
             }
 
             if (float.IsNaN(basis))
@@ -55,7 +59,14 @@ internal static class FlexLayout
                 float tempWidth = isRow ? dims.Width : dims.Width;
                 var intrinsicSize = ComputeIntrinsicSize(item, tempWidth, dims.Height, measurer);
                 basis = isRow ? intrinsicSize.Width : intrinsicSize.Height;
-                hypotheticalCrossSizes[i] = isRow ? intrinsicSize.Height : intrinsicSize.Width;
+
+                // For the cross dimension, prefer explicit CSS height/width over intrinsic
+                float crossSize = isRow
+                    ? LayoutHelper.ResolveHeight(itemStyle, 0)
+                    : LayoutHelper.ResolveWidth(itemStyle, dims.Width);
+                if (float.IsNaN(crossSize))
+                    crossSize = isRow ? intrinsicSize.Height : intrinsicSize.Width;
+                hypotheticalCrossSizes[i] = crossSize;
             }
             else
             {
@@ -189,6 +200,12 @@ internal static class FlexLayout
             {
                 float itemCross = hypotheticalCrossSizes[idx] + GetItemCrossMargin(flexItems[idx], isRow);
                 lineCrossSize = Math.Max(lineCrossSize, itemCross);
+            }
+
+            // For single-line flex containers with an explicit cross-size, use the container cross-size
+            if (!isWrap && lines.Count == 1 && !float.IsNaN(containerCrossSize))
+            {
+                lineCrossSize = Math.Max(lineCrossSize, containerCrossSize);
             }
 
             // Apply align-items: stretch for items without explicit cross size
@@ -410,10 +427,11 @@ internal static class FlexLayout
         var totalExtra = marginLeft + borderLeft + paddingLeft
                        + paddingRight + borderRight + marginRight;
 
+        float resolvedWidth = LayoutHelper.ResolveWidth(style, containerWidth);
         float contentWidth;
-        if (!float.IsNaN(style.Width))
+        if (!float.IsNaN(resolvedWidth))
         {
-            contentWidth = style.Width;
+            contentWidth = resolvedWidth;
             if (style.BoxSizing == BoxSizingType.BorderBox)
             {
                 contentWidth -= paddingLeft + paddingRight + borderLeft + borderRight;
@@ -448,9 +466,10 @@ internal static class FlexLayout
         var style = box.Style;
         var dims = box.Dimensions;
 
-        if (!float.IsNaN(style.Height))
+        float resolvedHeight = LayoutHelper.ResolveHeight(style, dims.Height);
+        if (!float.IsNaN(resolvedHeight))
         {
-            float height = style.Height;
+            float height = resolvedHeight;
             if (style.BoxSizing == BoxSizingType.BorderBox)
             {
                 height -= style.Padding.Top + style.Padding.Bottom
@@ -491,6 +510,40 @@ internal static class FlexLayout
     private static (float Width, float Height) ComputeIntrinsicSize(
         LayoutBox item, float availableWidth, float availableHeight, ITextMeasurer measurer)
     {
+        // For replaced elements (e.g. <img>) with intrinsic dimensions from
+        // HTML attributes or decoded image data, use those directly.
+        if (item.DomNode is Document.Dom.Element imgEl && imgEl.TagName == "img")
+        {
+            float imgW = 0, imgH = 0;
+            var widthAttr = imgEl.GetAttribute("width") ?? imgEl.GetAttribute("data-natural-width");
+            var heightAttr = imgEl.GetAttribute("height") ?? imgEl.GetAttribute("data-natural-height");
+            if (widthAttr != null)
+                float.TryParse(widthAttr, System.Globalization.CultureInfo.InvariantCulture, out imgW);
+            if (heightAttr != null)
+                float.TryParse(heightAttr, System.Globalization.CultureInfo.InvariantCulture, out imgH);
+            if (imgW > 0 || imgH > 0)
+            {
+                // Preserve aspect ratio if only one dimension specified
+                var naturalW = imgEl.GetAttribute("data-natural-width");
+                var naturalH = imgEl.GetAttribute("data-natural-height");
+                if (imgW > 0 && imgH == 0 && naturalW != null && naturalH != null
+                    && float.TryParse(naturalW, System.Globalization.CultureInfo.InvariantCulture, out float nw)
+                    && float.TryParse(naturalH, System.Globalization.CultureInfo.InvariantCulture, out float nh)
+                    && nw > 0)
+                {
+                    imgH = imgW * nh / nw;
+                }
+                if (imgH > 0 && imgW == 0 && naturalW != null && naturalH != null
+                    && float.TryParse(naturalW, System.Globalization.CultureInfo.InvariantCulture, out float nw2)
+                    && float.TryParse(naturalH, System.Globalization.CultureInfo.InvariantCulture, out float nh2)
+                    && nh2 > 0)
+                {
+                    imgW = imgH * nw2 / nh2;
+                }
+                return (imgW, imgH);
+            }
+        }
+
         // Lay out item with shrink-to-fit semantics: use available width as max,
         // then measure the actual content width used
         var tempContainer = new BoxDimensions

@@ -216,6 +216,16 @@ public sealed class DomBridge
         // Forward location to global scope
         if (_windowWrapper.HasProperty("location"))
             _engine.SetValue("location", _windowWrapper.Get("location"));
+
+        // Forward storage APIs to global scope
+        if (_windowWrapper.HasProperty("localStorage"))
+            _engine.SetValue("localStorage", _windowWrapper.Get("localStorage"));
+        if (_windowWrapper.HasProperty("sessionStorage"))
+            _engine.SetValue("sessionStorage", _windowWrapper.Get("sessionStorage"));
+
+        // Forward history to global scope
+        if (_windowWrapper.HasProperty("history"))
+            _engine.SetValue("history", _windowWrapper.Get("history"));
     }
 
     /// <summary>

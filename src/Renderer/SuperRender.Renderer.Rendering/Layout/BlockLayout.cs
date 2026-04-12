@@ -19,6 +19,9 @@ internal static class BlockLayout
         var style = box.Style;
         var containerWidth = containingBlock.Width;
 
+        // Resolve width including deferred calc/percentage expressions
+        float resolvedWidth = LayoutHelper.ResolveWidth(style, containerWidth);
+
         var marginLeft = style.Margin.Left;
         var marginRight = style.Margin.Right;
         var borderLeft = style.BorderWidth.Left;
@@ -33,9 +36,9 @@ internal static class BlockLayout
                        + paddingRight + borderRight + marginRight;
 
         float contentWidth;
-        if (!float.IsNaN(style.Width))
+        if (!float.IsNaN(resolvedWidth))
         {
-            contentWidth = style.Width;
+            contentWidth = resolvedWidth;
 
             // border-box: specified width includes padding + border
             if (style.BoxSizing == BoxSizingType.BorderBox)
@@ -219,9 +222,10 @@ internal static class BlockLayout
 
         // Calculate width: use explicit if given, otherwise shrink-to-fit (use containing width as max)
         float contentWidth;
-        if (!float.IsNaN(style.Width))
+        float resolvedAbsWidth = LayoutHelper.ResolveWidth(style, cbDims.Width);
+        if (!float.IsNaN(resolvedAbsWidth))
         {
-            contentWidth = style.Width;
+            contentWidth = resolvedAbsWidth;
             if (style.BoxSizing == BoxSizingType.BorderBox)
             {
                 contentWidth -= style.Padding.Left + style.Padding.Right
@@ -244,7 +248,7 @@ internal static class BlockLayout
         }
 
         contentWidth = ApplyMinMaxWidth(contentWidth, style);
-        bool needsShrinkToFit = float.IsNaN(style.Width)
+        bool needsShrinkToFit = float.IsNaN(resolvedAbsWidth)
             && (float.IsNaN(style.Left) || float.IsNaN(style.Right));
 
         var dims = absChild.Dimensions;
@@ -296,14 +300,15 @@ internal static class BlockLayout
                 Height = cbDims.Height
             });
 
-            float height = !float.IsNaN(style.Height) ? style.Height : absChild.Dimensions.Height;
+            float absResolvedHeight = LayoutHelper.ResolveHeight(style, cbDims.Height);
+            float height = !float.IsNaN(absResolvedHeight) ? absResolvedHeight : absChild.Dimensions.Height;
             contentY = cbDims.Y + cbDims.Height - style.Bottom - dims.Margin.Bottom
                      - dims.Border.Bottom - dims.Padding.Bottom - height;
             dims = absChild.Dimensions;
             float deltaY = contentY - dims.Y;
             dims.X = contentX;
             dims.Y = contentY;
-            if (!float.IsNaN(style.Height)) dims.Height = style.Height;
+            if (!float.IsNaN(absResolvedHeight)) dims.Height = absResolvedHeight;
 
             // Shrink-to-fit width for auto-width absolute elements
             if (needsShrinkToFit)
@@ -341,9 +346,10 @@ internal static class BlockLayout
         });
 
         dims = absChild.Dimensions;
-        if (!float.IsNaN(style.Height))
+        float absHeight2 = LayoutHelper.ResolveHeight(style, cbDims.Height);
+        if (!float.IsNaN(absHeight2))
         {
-            dims.Height = style.Height;
+            dims.Height = absHeight2;
             if (style.BoxSizing == BoxSizingType.BorderBox)
             {
                 dims.Height -= style.Padding.Top + style.Padding.Bottom
@@ -436,10 +442,13 @@ internal static class BlockLayout
         var dims = box.Dimensions;
         float height = dims.Height;
 
+        // Resolve height including deferred calc/percentage expressions
+        float resolvedHeight = LayoutHelper.ResolveHeight(style, dims.Height);
+
         // If an explicit height is set, use it
-        if (!float.IsNaN(style.Height))
+        if (!float.IsNaN(resolvedHeight))
         {
-            height = style.Height;
+            height = resolvedHeight;
             if (style.BoxSizing == BoxSizingType.BorderBox)
             {
                 height -= style.Padding.Top + style.Padding.Bottom
@@ -454,9 +463,9 @@ internal static class BlockLayout
         }
 
         // When overflow is hidden and explicit height is set, clamp to that height
-        if (style.Overflow == OverflowType.Hidden && !float.IsNaN(style.Height))
+        if (style.Overflow == OverflowType.Hidden && !float.IsNaN(resolvedHeight))
         {
-            float explicitHeight = style.Height;
+            float explicitHeight = resolvedHeight;
             if (style.BoxSizing == BoxSizingType.BorderBox)
             {
                 explicitHeight -= style.Padding.Top + style.Padding.Bottom
@@ -528,6 +537,12 @@ internal static class BlockLayout
             TextAlign = parentStyle.TextAlign,
             LineHeight = parentStyle.LineHeight,
             WhiteSpace = parentStyle.WhiteSpace,
+            LetterSpacing = parentStyle.LetterSpacing,
+            WordSpacing = parentStyle.WordSpacing,
+            TextTransform = parentStyle.TextTransform,
+            TextDecorationLine = parentStyle.TextDecorationLine,
+            TextDecorationColor = parentStyle.TextDecorationColor,
+            Visibility = parentStyle.Visibility,
         };
 
         var anon = new LayoutBox

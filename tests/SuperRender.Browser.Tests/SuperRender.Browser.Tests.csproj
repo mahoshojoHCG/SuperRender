@@ -6,7 +6,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Browser\SuperRender.Browser\SuperRender.Browser.csproj" />
     <ProjectReference Include="..\..\src\Document\SuperRender.Document\SuperRender.Document.csproj" />
-    <ProjectReference Include="..\..\src\Render\SuperRender.Renderer.Rendering\SuperRender.Renderer.Rendering.csproj" />
+    <ProjectReference Include="..\..\src\Renderer\SuperRender.Renderer.Rendering\SuperRender.Renderer.Rendering.csproj" />
     <ProjectReference Include="..\..\src\EcmaScript\SuperRender.EcmaScript.Engine\SuperRender.EcmaScript.Engine.csproj" />
     <ProjectReference Include="..\..\src\EcmaScript\SuperRender.EcmaScript.Dom\SuperRender.EcmaScript.Dom.csproj" />
   </ItemGroup>

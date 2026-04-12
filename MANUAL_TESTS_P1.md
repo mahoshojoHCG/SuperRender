@@ -261,83 +261,102 @@ sr://test/P1/18-integration.html
 
 ---
 
+## Test 19: Image Loading
+
+**URL:** `sr://test/P1/19-images.html`
+
+| ID | Description | Expected |
+|----|-------------|----------|
+| 19a | Embedded base64 PNG | A tiny 4x4 red square image rendered from a data: URI. |
+| 19b | Explicit width and height attributes | Same red square scaled to 100x100 pixels via width/height attributes. |
+| 19c | Alt text fallback (missing src) | Gray placeholder box with "Image not found" alt text displayed. |
+| 19d | Images in flex container | Three 80x80 colored squares (red, green, blue) in a horizontal flex row with 16px gap. |
+| 19e | Width only (aspect ratio preserved) | Image stretched to 200px wide. Height auto-scales preserving original 1:1 aspect ratio (so 200px tall). |
+
+---
+
 ## Execution Checklist
 
 | # | Test | URL | Status | Notes |
 |---|------|-----|--------|-------|
-| 1a | adjacent sibling `+` | `sr://test/P1/01-selectors.html` | | |
-| 1b | general sibling `~` | | | |
-| 1c | attribute selectors | | | |
-| 1d | structural pseudo-classes | | | |
-| 1e | :not() | | | |
-| 1f | :is() | | | |
-| 2a | flex-direction: row | `sr://test/P1/02-flexbox.html` | | |
-| 2b | flex-direction: column | | | |
-| 2c | justify-content | | | |
-| 2d | align-items | | | |
-| 2e | flex-grow | | | |
-| 2f | gap | | | |
-| 3a | border-radius uniform | `sr://test/P1/03-border-radius.html` | | |
-| 3b | border-radius circle | | | |
-| 3c | per-corner radius | | | |
-| 3d | rounded button | | | |
-| 3e | rounded with border | | | |
-| 3f | pill shape | | | |
-| 4a | opacity: 0.5 | `sr://test/P1/04-opacity-visibility.html` | | |
-| 4b | opacity: 0 | | | |
-| 4c | visibility: hidden | | | |
-| 4d | nested opacity | | | |
-| 5a | HSL colors | `sr://test/P1/05-colors.html` | | |
-| 5b | named colors | | | |
-| 5c | currentcolor | | | |
-| 5d | rgb space syntax | | | |
-| 6a | calc(100% - 40px) | `sr://test/P1/06-calc-viewport.html` | | |
-| 6b | 50vw | | | |
-| 6c | 25vh | | | |
-| 6d | clamp() | | | |
-| 7a | text-transform | `sr://test/P1/07-text-properties.html` | | |
-| 7b | letter-spacing | | | |
-| 7c | word-spacing | | | |
-| 7d | combined | | | |
-| 8a | ::before | `sr://test/P1/08-pseudo-elements.html` | | |
-| 8b | ::after | | | |
-| 8c | styled pseudo-element | | | |
-| 8d | combined selectors | | | |
-| 9a | initial | `sr://test/P1/09-global-keywords.html` | | |
-| 9b | inherit | | | |
-| 9c | unset (inherited) | | | |
-| 9d | unset (non-inherited) | | | |
-| 10a | div hover | `sr://test/P1/10-hover-active.html` | | |
-| 10b | link hover | | | |
-| 10c | button active | | | |
-| 10d | multiple hover targets | | | |
-| 11a | localStorage | `sr://test/P1/11-cookies-storage.html` | | |
-| 11b | sessionStorage | | | |
-| 11c | document.cookie | | | |
-| 12a | basic fetch | `sr://test/P1/12-fetch.html` | | |
-| 12b | fetch error handling | | | |
-| 12c | fetch self | | | |
-| 13a | window.location | `sr://test/P1/13-location-history.html` | | |
-| 13b | pushState | | | |
-| 13c | back/forward | | | |
-| 14a | p auto-close | `sr://test/P1/14-tree-construction.html` | | |
-| 14b | li auto-close | | | |
-| 14c | dt/dd auto-close | | | |
-| 14d | summary | | | |
-| 15a | cloneNode | `sr://test/P1/15-dom-methods.html` | | |
-| 15b | matches/closest | | | |
-| 15c | dataset | | | |
-| 15d | toggleAttribute | | | |
-| 15e | remove() | | | |
-| 16a | common entities | `sr://test/P1/16-entities.html` | | |
-| 16b | extended entities | | | |
-| 16c | math entities | | | |
-| 16d | greek entities | | | |
-| 16e | arrow entities | | | |
-| 17a | break label | `sr://test/P1/17-labels.html` | | |
-| 17b | continue label | | | |
-| 17c | labeled block | | | |
-| 17d | nested labels | | | |
-| 18a | card layout | `sr://test/P1/18-integration.html` | | |
-| 18b | color palette | | | |
-| 18c | interactive button | | | |
+| 1a | adjacent sibling `+` | `sr://test/P1/01-selectors.html` | Passed | |
+| 1b | general sibling `~` | | Passed | |
+| 1c | attribute selectors | | Passed | |
+| 1d | structural pseudo-classes | | Passed | |
+| 1e | :not() | | Passed | |
+| 1f | :is() | | Passed | |
+| 2a | flex-direction: row | `sr://test/P1/02-flexbox.html` | Passed | |
+| 2b | flex-direction: column | | Passed |  |
+| 2c | justify-content | | Passed | |
+| 2d | align-items | | Passed |  |
+| 2e | flex-grow |  | Passed | |
+| 2f | gap | | Passed | |
+| 3a | border-radius uniform | `sr://test/P1/03-border-radius.html` | Passed |  |
+| 3b | border-radius circle | | Passed |  |
+| 3c | per-corner radius | | Passed |  |
+| 3d | rounded button | | Passed |  |
+| 3e | rounded with border | | Passed |  |
+| 3f | pill shape | | Passed |  |
+| 4a | opacity: 0.5 | `sr://test/P1/04-opacity-visibility.html` | Passed | |
+| 4b | opacity: 0 | | Passed | |
+| 4c | visibility: hidden | | Passed |  |
+| 4d | nested opacity | | Passed | |
+| 5a | HSL colors | `sr://test/P1/05-colors.html` | Passed | |
+| 5b | named colors | | Passed |  |
+| 5c | currentcolor | | Passed |  |
+| 5d | rgb space syntax | | Passed |  |
+| 6a | calc(100% - 40px) | `sr://test/P1/06-calc-viewport.html` | Passed |  |
+| 6b | 50vw | | Passed | |
+| 6c | 25vh | | Passed | |
+| 6d | clamp() | | Passed |  |
+| 7a | text-transform | `sr://test/P1/07-text-properties.html` | Passed | |
+| 7b | letter-spacing | | Passed |  |
+| 7c | word-spacing | | Passed | |
+| 7d | combined | | Passed |  |
+| 8a | ::before | `sr://test/P1/08-pseudo-elements.html` | Passed |  |
+| 8b | ::after | | Passed |  |
+| 8c | styled pseudo-element | | Passed |  |
+| 8d | combined selectors | | Passed |  |
+| 9a | initial | `sr://test/P1/09-global-keywords.html` | Passed | |
+| 9b | inherit | | Passed | |
+| 9c | unset (inherited) | | Passed | |
+| 9d | unset (non-inherited) | | Passed | |
+| 10a | div hover | `sr://test/P1/10-hover-active.html` | Passed | |
+| 10b | link hover | | Passed | |
+| 10c | button active | | Passed | |
+| 10d | multiple hover targets | | Passed | |
+| 11a | localStorage | `sr://test/P1/11-cookies-storage.html` | Passed |  |
+| 11b | sessionStorage | | Passed |  |
+| 11c | document.cookie | | Passed |  |
+| 12a | basic fetch | `sr://test/P1/12-fetch.html` | Passed | |
+| 12b | fetch error handling | | Passed |  |
+| 12c | fetch self | | Passed |  |
+| 13a | window.location | `sr://test/P1/13-location-history.html` | Passed | |
+| 13b | pushState | | Passed |  |
+| 13c | back/forward | | Passed |  |
+| 14a | p auto-close | `sr://test/P1/14-tree-construction.html` | Passed | |
+| 14b | li auto-close | | Passed | |
+| 14c | dt/dd auto-close | | Passed |  |
+| 14d | summary | | Passed | |
+| 15a | cloneNode | `sr://test/P1/15-dom-methods.html` | Passed | |
+| 15b | matches/closest | | Passed | |
+| 15c | dataset | | Passed | |
+| 15d | toggleAttribute | | Passed | |
+| 15e | remove() | | Passed | |
+| 16a | common entities | `sr://test/P1/16-entities.html` | Passed | |
+| 16b | extended entities | | Passed | |
+| 16c | math entities | | Passed | |
+| 16d | greek entities | | Passed | |
+| 16e | arrow entities | | Passed | |
+| 17a | break label | `sr://test/P1/17-labels.html` | Passed | |
+| 17b | continue label | | Passed | |
+| 17c | labeled block | | Passed | |
+| 17d | nested labels | | Passed | |
+| 18a | card layout | `sr://test/P1/18-integration.html` | Passed |  |
+| 18b | color palette | | Passed |  |
+| 18c | interactive button | | Passed |  |
+| 19a | embedded base64 PNG | `sr://test/P1/19-images.html` | Passed | |
+| 19b | explicit width/height | | Passed | |
+| 19c | alt text fallback | | Passed | |
+| 19d | images in flex container | | Passed | |
+| 19e | width only (aspect ratio) | | Passed | |

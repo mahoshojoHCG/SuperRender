@@ -6,7 +6,7 @@ A complete HTML+CSS rendering engine built with C# (.NET 10), using Silk.NET + V
 
 - `src/Document/`
   - `SuperRender.Document/` — Document model: DOM (Node, Element, Document), HTML/CSS parsers, Stylesheet, Selector, Color, events, DomMutationApi (zero external deps)
-- `src/Render/`
+- `src/Renderer/`
   - `SuperRender.Renderer.Rendering/` — Style resolution, layout engine (block/inline/flex), painting, RenderPipeline orchestrator
   - `SuperRender.Renderer.Gpu/` — Shared Vulkan rendering infrastructure: GPU context, pipelines, font atlas, batch renderers
   - `SuperRender.Renderer.Image/` — Pure C# image decoders: PNG, BMP, baseline JPEG (zero external deps)
@@ -112,7 +112,7 @@ Node.js-style interactive REPL powered by the EcmaScript engine.
 - **AnalysisLevel**: `latest-Recommended` with `EnforceCodeStyleInBuild`
 - **Rule suppressions** go in `.editorconfig`, not in `.csproj` `<NoWarn>` — keeps rules centralized and auditable
 - CA1707 (underscore in identifiers) is suppressed only under `tests/` for xUnit `Method_Scenario_Expected` naming
-- CA1720 (identifier contains type name) is suppressed under `src/Render/SuperRender.Renderer.Rendering/Style/` for CSS-mandated property names (e.g., `CursorType.Pointer`)
+- CA1720 (identifier contains type name) is suppressed under `src/Renderer/SuperRender.Renderer.Rendering/Style/` for CSS-mandated property names (e.g., `CursorType.Pointer`)
 
 ## Platform Notes
 

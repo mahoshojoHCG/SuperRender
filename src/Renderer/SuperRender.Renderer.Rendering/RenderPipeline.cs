@@ -51,7 +51,7 @@ public sealed class RenderPipeline
 
         // Layout
         var layoutEngine = new LayoutEngine(_textMeasurer);
-        _layoutRoot = layoutEngine.BuildLayoutTree(_document, _styles, viewportWidth, viewportHeight);
+        _layoutRoot = layoutEngine.BuildLayoutTree(_document, _styles, viewportWidth, viewportHeight, resolver.PseudoElements);
 
         // Paint
         _paintList = Painter.Paint(_layoutRoot);

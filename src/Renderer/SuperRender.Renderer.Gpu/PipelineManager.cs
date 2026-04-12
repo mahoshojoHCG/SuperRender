@@ -11,6 +11,8 @@ public sealed unsafe class PipelineManager : IDisposable
     public Pipeline TextPipeline { get; private set; }
     public PipelineLayout TextPipelineLayout { get; private set; }
     public DescriptorSetLayout TextDescriptorSetLayout { get; private set; }
+    public Pipeline ImagePipeline { get; private set; }
+    public PipelineLayout ImagePipelineLayout { get; private set; }
 
     private bool _disposed;
 
@@ -20,6 +22,7 @@ public sealed unsafe class PipelineManager : IDisposable
 
         CreateQuadPipeline(renderPass, extent);
         CreateTextPipeline(renderPass, extent);
+        CreateImagePipeline(renderPass, extent);
     }
 
     private void CreateQuadPipeline(RenderPass renderPass, Extent2D extent)
@@ -42,18 +45,21 @@ public sealed unsafe class PipelineManager : IDisposable
 
         try
         {
-            // Vertex input: vec2 position (offset 0), vec4 color (offset 8) — stride 24
+            // Vertex input: QuadVertex — stride 56
             var bindingDesc = new VertexInputBindingDescription
             {
                 Binding = 0,
-                Stride = 24,
+                Stride = 56,
                 InputRate = VertexInputRate.Vertex,
             };
 
             var attributeDescs = stackalloc VertexInputAttributeDescription[]
             {
-                new() { Binding = 0, Location = 0, Format = Format.R32G32Sfloat, Offset = 0 },   // vec2 position
-                new() { Binding = 0, Location = 1, Format = Format.R32G32B32A32Sfloat, Offset = 8 }, // vec4 color
+                new() { Binding = 0, Location = 0, Format = Format.R32G32Sfloat, Offset = 0 },          // vec2 position
+                new() { Binding = 0, Location = 1, Format = Format.R32G32B32A32Sfloat, Offset = 8 },    // vec4 color
+                new() { Binding = 0, Location = 2, Format = Format.R32G32Sfloat, Offset = 24 },         // vec2 rectCenter
+                new() { Binding = 0, Location = 3, Format = Format.R32G32Sfloat, Offset = 32 },         // vec2 rectHalfSize
+                new() { Binding = 0, Location = 4, Format = Format.R32G32B32A32Sfloat, Offset = 40 },   // vec4 borderRadius
             };
 
             // Push constants: mat4 projection (64 bytes, vertex stage)
@@ -81,7 +87,7 @@ public sealed unsafe class PipelineManager : IDisposable
             QuadPipeline = CreateGraphicsPipeline(
                 vertModule, fragModule,
                 &bindingDesc, 1,
-                attributeDescs, 2,
+                attributeDescs, 5,
                 QuadPipelineLayout,
                 renderPass, extent,
                 blendingEnabled: true);
@@ -179,6 +185,81 @@ public sealed unsafe class PipelineManager : IDisposable
                 &bindingDesc, 1,
                 attributeDescs, 3,
                 TextPipelineLayout,
+                renderPass, extent,
+                blendingEnabled: true);
+        }
+        finally
+        {
+            _ctx.Vk.DestroyShaderModule(_ctx.Device, vertModule, null);
+            _ctx.Vk.DestroyShaderModule(_ctx.Device, fragModule, null);
+        }
+    }
+
+    private void CreateImagePipeline(RenderPass renderPass, Extent2D extent)
+    {
+        if (TextDescriptorSetLayout.Handle == 0) return;
+
+        var vertBytes = ShaderCompiler.LoadOrCompileShader(
+            "Resources.Shaders.text.vert.spv",
+            "Shaders.text.vert.glsl", isVertex: true);
+        var fragBytes = ShaderCompiler.LoadOrCompileShader(
+            "Resources.Shaders.image.frag.spv",
+            "Shaders.image.frag.glsl", isVertex: false);
+
+        if (vertBytes == null || fragBytes == null)
+        {
+            Console.WriteLine("Warning: Image shaders not available. Skipping image pipeline creation.");
+            return;
+        }
+
+        var vertModule = CreateShaderModule(vertBytes);
+        var fragModule = CreateShaderModule(fragBytes);
+
+        try
+        {
+            // Same vertex input as text pipeline: vec2 position (0), vec2 texcoord (8), vec4 color (16) — stride 32
+            var bindingDesc = new VertexInputBindingDescription
+            {
+                Binding = 0,
+                Stride = 32,
+                InputRate = VertexInputRate.Vertex,
+            };
+
+            var attributeDescs = stackalloc VertexInputAttributeDescription[]
+            {
+                new() { Binding = 0, Location = 0, Format = Format.R32G32Sfloat, Offset = 0 },
+                new() { Binding = 0, Location = 1, Format = Format.R32G32Sfloat, Offset = 8 },
+                new() { Binding = 0, Location = 2, Format = Format.R32G32B32A32Sfloat, Offset = 16 },
+            };
+
+            // Reuse the text descriptor set layout (binding 0 = combined image sampler)
+            var pushConstantRange = new PushConstantRange
+            {
+                StageFlags = ShaderStageFlags.VertexBit,
+                Offset = 0,
+                Size = 64,
+            };
+
+            var setLayout = TextDescriptorSetLayout;
+            var layoutInfo = new PipelineLayoutCreateInfo
+            {
+                SType = StructureType.PipelineLayoutCreateInfo,
+                SetLayoutCount = 1,
+                PSetLayouts = &setLayout,
+                PushConstantRangeCount = 1,
+                PPushConstantRanges = &pushConstantRange,
+            };
+
+            var result = _ctx.Vk.CreatePipelineLayout(_ctx.Device, in layoutInfo, null, out var pipelineLayout);
+            if (result != Result.Success)
+                throw new InvalidOperationException($"Failed to create image pipeline layout: {result}");
+            ImagePipelineLayout = pipelineLayout;
+
+            ImagePipeline = CreateGraphicsPipeline(
+                vertModule, fragModule,
+                &bindingDesc, 1,
+                attributeDescs, 3,
+                ImagePipelineLayout,
                 renderPass, extent,
                 blendingEnabled: true);
         }
@@ -373,5 +454,10 @@ public sealed unsafe class PipelineManager : IDisposable
             _ctx.Vk.DestroyPipelineLayout(_ctx.Device, TextPipelineLayout, null);
         if (TextDescriptorSetLayout.Handle != 0)
             _ctx.Vk.DestroyDescriptorSetLayout(_ctx.Device, TextDescriptorSetLayout, null);
+
+        if (ImagePipeline.Handle != 0)
+            _ctx.Vk.DestroyPipeline(_ctx.Device, ImagePipeline, null);
+        if (ImagePipelineLayout.Handle != 0)
+            _ctx.Vk.DestroyPipelineLayout(_ctx.Device, ImagePipelineLayout, null);
     }
 }

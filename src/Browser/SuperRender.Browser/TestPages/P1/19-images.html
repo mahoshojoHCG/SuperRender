@@ -29,14 +29,14 @@
     <h2>19a: Embedded Base64 PNG</h2>
     <div class="test-section">
         <div class="label">A 4x4 red square PNG encoded as base64 data: URI</div>
-        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAADklEQVQI12P4z8BQDwAEgAF/QualzQAAAABJRU5ErkJggg==" alt="4x4 red square">
+        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR4nGP4z8AARwzEcQCukw/x0F8jngAAAABJRU5ErkJggg==" alt="4x4 red square">
         <p>Expected: A tiny red square image should appear above.</p>
     </div>
 
     <h2>19b: Explicit Width and Height</h2>
     <div class="test-section">
         <div class="label">Same image with width="100" height="100"</div>
-        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAADklEQVQI12P4z8BQDwAEgAF/QualzQAAAABJRU5ErkJggg==" width="100" height="100" alt="scaled red square">
+        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR4nGP4z8AARwzEcQCukw/x0F8jngAAAABJRU5ErkJggg==" width="100" height="100" alt="scaled red square">
         <p>Expected: A 100x100 red square.</p>
     </div>
 
@@ -51,9 +51,9 @@
     <div class="test-section">
         <div class="label">Multiple images in a flex row with gap</div>
         <div class="img-container">
-            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAADklEQVQI12P4z8BQDwAEgAF/QualzQAAAABJRU5ErkJggg==" width="80" height="80" alt="red">
-            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAADklEQVQI12Ng+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" width="80" height="80" alt="green">
-            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAADklEQVQI12NgoA/4DwAB9AH/lK4XJQAAAABJRU5ErkJggg==" width="80" height="80" alt="blue">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR4nGP4z8AARwzEcQCukw/x0F8jngAAAABJRU5ErkJggg==" width="80" height="80" alt="red">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAD0lEQVR4nGNgaGBAIOI4ANA0CAF5jtVRAAAAAElFTkSuQmCC" width="80" height="80" alt="green">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR4nGNgYPiPhIjiAACOsw/xs6MvMwAAAABJRU5ErkJggg==" width="80" height="80" alt="blue">
         </div>
         <p>Expected: Three 80x80 colored squares in a horizontal row with spacing.</p>
     </div>
@@ -61,7 +61,7 @@
     <h2>19e: Width Only (Aspect Ratio Preserved)</h2>
     <div class="test-section">
         <div class="label">Image with only width="200", height should auto-scale</div>
-        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAADklEQVQI12P4z8BQDwAEgAF/QualzQAAAABJRU5ErkJggg==" width="200" alt="wide red square">
+        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR4nGP4z8AARwzEcQCukw/x0F8jngAAAABJRU5ErkJggg==" width="200" alt="wide red square">
         <p>Expected: A 200-wide image. Height should preserve the aspect ratio of the original 4x4 image (so 200px tall).</p>
     </div>
 </body>

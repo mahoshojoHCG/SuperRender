@@ -20,10 +20,18 @@ public sealed class StyleResolver
         _userAgentStylesheet = userAgentStylesheet;
     }
 
+    public record PseudoElementInfo(ComputedStyle Style, string Content);
+
+    /// <summary>
+    /// Per-element pseudo-element data: maps (Element, PseudoElementType) to style+content.
+    /// </summary>
+    public Dictionary<(Element, PseudoElementType), PseudoElementInfo>? PseudoElements { get; private set; }
+
     public Dictionary<Node, ComputedStyle> ResolveAll(DomDocument document, float viewportWidth = 800, float viewportHeight = 600)
     {
         _viewportWidth = viewportWidth;
         _viewportHeight = viewportHeight;
+        PseudoElements = new Dictionary<(Element, PseudoElementType), PseudoElementInfo>();
         var styles = new Dictionary<Node, ComputedStyle>();
         ResolveNode(document, null, styles);
         return styles;
@@ -36,6 +44,20 @@ public sealed class StyleResolver
         if (node is Element element)
         {
             style = Resolve(element, parentStyle);
+
+            // Resolve pseudo-elements for this element
+            if (PseudoElements != null)
+            {
+                var before = ResolvePseudoElement(element, PseudoElementType.Before, style);
+                if (before.HasValue)
+                    PseudoElements[(element, PseudoElementType.Before)] =
+                        new PseudoElementInfo(before.Value.style, before.Value.content);
+
+                var after = ResolvePseudoElement(element, PseudoElementType.After, style);
+                if (after.HasValue)
+                    PseudoElements[(element, PseudoElementType.After)] =
+                        new PseudoElementInfo(after.Value.style, after.Value.content);
+            }
         }
         else if (node is TextNode)
         {
@@ -137,6 +159,10 @@ public sealed class StyleResolver
         {
             foreach (var selector in rule.Selectors)
             {
+                // Skip pseudo-element selectors — they're handled separately
+                if (selector.PseudoElement != null)
+                    continue;
+
                 if (SelectorMatcher.Matches(selector, element))
                 {
                     var specificity = selector.GetSpecificity();
@@ -154,6 +180,106 @@ public sealed class StyleResolver
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Resolves the style for a ::before or ::after pseudo-element on the given element.
+    /// Returns null if no matching pseudo-element rule with content is found.
+    /// </summary>
+    public (ComputedStyle style, string content)? ResolvePseudoElement(
+        Element element, PseudoElementType pseudoType, ComputedStyle parentStyle)
+    {
+        var declarations = new List<MatchedDeclaration>();
+        int sourceOrder = 0;
+
+        if (_userAgentStylesheet != null)
+            CollectPseudoFromStylesheet(_userAgentStylesheet, element, pseudoType, declarations, ref sourceOrder);
+        foreach (var stylesheet in _stylesheets)
+            CollectPseudoFromStylesheet(stylesheet, element, pseudoType, declarations, ref sourceOrder);
+
+        if (declarations.Count == 0) return null;
+
+        // Build a style by applying matched declarations
+        var style = new ComputedStyle();
+        InheritFromParent(style, parentStyle);
+
+        declarations.Sort((a, b) =>
+        {
+            var impCmp = a.Important.CompareTo(b.Important);
+            if (impCmp != 0) return impCmp;
+            var specCmp = a.Specificity.CompareTo(b.Specificity);
+            if (specCmp != 0) return specCmp;
+            return a.SourceOrder.CompareTo(b.SourceOrder);
+        });
+
+        string? content = null;
+        foreach (var matched in declarations)
+        {
+            if (matched.Declaration.Property == "content")
+            {
+                content = ParseContentValue(matched.Declaration.Value.Raw);
+            }
+            else
+            {
+                ApplyDeclaration(style, matched.Declaration, parentStyle);
+            }
+        }
+
+        if (content == null) return null;
+
+        // Pseudo-elements are inline by default
+        if (style.Display == DisplayType.Block)
+            style.Display = DisplayType.Inline;
+
+        return (style, content);
+    }
+
+    private static void CollectPseudoFromStylesheet(
+        Stylesheet stylesheet, Element element, PseudoElementType pseudoType,
+        List<MatchedDeclaration> result, ref int sourceOrder)
+    {
+        foreach (var rule in stylesheet.Rules)
+        {
+            foreach (var selector in rule.Selectors)
+            {
+                if (selector.PseudoElement != pseudoType)
+                    continue;
+
+                if (SelectorMatcher.Matches(selector, element))
+                {
+                    var specificity = selector.GetSpecificity();
+                    foreach (var declaration in rule.Declarations)
+                    {
+                        result.Add(new MatchedDeclaration
+                        {
+                            Specificity = specificity,
+                            SourceOrder = sourceOrder++,
+                            Declaration = declaration,
+                            Important = declaration.Important,
+                        });
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    private static string? ParseContentValue(string raw)
+    {
+        var trimmed = raw.Trim();
+        if (trimmed.Equals("none", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.Equals("normal", StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        // Strip quotes: "text" or 'text'
+        if (trimmed.Length >= 2 &&
+            ((trimmed[0] == '"' && trimmed[^1] == '"') ||
+             (trimmed[0] == '\'' && trimmed[^1] == '\'')))
+        {
+            return trimmed[1..^1];
+        }
+
+        return trimmed;
     }
 
     private void ApplyDeclaration(ComputedStyle style, Declaration decl, ComputedStyle? parentStyle)
@@ -202,10 +328,38 @@ public sealed class StyleResolver
                 break;
 
             case "width":
-                style.Width = ResolveLength(value, parentStyle);
+                if (value.Type == CssValueType.Calc && value.CalcExpr != null)
+                {
+                    style.WidthCalc = value.CalcExpr;
+                    style.Width = float.NaN;
+                }
+                else if (value.Type == CssValueType.Percentage)
+                {
+                    style.WidthCalc = new CalcValueNode(value);
+                    style.Width = float.NaN;
+                }
+                else
+                {
+                    style.Width = ResolveLength(value, parentStyle);
+                    style.WidthCalc = null;
+                }
                 break;
             case "height":
-                style.Height = ResolveLength(value, parentStyle);
+                if (value.Type == CssValueType.Calc && value.CalcExpr != null)
+                {
+                    style.HeightCalc = value.CalcExpr;
+                    style.Height = float.NaN;
+                }
+                else if (value.Type == CssValueType.Percentage)
+                {
+                    style.HeightCalc = new CalcValueNode(value);
+                    style.Height = float.NaN;
+                }
+                else
+                {
+                    style.Height = ResolveLength(value, parentStyle);
+                    style.HeightCalc = null;
+                }
                 break;
 
             case "box-sizing":
@@ -356,6 +510,19 @@ public sealed class StyleResolver
                 break;
             case "border-left-style":
                 style.BorderLeftStyle = value.Raw.ToLowerInvariant();
+                break;
+
+            case "border-top-left-radius":
+                style.BorderTopLeftRadius = ResolveBorderRadius(value, parentStyle);
+                break;
+            case "border-top-right-radius":
+                style.BorderTopRightRadius = ResolveBorderRadius(value, parentStyle);
+                break;
+            case "border-bottom-right-radius":
+                style.BorderBottomRightRadius = ResolveBorderRadius(value, parentStyle);
+                break;
+            case "border-bottom-left-radius":
+                style.BorderBottomLeftRadius = ResolveBorderRadius(value, parentStyle);
                 break;
 
             case "color":
@@ -827,6 +994,17 @@ public sealed class StyleResolver
         };
     }
 
+    /// <summary>
+    /// Resolves a border-radius value. Percentage values are stored as negative
+    /// values (e.g., 50% → -50) to signal percentage-based resolution during painting.
+    /// </summary>
+    private float ResolveBorderRadius(CssValue value, ComputedStyle? parentStyle)
+    {
+        if (value.Type == CssValueType.Percentage)
+            return -(float)value.NumericValue; // negative = percentage marker
+        return ResolveLength(value, parentStyle);
+    }
+
     private static Color ResolveColor(CssValue value, ComputedStyle? contextStyle = null)
     {
         if (value.ColorValue.HasValue)
@@ -925,32 +1103,23 @@ public sealed class StyleResolver
 
     private void ApplyInlineStyle(ComputedStyle style, string cssText, ComputedStyle? parentStyle)
     {
-        // Parse inline style as declarations
-        // Simple parsing: split by ; then split by :
-        var parts = cssText.Split(';', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var part in parts)
+        // Use the full CSS parser to handle shorthand expansion (border, margin, padding, etc.)
+        var declarations = CssParser.ParseInlineStyleDeclarations(cssText);
+        foreach (var decl in declarations)
         {
-            var colonIdx = part.IndexOf(':');
-            if (colonIdx < 0) continue;
-
-            var property = part[..colonIdx].Trim().ToLowerInvariant();
-            var rawValue = part[(colonIdx + 1)..].Trim();
-
-            var important = false;
-            if (rawValue.EndsWith("!important", StringComparison.OrdinalIgnoreCase))
-            {
-                important = true;
-                rawValue = rawValue[..^"!important".Length].Trim();
-            }
-
-            var cssValue = ParseInlineValue(rawValue);
-            var decl = new Declaration { Property = property, Value = cssValue, Important = important };
             ApplyDeclaration(style, decl, parentStyle);
         }
     }
 
     private static CssValue ParseInlineValue(string rawValue)
     {
+        // Delegate to the full CSS tokenizer for function values (hsl, rgb, calc, etc.)
+        // and shorthand values that the simple parser can't handle
+        if (rawValue.Contains('('))
+        {
+            return CssParser.ParseValueText(rawValue);
+        }
+
         // Try to parse as a simple value
         if (rawValue.StartsWith('#'))
         {

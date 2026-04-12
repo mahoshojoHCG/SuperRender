@@ -1,3 +1,4 @@
+using SuperRender.Document.Dom;
 using SuperRender.Renderer.Rendering.Style;
 
 namespace SuperRender.Renderer.Rendering.Layout;
@@ -35,6 +36,11 @@ internal static class InlineLayout
             {
                 var style = child.Style;
                 var fontSize = style.FontSize;
+                bool isPseudo = child.DomNode is null;
+
+                // Add gap before ::after pseudo-element content
+                if (isPseudo && cursorX > dims.X)
+                    cursorX += 3;
                 var lh = measurer.GetLineHeight(fontSize, style.LineHeight);
                 var ws = style.WhiteSpace;
                 var words = SplitIntoWords(child.TextContent, ws);
@@ -49,6 +55,7 @@ internal static class InlineLayout
                         if (word == "\n")
                         {
                             AlignLine(currentLineRuns, dims.X, availableWidth, child.Style.TextAlign);
+                            AlignLineBaselines(currentLineRuns, measurer);
                             AlignLineBoxes(currentLineBoxes, cursorY, visualLineHeight);
                             cursorY += lineHeight > 0 ? lineHeight : lh;
                             cursorX = dims.X;
@@ -70,6 +77,7 @@ internal static class InlineLayout
                     {
                         // New line
                         AlignLine(currentLineRuns, dims.X, availableWidth, child.Style.TextAlign);
+                        AlignLineBaselines(currentLineRuns, measurer);
                         AlignLineBoxes(currentLineBoxes, cursorY, visualLineHeight);
                         cursorY += lineHeight;
                         cursorX = dims.X;
@@ -79,14 +87,18 @@ internal static class InlineLayout
                         currentLineBoxes = [];
                     }
 
+                    // Half-leading: vertically center text within line-height
+                    float halfLeading = lh > fontSize ? (lh - fontSize) / 2f : 0;
+
                     var run = new TextRun
                     {
                         Text = transformedWord,
                         X = cursorX,
-                        Y = cursorY,
+                        Y = cursorY + halfLeading,
                         Width = wordWidth,
                         Height = fontSize,
                         Style = style,
+                        IsPseudoElement = isPseudo,
                     };
 
                     child.TextRuns.Add(run);
@@ -96,6 +108,10 @@ internal static class InlineLayout
                     lineHeight = Math.Max(lineHeight, lh);
                     visualLineHeight = Math.Max(visualLineHeight, fontSize);
                 }
+
+                // Add gap after ::before pseudo-element content
+                if (isPseudo)
+                    cursorX += 3;
             }
             else
             {
@@ -106,6 +122,8 @@ internal static class InlineLayout
         }
 
         // Finish last line
+        AlignLine(currentLineRuns, dims.X, availableWidth, anonymousBlock.Style.TextAlign);
+        AlignLineBaselines(currentLineRuns, measurer);
         AlignLineBoxes(currentLineBoxes, cursorY, visualLineHeight);
         if (lineHeight > 0)
         {
@@ -199,11 +217,13 @@ internal static class InlineLayout
                         currentLineRuns = [];
                     }
 
+                    float halfLeading2 = lh > fontSize ? (lh - fontSize) / 2f : 0;
+
                     var run = new TextRun
                     {
                         Text = transformedWord,
                         X = cursorX,
-                        Y = cursorY,
+                        Y = cursorY + halfLeading2,
                         Width = wordWidth,
                         Height = fontSize,
                         Style = style,
@@ -290,7 +310,13 @@ internal static class InlineLayout
         BlockLayout.Layout(child, container, measurer);
 
         // For auto-width inline-blocks, shrink to content width (shrink-to-fit)
-        if (float.IsNaN(style.Width))
+        // Exception: replaced elements (e.g. <img>) with intrinsic dimensions keep their
+        // layout-computed width from TryGetImageIntrinsicWidth.
+        bool isReplacedWithIntrinsicWidth = child.DomNode is Element imgEl
+            && imgEl.TagName == "img"
+            && (imgEl.GetAttribute("width") != null || imgEl.GetAttribute("data-natural-width") != null);
+
+        if (float.IsNaN(style.Width) && !isReplacedWithIntrinsicWidth)
         {
             float contentRight = ComputeContentRight(child);
             float contentX = child.Dimensions.X;
@@ -383,14 +409,17 @@ internal static class InlineLayout
                     lineHeight = 0;
                 }
 
+                float halfLeading3 = lh > fontSize ? (lh - fontSize) / 2f : 0;
+
                 box.TextRuns.Add(new TextRun
                 {
                     Text = transformedWord,
                     X = cursorX,
-                    Y = cursorY,
+                    Y = cursorY + halfLeading3,
                     Width = wordWidth,
                     Height = fontSize,
                     Style = style,
+                    IsPseudoElement = box.DomNode is null,
                 });
 
                 cursorX += wordWidth;
@@ -553,6 +582,45 @@ internal static class InlineLayout
             {
                 run.X += offset;
             }
+        }
+    }
+
+    /// <summary>
+    /// Aligns text runs on a line to a shared baseline. When runs have different font sizes
+    /// (e.g. pseudo-elements with smaller text), all text is aligned to the baseline of the
+    /// largest font on the line.
+    /// </summary>
+    private static void AlignLineBaselines(List<TextRun> lineRuns, ITextMeasurer measurer)
+    {
+        if (lineRuns.Count <= 1) return;
+
+        // Check if all runs have the same font size (common case — skip)
+        float firstSize = lineRuns[0].Style.FontSize;
+        bool allSame = true;
+        for (int i = 1; i < lineRuns.Count; i++)
+        {
+            if (Math.Abs(lineRuns[i].Style.FontSize - firstSize) > 0.01f)
+            {
+                allSame = false;
+                break;
+            }
+        }
+        if (allSame) return;
+
+        // Find the maximum baseline position (Y + ascent) across all runs
+        float maxBaseline = float.MinValue;
+        foreach (var run in lineRuns)
+        {
+            float ascent = measurer.GetAscent(run.Style.FontSize);
+            float baseline = run.Y + ascent;
+            maxBaseline = Math.Max(maxBaseline, baseline);
+        }
+
+        // Shift each run so its baseline matches the max baseline
+        foreach (var run in lineRuns)
+        {
+            float ascent = measurer.GetAscent(run.Style.FontSize);
+            run.Y = maxBaseline - ascent;
         }
     }
 

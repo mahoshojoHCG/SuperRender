@@ -24,6 +24,8 @@ public static class UserAgentStylesheet
         address, blockquote, figure, figcaption, details, dialog, dd, dl, dt,
         fieldset, form, hgroup { display: block; }
 
+        dd { margin-left: 40px; }
+
         h1, h2, h3, h4, h5, h6 { display: block; }
         p { display: block; }
         ul, ol { display: block; }

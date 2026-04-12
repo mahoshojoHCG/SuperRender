@@ -35,12 +35,31 @@ public static class SelectionPainter
 
             if (startChar >= endChar) continue;
 
-            // Compute X offsets for the selection region within this run
+            // Compute X offsets for the selection region within this run.
+            // Letter-spacing is between characters, so N characters span (N-1) spacings
+            // in the layout model. Clamp to run boundaries to avoid overlap with adjacent runs.
+            float letterSpacing = run.Style.LetterSpacing;
             float startX = run.X;
             if (startChar > 0)
-                startX += measurer.MeasureWidth(text[..startChar], fontSize, run.Style.FontFamily, run.Style.FontWeight);
+            {
+                startX += measurer.MeasureWidth(text[..startChar], fontSize, run.Style.FontFamily, run.Style.FontWeight)
+                        + letterSpacing * startChar;
+            }
 
-            float endX = run.X + measurer.MeasureWidth(text[..endChar], fontSize, run.Style.FontFamily, run.Style.FontWeight);
+            float endX;
+            if (endChar >= text.Length)
+            {
+                // Full run: use layout width directly to stay in bounds
+                endX = run.X + run.Width;
+            }
+            else
+            {
+                endX = run.X + measurer.MeasureWidth(text[..endChar], fontSize, run.Style.FontFamily, run.Style.FontWeight)
+                     + letterSpacing * endChar;
+            }
+
+            // Clamp to run boundaries
+            endX = Math.Min(endX, run.X + run.Width);
 
             list.Add(new FillRectCommand
             {

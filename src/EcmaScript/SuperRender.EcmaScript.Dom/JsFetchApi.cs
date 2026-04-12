@@ -70,7 +70,10 @@ internal static class JsFetchApi
                 {
                     enqueueMainThread(() =>
                     {
-                        PromiseConstructor.RejectPromise(promise, new JsString(ex.Message));
+                        var errorObj = new JsObject { Prototype = realm.ErrorPrototype };
+                        errorObj.Set("message", new JsString(ex.Message));
+                        errorObj.Set("name", new JsString("TypeError"));
+                        PromiseConstructor.RejectPromise(promise, errorObj);
                     });
                 }
             }).ContinueWith(_ => { }, TaskScheduler.Default);
@@ -143,7 +146,9 @@ internal sealed class JsResponseWrapper : JsObject
                 }
                 catch (Exception ex)
                 {
-                    PromiseConstructor.RejectPromise(p, new JsString(ex.Message));
+                    var jsonErr = new JsObject { Prototype = _realm.ErrorPrototype };
+                    jsonErr.Set("message", new JsString(ex.Message));
+                    PromiseConstructor.RejectPromise(p, jsonErr);
                 }
                 return p;
             }, 0)));

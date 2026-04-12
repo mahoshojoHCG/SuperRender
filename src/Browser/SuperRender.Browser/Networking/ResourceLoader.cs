@@ -174,6 +174,48 @@ public sealed class ResourceLoader : IDisposable
         IReadOnlyList<KeyValuePair<string, string>>? headers,
         string? body)
     {
+        // Handle sr:// scheme (embedded test pages)
+        if (uri.Scheme == "sr")
+        {
+            var content = LoadEmbeddedResource(uri);
+            return new FetchResponse
+            {
+                Status = content is not null ? 200 : 404,
+                StatusText = content is not null ? "OK" : "Not Found",
+                Body = content ?? "",
+                Url = uri.ToString(),
+                Headers = [],
+            };
+        }
+
+        // Handle file:// scheme
+        if (uri.Scheme == "file")
+        {
+            try
+            {
+                var fileContent = await File.ReadAllTextAsync(uri.LocalPath).ConfigureAwait(false);
+                return new FetchResponse
+                {
+                    Status = 200,
+                    StatusText = "OK",
+                    Body = fileContent,
+                    Url = uri.ToString(),
+                    Headers = [],
+                };
+            }
+            catch
+            {
+                return new FetchResponse
+                {
+                    Status = 404,
+                    StatusText = "Not Found",
+                    Body = "",
+                    Url = uri.ToString(),
+                    Headers = [],
+                };
+            }
+        }
+
         var request = new HttpRequestMessage(new HttpMethod(method), uri);
         AttachCookies(request, uri);
 

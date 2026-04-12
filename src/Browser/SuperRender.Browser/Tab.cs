@@ -36,13 +36,18 @@ public sealed class Tab : IDisposable
     public NavigationHistory History { get; } = new();
     public ConsoleLog ConsoleLog { get; } = new();
     public TimerScheduler? Timers => _domBridge?.TimerQueue;
-    public SessionStorage SessionStorage { get; } = new();
+    public SessionStorage SessionStorage { get; set; } = new();
 
     // External dependencies injected from BrowserWindow
     public CookieJar? CookieJar { get; set; }
     public StorageDatabase? StorageDb { get; set; }
     public Action<Action>? EnqueueMainThread { get; set; }
     public ImageCache? ImageCache { get; set; }
+
+    /// <summary>
+    /// Raised when pushState/replaceState changes the URI (address bar should update).
+    /// </summary>
+    public event Action<Uri>? AddressBarChanged;
 
     public Tab(ITextMeasurer measurer, ResourceLoader loader)
     {
@@ -128,6 +133,10 @@ public sealed class Tab : IDisposable
 
             // Fetch and decode images
             await LoadImagesAsync(finalUri).ConfigureAwait(false);
+
+            // Image loading may have set data-natural-* attributes after initial layout;
+            // force a re-layout so the new dimensions take effect.
+            MarkNeedsLayout();
 
             // Set up JS engine
             SetupJsEngine();
@@ -226,8 +235,9 @@ public sealed class Tab : IDisposable
             var src = img.GetAttribute("src");
             if (string.IsNullOrWhiteSpace(src)) continue;
 
-            var imgUri = UrlResolver.Resolve(src, baseUri);
-            var urlKey = imgUri.ToString();
+            // Use the original src attribute as the cache key so it matches
+            // what the Painter puts in DrawImageCommand.ImageUrl.
+            var urlKey = src;
 
             if (ImageCache.Contains(urlKey))
             {
@@ -235,6 +245,7 @@ public sealed class Tab : IDisposable
                 continue;
             }
 
+            var imgUri = UrlResolver.Resolve(src, baseUri);
             var bytes = await _loader.FetchImageBytesAsync(imgUri, baseUri).ConfigureAwait(false);
             if (bytes is not null)
             {
@@ -390,7 +401,7 @@ public sealed class Tab : IDisposable
             () => EnqueueMainThread?.Invoke(() => { if (CurrentUri is not null) _ = NavigateInternalAsync(CurrentUri); }),
             () => EnqueueMainThread?.Invoke(() => _ = GoBackAsync()),
             () => EnqueueMainThread?.Invoke(() => _ = GoForwardAsync()),
-            uri => { CurrentUri = uri; });
+            uri => { CurrentUri = uri; EnqueueMainThread?.Invoke(() => AddressBarChanged?.Invoke(uri)); });
 
         _domBridge.Install();
     }

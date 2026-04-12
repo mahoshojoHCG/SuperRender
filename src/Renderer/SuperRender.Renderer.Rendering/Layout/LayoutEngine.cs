@@ -1,4 +1,5 @@
 using DomDocument = SuperRender.Document.Dom.Document;
+using SuperRender.Document.Css;
 using SuperRender.Document.Dom;
 using SuperRender.Renderer.Rendering.Style;
 
@@ -14,7 +15,8 @@ public sealed class LayoutEngine
     }
 
     public LayoutBox BuildLayoutTree(DomDocument document, Dictionary<Node, ComputedStyle> styles,
-        float viewportWidth, float viewportHeight)
+        float viewportWidth, float viewportHeight,
+        Dictionary<(Element, PseudoElementType), StyleResolver.PseudoElementInfo>? pseudoElements = null)
     {
         var body = document.Body;
         if (body == null)
@@ -28,7 +30,7 @@ public sealed class LayoutEngine
         }
 
         var bodyStyle = styles.GetValueOrDefault(body) ?? new ComputedStyle();
-        var root = BuildBox(body, styles);
+        var root = BuildBox(body, styles, pseudoElements);
 
         // Layout from the viewport
         var viewport = new BoxDimensions
@@ -51,7 +53,8 @@ public sealed class LayoutEngine
         return root;
     }
 
-    private static LayoutBox BuildBox(Node node, Dictionary<Node, ComputedStyle> styles)
+    private static LayoutBox BuildBox(Node node, Dictionary<Node, ComputedStyle> styles,
+        Dictionary<(Element, PseudoElementType), StyleResolver.PseudoElementInfo>? pseudoElements)
     {
         var style = styles.GetValueOrDefault(node) ?? new ComputedStyle();
 
@@ -103,6 +106,21 @@ public sealed class LayoutEngine
             DomNode = node,
         };
 
+        // Insert ::before pseudo-element
+        if (node is Element elem && pseudoElements != null)
+        {
+            if (pseudoElements.TryGetValue((elem, PseudoElementType.Before), out var beforeInfo))
+            {
+                box.Children.Add(new LayoutBox
+                {
+                    Style = beforeInfo.Style,
+                    BoxType = LayoutBoxType.Inline,
+                    DomNode = null,
+                    TextContent = beforeInfo.Content,
+                });
+            }
+        }
+
         foreach (var child in node.Children)
         {
             var childStyle = styles.GetValueOrDefault(child) ?? new ComputedStyle();
@@ -110,7 +128,7 @@ public sealed class LayoutEngine
             if (childStyle.Display == DisplayType.None)
                 continue;
 
-            var childBox = BuildBox(child, styles);
+            var childBox = BuildBox(child, styles, pseudoElements);
 
             // Skip empty text nodes in block context (unless white-space preserves them)
             if (childBox.TextContent != null && string.IsNullOrWhiteSpace(childBox.TextContent) &&
@@ -119,6 +137,21 @@ public sealed class LayoutEngine
                 continue;
 
             box.Children.Add(childBox);
+        }
+
+        // Insert ::after pseudo-element
+        if (node is Element elemAfter && pseudoElements != null)
+        {
+            if (pseudoElements.TryGetValue((elemAfter, PseudoElementType.After), out var afterInfo))
+            {
+                box.Children.Add(new LayoutBox
+                {
+                    Style = afterInfo.Style,
+                    BoxType = LayoutBoxType.Inline,
+                    DomNode = null,
+                    TextContent = afterInfo.Content,
+                });
+            }
         }
 
         return box;

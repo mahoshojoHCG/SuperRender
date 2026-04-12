@@ -14,10 +14,10 @@
   <Folder Name="/src/Document/">
     <Project Path="src/Document/SuperRender.Document/SuperRender.Document.csproj" />
   </Folder>
-  <Folder Name="/src/Render/">
-    <Project Path="src/Render/SuperRender.Renderer.Rendering/SuperRender.Renderer.Rendering.csproj" />
-    <Project Path="src/Render/SuperRender.Renderer.Gpu/SuperRender.Renderer.Gpu.csproj" />
-    <Project Path="src/Render/SuperRender.Renderer.Image/SuperRender.Renderer.Image.csproj" />
+  <Folder Name="/src/Renderer/">
+    <Project Path="src/Renderer/SuperRender.Renderer.Rendering/SuperRender.Renderer.Rendering.csproj" />
+    <Project Path="src/Renderer/SuperRender.Renderer.Gpu/SuperRender.Renderer.Gpu.csproj" />
+    <Project Path="src/Renderer/SuperRender.Renderer.Image/SuperRender.Renderer.Image.csproj" />
   </Folder>
   <Folder Name="/src/EcmaScript/">
     <Project Path="src/EcmaScript/SuperRender.EcmaScript.Compiler/SuperRender.EcmaScript.Compiler.csproj" />

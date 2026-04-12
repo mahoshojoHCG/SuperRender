@@ -52,10 +52,7 @@ public sealed class BrowserWindow : IDisposable
         _measurer = measurer;
         _resourceLoader = new ResourceLoader();
 
-        // Initialize cookie jar, storage, and cache
-        _cookieJar = new CookieJar();
-        _resourceLoader.CookieJar = _cookieJar;
-
+        // Initialize storage databases first (cookie jar depends on it)
         var dataDir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             ".superrenderer");
@@ -70,12 +67,24 @@ public sealed class BrowserWindow : IDisposable
             Console.WriteLine($"[Browser] Failed to initialize SQLite databases: {ex.Message}");
         }
 
+        // Initialize cookie jar with persistence
+        _cookieJar = new CookieJar(_storageDb);
+        _resourceLoader.CookieJar = _cookieJar;
+
         _tabManager = new TabManager(measurer, _resourceLoader)
         {
             CookieJar = _cookieJar,
             StorageDb = _storageDb,
             EnqueueMainThread = action => _mainThreadQueue.Enqueue(action),
             ImageCache = new ImageCache(),
+            OnTabAddressBarChanged = (tab, uri) =>
+            {
+                if (tab == _tabManager.ActiveTab)
+                {
+                    _chrome.AddressText = uri.ToString();
+                    _chrome.CursorPosition = _chrome.AddressText.Length;
+                }
+            },
         };
         _chrome = new BrowserChrome(measurer);
 
@@ -245,7 +254,11 @@ public sealed class BrowserWindow : IDisposable
             combined.Add(new PopClipCommand());
         }
 
-        _renderer.RenderFrame(_lastCombinedPaintList);
+        _renderer.RenderFrame(_lastCombinedPaintList, url =>
+        {
+            var data = _tabManager.ImageCache?.Get(url);
+            return data is not null ? (data.Pixels, data.Width, data.Height) : (null, 0, 0);
+        });
 
         // Drive the DevTools window rendering (secondary windows aren't driven by Silk.NET's Run())
         _devToolsWindow?.RenderFrame();
@@ -497,12 +510,16 @@ public sealed class BrowserWindow : IDisposable
             {
                 Rect = new RectF(f.Rect.X, f.Rect.Y + offsetY, f.Rect.Width, f.Rect.Height),
                 Color = f.Color,
+                RadiusTL = f.RadiusTL, RadiusTR = f.RadiusTR,
+                RadiusBR = f.RadiusBR, RadiusBL = f.RadiusBL,
             },
             StrokeRectCommand s => new StrokeRectCommand
             {
                 Rect = new RectF(s.Rect.X, s.Rect.Y + offsetY, s.Rect.Width, s.Rect.Height),
                 Color = s.Color,
                 LineWidth = s.LineWidth,
+                RadiusTL = s.RadiusTL, RadiusTR = s.RadiusTR,
+                RadiusBR = s.RadiusBR, RadiusBL = s.RadiusBL,
             },
             DrawTextCommand t => new DrawTextCommand
             {
@@ -515,10 +532,18 @@ public sealed class BrowserWindow : IDisposable
                 FontStyle = t.FontStyle,
                 FontFamily = t.FontFamily,
                 FontFamilies = t.FontFamilies,
+                LetterSpacing = t.LetterSpacing,
+                WordSpacing = t.WordSpacing,
             },
             PushClipCommand c => new PushClipCommand
             {
                 Rect = new RectF(c.Rect.X, c.Rect.Y + offsetY, c.Rect.Width, c.Rect.Height),
+            },
+            DrawImageCommand img => new DrawImageCommand
+            {
+                ImageUrl = img.ImageUrl,
+                Rect = new RectF(img.Rect.X, img.Rect.Y + offsetY, img.Rect.Width, img.Rect.Height),
+                Opacity = img.Opacity,
             },
             _ => cmd,
         };

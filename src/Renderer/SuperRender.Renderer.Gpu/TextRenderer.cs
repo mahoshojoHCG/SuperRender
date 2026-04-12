@@ -108,7 +108,7 @@ public sealed class TextRenderer
             idx.Add(baseIndex + 2);
             idx.Add(baseIndex + 3);
 
-            cursorX += glyph.AdvanceX * scale;
+            cursorX += glyph.AdvanceX * scale + cmd.LetterSpacing;
         }
     }
 

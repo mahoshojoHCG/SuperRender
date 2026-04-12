@@ -10,6 +10,10 @@ public sealed class FillRectCommand : PaintCommand
 {
     public required RectF Rect { get; init; }
     public required Color Color { get; init; }
+    public float RadiusTL { get; init; }
+    public float RadiusTR { get; init; }
+    public float RadiusBR { get; init; }
+    public float RadiusBL { get; init; }
 }
 
 public sealed class StrokeRectCommand : PaintCommand
@@ -17,6 +21,10 @@ public sealed class StrokeRectCommand : PaintCommand
     public required RectF Rect { get; init; }
     public required Color Color { get; init; }
     public float LineWidth { get; init; } = 1f;
+    public float RadiusTL { get; init; }
+    public float RadiusTR { get; init; }
+    public float RadiusBR { get; init; }
+    public float RadiusBL { get; init; }
 }
 
 public sealed class DrawTextCommand : PaintCommand

@@ -4,9 +4,9 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Document\SuperRender.Document\SuperRender.Document.csproj" />
-    <ProjectReference Include="..\..\Render\SuperRender.Renderer.Rendering\SuperRender.Renderer.Rendering.csproj" />
-    <ProjectReference Include="..\..\Render\SuperRender.Renderer.Gpu\SuperRender.Renderer.Gpu.csproj" />
-    <ProjectReference Include="..\..\Render\SuperRender.Renderer.Image\SuperRender.Renderer.Image.csproj" />
+    <ProjectReference Include="..\..\Renderer\SuperRender.Renderer.Rendering\SuperRender.Renderer.Rendering.csproj" />
+    <ProjectReference Include="..\..\Renderer\SuperRender.Renderer.Gpu\SuperRender.Renderer.Gpu.csproj" />
+    <ProjectReference Include="..\..\Renderer\SuperRender.Renderer.Image\SuperRender.Renderer.Image.csproj" />
     <ProjectReference Include="..\..\EcmaScript\SuperRender.EcmaScript.Engine\SuperRender.EcmaScript.Engine.csproj" />
     <ProjectReference Include="..\..\EcmaScript\SuperRender.EcmaScript.Dom\SuperRender.EcmaScript.Dom.csproj" />
   </ItemGroup>

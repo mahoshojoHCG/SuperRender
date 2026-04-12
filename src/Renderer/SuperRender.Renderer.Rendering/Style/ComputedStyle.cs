@@ -1,4 +1,5 @@
 using SuperRender.Document;
+using SuperRender.Document.Css;
 using SuperRender.Renderer.Rendering.Layout;
 
 namespace SuperRender.Renderer.Rendering.Style;
@@ -37,6 +38,8 @@ public sealed class ComputedStyle
     // Box model (pixels after resolution)
     public float Width { get; set; } = float.NaN;   // NaN = auto
     public float Height { get; set; } = float.NaN;
+    public CalcNode? WidthCalc { get; set; }  // Deferred calc/percentage expression for width
+    public CalcNode? HeightCalc { get; set; } // Deferred calc/percentage expression for height
     public EdgeSizes Margin { get; set; }
     public EdgeSizes Padding { get; set; }
     public EdgeSizes BorderWidth { get; set; }
@@ -63,6 +66,12 @@ public sealed class ComputedStyle
     public string BorderRightStyle { get; set; } = "none";
     public string BorderBottomStyle { get; set; } = "none";
     public string BorderLeftStyle { get; set; } = "none";
+
+    // Border radius
+    public float BorderTopLeftRadius { get; set; }
+    public float BorderTopRightRadius { get; set; }
+    public float BorderBottomRightRadius { get; set; }
+    public float BorderBottomLeftRadius { get; set; }
 
     // Text
     public float FontSize { get; set; } = 16f;
@@ -122,6 +131,8 @@ public sealed class ComputedStyle
             Display = Display,
             Width = Width,
             Height = Height,
+            WidthCalc = WidthCalc,
+            HeightCalc = HeightCalc,
             Margin = Margin,
             Padding = Padding,
             BorderWidth = BorderWidth,
@@ -142,6 +153,10 @@ public sealed class ComputedStyle
             BorderRightStyle = BorderRightStyle,
             BorderBottomStyle = BorderBottomStyle,
             BorderLeftStyle = BorderLeftStyle,
+            BorderTopLeftRadius = BorderTopLeftRadius,
+            BorderTopRightRadius = BorderTopRightRadius,
+            BorderBottomRightRadius = BorderBottomRightRadius,
+            BorderBottomLeftRadius = BorderBottomLeftRadius,
             FontSize = FontSize,
             FontFamilies = FontFamilies,
             FontWeight = FontWeight,

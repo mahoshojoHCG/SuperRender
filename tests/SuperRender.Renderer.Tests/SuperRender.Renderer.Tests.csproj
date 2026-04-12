@@ -6,7 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Document\SuperRender.Document\SuperRender.Document.csproj" />
-    <ProjectReference Include="..\..\src\Render\SuperRender.Renderer.Rendering\SuperRender.Renderer.Rendering.csproj" />
+    <ProjectReference Include="..\..\src\Renderer\SuperRender.Renderer.Rendering\SuperRender.Renderer.Rendering.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="xunit" Version="2.9.3" />
