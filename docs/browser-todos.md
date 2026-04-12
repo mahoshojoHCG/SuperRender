@@ -1,58 +1,43 @@
 # Browser Feature Gaps & Ideas
 
 Audit of SuperRender.Browser against modern browser functionality.
-Features already implemented are **not** listed here. See CLAUDE.md for the current implementation summary.
+Each section lists what **is** implemented, then what remains.
 
 > Legend: `[S]` = stubbed/partially implemented; `[ ]` = not implemented at all.
+
+*Last updated: 2026-04-12*
 
 ---
 
 ## 1. Navigation & History
 
-Back/Forward buttons are wired to a per-tab history stack. `window.history` and `window.location` APIs are not yet exposed to JS.
+**Implemented:** Back/Forward navigation buttons trigger history navigation, address bar updates. `NavigationHistory` class with URI list and forward/back cursor per tab. `window.history` API (pushState, replaceState, back, forward, go, length, state). `window.location` object (href, protocol, host, hostname, port, pathname, search, hash, origin, assign, replace, reload). Ctrl/Cmd+L focuses and selects address bar. Ctrl/Cmd+[/Left and Ctrl/Cmd+]/Right for back/forward.
 
-- [x] Back/Forward navigation — buttons trigger history navigation, address bar updates
-- [x] History stack — `NavigationHistory` class with URI list and forward/back cursor per tab
-- [ ] `window.history` API — `pushState()`, `replaceState()`, `back()`, `forward()`, `go(n)`, `state`, `popstate` event
-- [ ] `window.location` object — `href`, `origin`, `protocol`, `host`, `hostname`, `port`, `pathname`, `search`, `hash`, `assign()`, `replace()`, `reload()`
 - [ ] Fragment navigation — scroll to `#id` on same page, `hashchange` event
+- [ ] `popstate` event firing on history navigation
 - [ ] `beforeunload` / `unload` events — prompt before leaving page with unsaved changes
 - [ ] Navigation progress indicator — loading spinner or progress bar in tab/address bar while page loads
-- [ ] Ctrl+L / Cmd+L keyboard shortcut to focus address bar
 
 ---
 
 ## 2. Keyboard Shortcuts
 
-Platform-aware shortcuts (Cmd on macOS, Ctrl on Windows/Linux) for core browser actions. Content area scrolling keys are also implemented.
+**Implemented:** Platform-aware shortcuts (Cmd on macOS, Ctrl on Windows/Linux). Ctrl/Cmd+T (new tab), Ctrl/Cmd+W (close tab), Ctrl/Cmd+Tab/Shift+Tab (next/previous tab), Ctrl/Cmd+L (focus address bar + select all), Ctrl/Cmd+R/F5 (reload), Ctrl/Cmd+[/Left (back), Ctrl/Cmd+]/Right (forward), F12/Ctrl/Cmd+Shift+I (toggle dev tools), Escape (stop/unfocus). Content area: arrow keys (scroll step), Page Up/Down/Space (scroll page), Home/End (top/bottom).
 
-- [x] Ctrl/Cmd+T — new tab
-- [x] Ctrl/Cmd+W — close tab
-- [x] Ctrl/Cmd+Tab / Ctrl/Cmd+Shift+Tab — next/previous tab
 - [ ] Ctrl/Cmd+1-9 — switch to tab by index
-- [x] Ctrl/Cmd+L — focus address bar, select all text
-- [x] Ctrl/Cmd+R / F5 — reload page
-- [ ] Alt+Left / Alt+Right — back/forward
 - [ ] Ctrl/Cmd+F — find in page
 - [ ] Ctrl/Cmd+Plus / Ctrl/Cmd+Minus / Ctrl/Cmd+0 — zoom in/out/reset
-- [x] Ctrl/Cmd+Shift+I / F12 — toggle dev tools window
 - [ ] Ctrl/Cmd+U — view source
-- [x] Escape — stop loading / unfocus address bar
 - [ ] F11 — toggle fullscreen
 
 ---
 
 ## 3. Content Scrolling & Overflow
 
-Vertical scrolling is implemented with `ScrollState` per tab. Mouse wheel, keyboard scrolling, and a visual scrollbar indicator are supported.
+**Implemented:** Vertical scrolling with `ScrollState` per tab. Mouse wheel scrolling, keyboard scrolling (arrows, Page Up/Down, Home/End, Space), visual scrollbar indicator on right edge. Scroll-to-top on navigation. `overflow: hidden` triggers clip regions in painting.
 
-- [x] Vertical scroll offset per tab — `ScrollState` tracks `scrollY`, applied when rendering content paint list
-- [x] Mouse wheel scrolling — map scroll delta to `scrollY` change
-- [x] Scroll bar widget — visual indicator on right edge showing scroll position and viewport proportion
-- [x] Keyboard scrolling — arrow keys, Page Up/Down, Home/End, Space when content is focused
 - [ ] Smooth scrolling — animated interpolation between scroll positions
-- [x] Scroll-to-top on navigation — reset scroll position when loading a new page
-- [ ] CSS `overflow: hidden | scroll | auto` — per-element scroll containers
+- [ ] CSS `overflow: scroll | auto` — per-element scroll containers
 - [ ] `window.scrollTo()` / `window.scrollBy()` / `Element.scrollIntoView()` JS APIs
 - [ ] Scroll event firing — `scroll` event on window and scrollable elements
 
@@ -72,24 +57,9 @@ No zoom support.
 
 ## 5. Cookies & Storage
 
-No persistent or session storage of any kind.
+**Implemented:** Full cookie jar with `Set-Cookie` parsing (Domain, Path, Expires, Max-Age, Secure, HttpOnly, SameSite). Automatic `Cookie` request header attachment. `document.cookie` JS getter/setter. `localStorage` backed by SQLite (`StorageDatabase`). `sessionStorage` per-tab in memory. `JsStorageWrapper` bridges to JS with `getItem`/`setItem`/`removeItem`/`clear`/`key`/`length`.
 
-### Cookies
-- [ ] Cookie jar — in-memory store keyed by domain+path+name
-- [ ] `Set-Cookie` response header parsing — name, value, Domain, Path, Expires, Max-Age, Secure, HttpOnly, SameSite
-- [ ] Automatic `Cookie` request header attachment based on domain/path/secure match
-- [ ] Cookie expiry enforcement (session vs persistent)
-- [ ] HttpOnly enforcement (block JS `document.cookie` access)
-- [ ] SameSite enforcement (Strict / Lax / None)
-- [ ] Secure flag enforcement (only send over HTTPS)
-- [ ] `document.cookie` JS getter/setter
-
-### Web Storage
-- [ ] `localStorage` — per-origin key-value store, persisted to disk
-- [ ] `sessionStorage` — per-tab key-value store, lost on tab close
 - [ ] `storage` event — cross-tab notification for localStorage changes
-
-### Other
 - [ ] IndexedDB (stub returning `undefined` for feature detection)
 - [ ] Cache API / Service Worker cache (stub)
 
@@ -97,13 +67,9 @@ No persistent or session storage of any kind.
 
 ## 6. HTTP Caching
 
-Every navigation re-fetches all resources from the network.
+**Implemented:** `HttpCache` backed by SQLite (`CacheDatabase`). Checks freshness (max-age, Expires), sends conditional requests (If-None-Match/ETag, If-Modified-Since/Last-Modified), handles 304 Not Modified. `Cache-Control` header parsing (max-age, no-cache, no-store).
 
-- [ ] In-memory response cache keyed by URL
-- [ ] `Cache-Control` header parsing — `max-age`, `no-cache`, `no-store`, `must-revalidate`, `public`, `private`
-- [ ] `ETag` / `If-None-Match` conditional requests — 304 Not Modified handling
-- [ ] `Last-Modified` / `If-Modified-Since` conditional requests
-- [ ] `Expires` header support (fallback when no Cache-Control)
+- [ ] `must-revalidate`, `public`, `private` Cache-Control directives
 - [ ] Content compression — `Accept-Encoding: gzip, deflate, br` request header, automatic decompression
 
 ---
@@ -136,19 +102,11 @@ Only basic CORS `Access-Control-Allow-Origin` is checked.
 
 ## 8. Event System Integration
 
-Core DOM event system is implemented with `addEventListener`/`removeEventListener`/`dispatchEvent` on all nodes. Capture/target/bubble propagation works. Mouse events (`mousedown`, `mouseup`, `click`) are dispatched from InputHandler. `DOMContentLoaded` and `load` fire after page load.
+**Implemented:** Full EventTarget on all nodes (addEventListener/removeEventListener/dispatchEvent). Event propagation (capture → target → bubble). DomEvent, MouseEvent (clientX/Y, button, modifiers), KeyboardEvent (key, code, modifiers, repeat). Browser dispatches: mousedown, mouseup, click, mousemove, mouseover, mouseout, mouseenter, mouseleave. DOMContentLoaded and load events fire after page load. InteractionStateHelper manages :hover/:focus/:active state. JsEventWrapper bridges all event types to JS.
 
-- [x] `EventTarget` base — `addEventListener()`, `removeEventListener()`, `dispatchEvent()`
-- [x] `Event` object — `type`, `target`, `currentTarget`, `bubbles`, `cancelable`, `preventDefault()`, `stopPropagation()`
-- [x] Event propagation — capture phase, target phase, bubble phase
-- [x] `click` event — fire on mouse up over same element as mouse down
-- [x] `mousedown`, `mouseup` — dispatched from InputHandler content area
-- [ ] `mousemove`, `mouseover`, `mouseout`, `mouseenter`, `mouseleave`
-- [ ] `keydown`, `keyup`, `keypress` (content area, when not in address bar)
+- [ ] `keydown`, `keyup` events dispatched to content area DOM elements
 - [ ] `input`, `change` events (for future form elements)
 - [ ] `submit` event (for future `<form>`)
-- [x] `DOMContentLoaded` event on document
-- [x] `load` event on window and elements
 - [ ] `scroll` event
 - [ ] `resize` event on window
 - [ ] `focus`, `blur` events
@@ -158,28 +116,21 @@ Core DOM event system is implemented with `addEventListener`/`removeEventListene
 
 ## 9. Timers & Animation Loop
 
-`TimerScheduler` provides a real timer queue drained each frame in the render loop. `setTimeout`, `setInterval`, and `requestAnimationFrame` work with actual delays.
+**Implemented:** `TimerScheduler` provides real timer queue drained each frame in render loop. `setTimeout` with actual delays, `setInterval` with recurring scheduling (min 4ms), `requestAnimationFrame` tied to render loop, `cancelAnimationFrame`/`clearTimeout`/`clearInterval`.
 
-- [x] Timer queue — schedule callbacks with real delays, drain during frame loop
-- [x] `setTimeout` with actual delay — enqueue callback + delay, fire when elapsed
-- [x] `setInterval` — repeating timer, returns ID for `clearInterval`
-- [x] `requestAnimationFrame` — per-frame callback tied to render loop
-- [x] `cancelAnimationFrame`
 - [ ] Microtask queue — `queueMicrotask()`, `Promise.then()` scheduling
 
 ---
 
 ## 10. Image & Media Support
 
-No image or media rendering capability.
+**Implemented:** `<img>` element — fetch from `src` (HTTP/file/data: URIs), decode (PNG/BMP/baseline JPEG via pure C# decoders), render as `DrawImageCommand`. Image sizing with `width`/`height` attributes, intrinsic dimensions with aspect ratio preservation. Alt text fallback in gray placeholder box. `ImageCache` for decoded images. GPU-accelerated JPEG decode (YCbCr→RGB compute, dequant+IDCT compute).
 
-### Images
-- [ ] `<img>` element — fetch image from `src`, decode (PNG/JPEG/GIF/WebP), render as textured quad
-- [ ] Image decoding pipeline — HTTP fetch → byte decode → upload to GPU texture
-- [ ] Image sizing — `width`/`height` attributes, CSS `width`/`height`, intrinsic aspect ratio
-- [ ] `alt` text fallback — display alt text when image fails to load
+### Images — remaining
 - [ ] `loading="lazy"` — defer off-screen image fetches until near viewport
+- [ ] `srcset`/`sizes` — responsive image selection
 - [ ] CSS `background-image: url(...)` — fetch and tile/cover/contain as background
+- [ ] GIF/WebP/AVIF decoders
 - [ ] Inline SVG rendering (depends on SVG path parser + Vulkan path fill)
 
 ### Media (lower priority)
@@ -192,17 +143,17 @@ No image or media rendering capability.
 
 No form or input element support.
 
-- [ ] `<input type="text">` — editable text field with focus, cursor, selection (reuse address bar editing logic)
+- [ ] `<input type="text">` — editable text field with focus, cursor, selection
 - [ ] `<input type="password">` — masked text display
 - [ ] `<input type="submit">` / `<button>` — clickable, fires `submit` on parent form
-- [ ] `<input type="checkbox">` / `<input type="radio">` — toggle state, custom quad rendering
+- [ ] `<input type="checkbox">` / `<input type="radio">` — toggle state
 - [ ] `<input type="hidden">` — no display, included in form data
 - [ ] `<textarea>` — multi-line text editing
-- [ ] `<select>` / `<option>` — dropdown menu with overlay rendering
-- [ ] `<form>` submission — collect name-value pairs, `application/x-www-form-urlencoded` POST
+- [ ] `<select>` / `<option>` — dropdown menu
+- [ ] `<form>` submission — collect name-value pairs, POST
 - [ ] `<label>` `for` attribute — click label to focus associated input
-- [ ] Tab-order focus management — `tabindex`, natural DOM order focus cycling
-- [ ] Form validation — `required`, `pattern`, `min`/`max`/`minlength`/`maxlength`
+- [ ] Tab-order focus management
+- [ ] Form validation
 - [ ] Autofocus attribute
 - [ ] Input `value`, `checked` JS properties
 
@@ -212,36 +163,24 @@ No form or input element support.
 
 No text search capability.
 
-- [ ] Ctrl/Cmd+F — open find bar (overlay at top of content area)
-- [ ] Incremental text search — highlight all matches in content, scroll to first match
-- [ ] Next/Previous match navigation (Enter / Shift+Enter or arrow buttons)
+- [ ] Ctrl/Cmd+F — open find bar
+- [ ] Incremental text search — highlight all matches, scroll to first
+- [ ] Next/Previous match navigation
 - [ ] Match count display ("3 of 17")
 - [ ] Case-sensitive toggle
 - [ ] Escape to close find bar
-- [ ] `window.find()` JS API (non-standard but widely supported)
 
 ---
 
 ## 13. Developer Tools
 
-A separate DevTools window with a Console tab. Opens via F12, Cmd/Ctrl+Shift+I, or right-click "Developer Tools". Renders in its own Vulkan window, driven from the main render loop. Console captures `console.log/warn/error` from page scripts, supports interactive JS execution with input history.
-
-### Implemented
-- [x] JavaScript console window — separate Vulkan window displaying `console.log/warn/error` output with color-coded severity
-- [x] Interactive JS input — execute expressions, show results, input history (Up/Down), cursor editing
-- [x] Console output capture — `ConsoleCapture` TextWriter redirects JS console methods to per-tab `ConsoleLog`
-- [x] Error display — script errors and navigation errors logged to console in red
-- [x] Open via F12 / Cmd+Shift+I / right-click "Developer Tools"
-- [x] Close via F12 (in either window), window close button, or toolbar X button
-- [x] Clear button — clears console log
-- [x] Scrollable log area with auto-scroll on new messages
-- [x] Lazy JS engine init — console works even on welcome page (engine created on demand)
+**Implemented:** Separate DevTools window with Console tab. Opens via F12, Cmd/Ctrl+Shift+I, or right-click "Developer Tools". Renders in own Vulkan window driven from main render loop. JavaScript console captures `console.log/warn/error` from page scripts. Interactive JS execution with input history (Up/Down), cursor editing. Error display with line/column from JsErrorBase. Clear button. Scrollable log area with auto-scroll. Lazy JS engine init. Per-tab DevTools (each Tab owns its own DevToolsWindow).
 
 ### Not Yet Implemented
 - [ ] DOM inspector — tree view of document, click-to-select element, show computed styles
 - [ ] Network panel — log all HTTP requests with URL, method, status, size, timing
-- [ ] View Source with syntax highlighting — colorize HTML tags, attributes, CSS, JS
-- [ ] Element hover highlight — outline the hovered element in the page when inspecting
+- [ ] View Source with syntax highlighting
+- [ ] Element hover highlight — outline the hovered element in the page
 - [ ] CSS property editor — modify styles in-place and see live results
 - [ ] Performance timeline — frame times, layout/paint durations
 - [ ] Console autocomplete — suggest properties of objects
@@ -282,9 +221,9 @@ Basic tab create/switch/close works but lacks polish.
 - [ ] Pin tab — shrink to icon width, lock in leftmost position
 - [ ] Close other / close tabs to the right — right-click tab context menu
 - [ ] Tab hover preview — tooltip showing page title and URL
-- [ ] Middle-click link to open in new tab (depends on `<a>` click handling)
+- [ ] Middle-click link to open in new tab
 - [ ] Ctrl/Cmd+click link to open in new tab
-- [ ] Loading spinner per tab — animated indicator while `IsLoading` is true
+- [ ] Loading spinner per tab
 - [ ] Close button on hover (not just active tab)
 - [ ] Tab overflow — scroll or collapse tabs when too many to fit
 
@@ -292,27 +231,22 @@ Basic tab create/switch/close works but lacks polish.
 
 ## 17. Link Navigation
 
-Click on `<a href>` navigates the tab. `target="_blank"` opens in a new tab. Hit-testing uses `LayoutBoxHitTester` to find the deepest layout box at a coordinate and walks up to find the enclosing `<a>` element.
+**Implemented:** Click on `<a href>` navigates the tab (hit-test via LayoutBoxHitTester, walk to `<a>` ancestor). `target="_blank"` opens in new tab. URL resolution against current URI. InteractionStateHelper manages :hover state on link elements.
 
-- [x] Click on `<a>` to navigate — hit-test against `<a>` elements in layout, trigger navigation to `href`
 - [ ] Hover cursor change — show pointer cursor over links (requires Silk.NET cursor API)
 - [ ] Status bar on link hover — show destination URL at bottom of window
-- [x] `target="_blank"` — open link in new tab
 - [ ] `rel="noopener"` / `rel="noreferrer"` handling
-- [ ] `javascript:` URI scheme handling (execute JS)
+- [ ] `javascript:` URI scheme handling
 - [ ] `mailto:` / `tel:` URI scheme — attempt OS handler
 
 ---
 
 ## 18. `<a>` and Link Styling
 
-Links are not visually distinguished from regular text.
+**Implemented:** Default link styling in user-agent stylesheet (`a { color: blue; text-decoration: underline }`). `:hover`, `:active`, `:focus` pseudo-class state tracking via InteractionStateHelper. `:visited` pseudo-class in selector matcher.
 
-- [ ] Default link styling in user-agent stylesheet — `a { color: blue; text-decoration: underline; }`
-- [ ] Visited link styling — `a:visited { color: purple; }` (requires visited URL set)
-- [ ] `:hover` styling — change color on mouse over (depends on event/hover tracking)
-- [ ] `:active` styling — change color on mouse down
-- [ ] `cursor: pointer` CSS property — change cursor shape over links
+- [ ] Visited link styling — `a:visited { color: purple }` (requires visited URL set)
+- [ ] `cursor: pointer` CSS property applied to links via Silk.NET cursor API
 
 ---
 
@@ -322,8 +256,8 @@ No print or export capability.
 
 - [ ] Ctrl/Cmd+P — print dialog (or save to PDF)
 - [ ] Screenshot to PNG — capture current viewport as image file
-- [ ] Save page as HTML — save document source + linked resources to disk
-- [ ] `@media print` stylesheet support — alternate styles for print layout
+- [ ] Save page as HTML
+- [ ] `@media print` stylesheet support
 
 ---
 
@@ -334,37 +268,35 @@ No accessibility support.
 - [ ] Focus ring rendering — visible outline on focused elements
 - [ ] Keyboard-only navigation — Tab/Shift+Tab through focusable elements
 - [ ] Skip-to-content landmark
-- [ ] ARIA role recognition — landmark, widget, live region roles on elements
-- [ ] `alt` text for images (when images are supported)
-- [ ] High contrast mode — respect OS accessibility settings
+- [ ] ARIA role recognition
+- [ ] `alt` text for images — already renders but not announced to assistive tech
+- [ ] High contrast mode
 - [ ] Font size scaling — respect OS text size preferences
-- [ ] Screen reader text extraction API (platform-specific)
+- [ ] Screen reader text extraction API
 
 ---
 
 ## 21. Fetch & XMLHttpRequest
 
-JS cannot make network requests.
+**Implemented:** `fetch()` API — GET/POST with Promises, returns JsResponseWrapper with `status`/`statusText`/`url`/`ok`/`headers`/`.text()`/`.json()`. Async HTTP via Task.Run + main-thread queue marshaling. CORS origin checking via SecurityPolicy.
 
-- [ ] `fetch()` API — basic GET/POST with Promises, return Response object with `.text()`, `.json()`
-- [ ] `XMLHttpRequest` — legacy API, synchronous and async modes
-- [ ] Request/Response objects — headers, status, body, URL
+- [ ] `XMLHttpRequest` — legacy API
 - [ ] `AbortController` / `AbortSignal` — cancel in-flight requests
-- [ ] CORS preflight for `fetch()` cross-origin requests
+- [ ] CORS preflight for cross-origin requests
 - [ ] `FormData` object for POST body construction
 - [ ] Streaming response bodies (ReadableStream)
+- [ ] Request/Response spec-compliant types
 
 ---
 
 ## 22. Error Pages & Special Pages
 
-Only a generic navigation error page exists.
+Only a generic navigation error page exists. Welcome page via `sr://` protocol.
 
 - [ ] DNS resolution failure page — distinct from HTTP errors
 - [ ] Connection timeout page
 - [ ] SSL/TLS certificate error page with "proceed anyway" option
 - [ ] HTTP 4xx/5xx error pages — show status code and reason
-- [ ] `about:blank` — works, but no other `about:` pages
 - [ ] `about:settings` — settings/preferences page
 - [ ] `about:history` — browsable history list
 - [ ] `about:bookmarks` — bookmark manager
@@ -374,15 +306,13 @@ Only a generic navigation error page exists.
 
 ## 23. Address Bar Enhancements
 
-The address bar handles text input and basic cursor movement.
+**Implemented:** Text input with cursor movement, click-to-cursor positioning, click-and-drag text selection, right-click context menu (Cut/Copy/Paste/Select All). Supports http/https/file/sr/about schemes, bare domain names, absolute file paths.
 
 - [ ] URL autocomplete — suggest from history and bookmarks as user types
 - [ ] Search engine fallback — if input is not a URL, search via DuckDuckGo/Google
 - [ ] URL highlighting — dim scheme, highlight domain in displayed URL
-- [ ] Select-all on focus — single click selects entire URL (like Chrome/Firefox)
-- [ ] Drag-to-select in address bar — partial text selection with mouse
-- [ ] Favicon display to the left of the URL (when favicon loading is implemented)
-- [ ] SSL padlock icon in address bar (see Security section)
+- [ ] Favicon display to the left of the URL
+- [ ] SSL padlock icon in address bar
 
 ---
 
@@ -393,7 +323,7 @@ Only a single window is supported.
 - [ ] Ctrl/Cmd+N — open new window
 - [ ] Drag tab out of tab bar to create new window
 - [ ] Drag tab between windows to move it
-- [ ] `window.open()` JS API — open URL in new window/tab
+- [ ] `window.open()` JS API
 
 ---
 
@@ -403,7 +333,7 @@ No notification or permission system.
 
 - [ ] `Notification` API stub — request permission, show native notification
 - [ ] `navigator.permissions` API stub
-- [ ] Permission prompt UI — overlay asking user to Allow/Deny
+- [ ] Permission prompt UI
 - [ ] Geolocation API stub (deny by default)
 - [ ] Clipboard API (`navigator.clipboard.readText()` / `writeText()`)
 
@@ -414,41 +344,41 @@ No notification or permission system.
 Ideas beyond standard browser functionality, unique to SuperRenderer.
 
 ### Rendering Engine Showcase
-- [ ] **Render tree visualizer** — side panel showing the box tree with dimensions, margins, padding drawn as colored overlays on the page
+- [ ] **Render tree visualizer** — side panel showing the box tree with dimensions, margins, padding drawn as colored overlays
 - [ ] **CSS cascade debugger** — for any element, show which rules matched, specificity scores, and which properties won/lost
-- [ ] **Paint command inspector** — list all FillRect/DrawText/StrokeRect commands with coordinates; click to highlight on canvas
+- [ ] **Paint command inspector** — list all FillRect/DrawText/DrawImage commands with coordinates
 - [ ] **Layout performance HUD** — overlay showing frame time, layout time, paint command count, vertex count
 
 ### Educational Tools
-- [ ] **Step-through renderer** — pause after each pipeline stage (parse → DOM → style → layout → paint) and inspect intermediate state
-- [ ] **Side-by-side comparison** — split view: SuperRenderer output vs reference screenshot from another browser
-- [ ] **Spec compliance dashboard** — page showing which CSS/HTML/JS features are supported with live test results
+- [ ] **Step-through renderer** — pause after each pipeline stage and inspect intermediate state
+- [ ] **Side-by-side comparison** — split view: SuperRenderer output vs reference screenshot
+- [ ] **Spec compliance dashboard** — page showing which CSS/HTML/JS features are supported
 
 ### Developer Experience
 - [ ] **Hot-reload local files** — watch a local HTML file for changes, auto-reload tab on save
 - [ ] **Built-in Markdown renderer** — navigate to `.md` files and render as styled HTML
 - [ ] **JSON viewer** — pretty-print JSON responses with collapsible tree
-- [ ] **RSS/Atom feed reader** — detect and render feeds as readable article lists
+- [ ] **RSS/Atom feed reader** — detect and render feeds
 
 ### Theming & Customization
-- [ ] **Browser theme system** — customizable chrome colors (tab bar, address bar, buttons)
+- [ ] **Browser theme system** — customizable chrome colors
 - [ ] **Dark mode chrome** — dark background for tab bar and address bar
 - [ ] **User stylesheet injection** — load a user CSS file applied to all pages
-- [ ] **Custom new-tab page** — configurable start page with bookmarks grid or custom HTML
+- [ ] **Custom new-tab page** — configurable start page
 
 ### Performance & Profiling
 - [ ] **GPU memory dashboard** — show texture atlas usage, vertex buffer sizes, pipeline statistics
-- [ ] **Network waterfall chart** — visualize resource load timing like Chrome's Network panel
+- [ ] **Network waterfall chart** — visualize resource load timing
 - [ ] **Render pipeline profiler** — breakdown of time spent in parse, style, layout, paint, GPU submit phases
 
 ### Privacy & Security
 - [ ] **Incognito mode** — tab or window with no persistent cookies, storage, or history
-- [ ] **Content blocker** — block requests matching patterns (simple ad/tracker blocking)
-- [ ] **Request log** — show all outgoing HTTP requests with headers for transparency
+- [ ] **Content blocker** — block requests matching patterns
+- [ ] **Request log** — show all outgoing HTTP requests with headers
 - [ ] **Cookie manager** — view, edit, delete cookies per site
 
 ### Interop & Extension Points
-- [ ] **C# script console** — evaluate C# expressions against the running browser state (DOM, layout, paint list)
+- [ ] **C# script console** — evaluate C# expressions against the running browser state
 - [ ] **Plugin API** — load .NET assemblies that can register custom elements, paint commands, or page actions
-- [ ] **Custom protocol handlers** — register `super://` protocol for built-in pages, allow plugins to add more
-- [ ] **MCP tool bridge** — expose browser state (DOM, screenshots, navigation) as MCP tools for AI-assisted browsing
+- [ ] **Custom protocol handlers** — register protocols for built-in pages, allow plugins to add more
+- [ ] **MCP tool bridge** — expose browser state as MCP tools for AI-assisted browsing

@@ -3,29 +3,38 @@
 This document tracks ES2025 standard features not yet implemented in SuperRender.EcmaScript.
 Features are grouped by category and include a brief rationale for deferral.
 
-## Language Features
+*Last updated: 2026-04-12*
+
+## Implemented Language Features (previously deferred)
+
+### Generators ✓
+- `function*` declarations and expressions parse and compile correctly
+- `yield` / `yield*` expressions work at runtime
+- `GeneratorCoroutine` provides thread-based coroutine for state machines
+- `JsGeneratorObject` implements next/return/throw with iterator protocol via Symbol.iterator
+- `GeneratorPrototype` intrinsic on Realm
+
+### Async / Await ✓
+- `async function` / `async () =>` parse and compile correctly
+- `await` expressions compile to coroutine yield points
+- `RuntimeHelpers.RunAsyncFunction` creates Promise-based execution
+- Integrates with `GeneratorCoroutine` for state machine execution
+
+### Labels ✓
+- `break label` / `continue label` runtime support in compiler
+- Labeled statements fully compiled
+
+## Language Features — Still Deferred
 
 ### BigInt
 - `BigInt` type and literals (`123n`)
 - All operators on BigInt values
 - **Reason**: Requires a separate numeric type and pervasive operator changes throughout the runtime; cannot coexist with `double` in binary operations without dedicated dispatch.
 
-### Generators (partial)
-- `function*` declarations and expressions parse correctly
-- `yield` / `yield*` expressions parse correctly
-- **Missing**: Runtime execution (state machine compilation in JsCompiler)
-- **Reason**: Requires transforming generator bodies into DLR state machines; planned for next iteration.
-
-### Async / Await (partial)
-- `async function` / `async () =>` parse correctly
-- `await` expressions parse correctly
-- **Missing**: Runtime execution (continuation-passing transform in JsCompiler)
-- **Reason**: Requires integration with microtask queue and state machine compilation.
-
 ### `for-await-of`
 - Parses correctly
 - **Missing**: Runtime execution of async iteration protocol
-- **Reason**: Depends on async/await runtime support.
+- **Reason**: Depends on async iterator protocol implementation.
 
 ### `eval()`
 - Not implemented (intentionally)
@@ -34,11 +43,6 @@ Features are grouped by category and include a brief rationale for deferral.
 ### `with` statement
 - Not implemented
 - **Reason**: Forbidden in strict mode (engine defaults to strict mode).
-
-### Labels on loops/switch
-- Parsed correctly
-- **Missing**: `break label` / `continue label` runtime support in compiler
-- **Reason**: Rarely used; can be added incrementally.
 
 ### Tail Call Optimization
 - Not implemented
@@ -138,7 +142,8 @@ Features are grouped by category and include a brief rationale for deferral.
 
 | Category | Count | Status |
 |----------|-------|--------|
-| Core language features | 7 | Deferred |
+| ~~Core language (previously deferred)~~ | ~~3~~ | **Implemented** (generators, async/await, labels) |
+| Core language (remaining) | 4 | Deferred |
 | ES2025 new features | 8 | Deferred |
 | Deferred APIs | 11 | Deferred |
-| **Total** | **26** | |
+| **Total remaining** | **23** | |

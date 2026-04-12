@@ -1,56 +1,35 @@
 # CSS Feature Gaps vs Latest Spec
 
-Audit of SuperRender.Core against the CSS Snapshot 2023+ and related W3C/WHATWG specifications.
-Features already implemented are **not** listed here. See CLAUDE.md for the current implementation summary.
+Audit of SuperRender against the CSS Snapshot 2023+ and related W3C/WHATWG specifications.
+Each section lists what **is** implemented, then what remains.
 
-> Legend: `[P]` = parsed/recognized but not applied in layout/paint; `[ ]` = not implemented at all.
+> Legend: `[P]` = parsed/recognized but not fully applied; `[ ]` = not implemented at all.
+
+*Last updated: 2026-04-12*
 
 ---
 
 ## 1. Selectors (CSS Selectors Level 4)
 
-Currently supported: type, class, ID, universal, descendant (` `), child (`>`), comma-separated lists.
+**Implemented:** type, class, ID, universal, descendant (` `), child (`>`), adjacent sibling (`+`), general sibling (`~`), comma-separated lists. Attribute selectors: presence (`[attr]`), exact (`[attr="val"]`), whitespace-separated (`[attr~="val"]`), dash-separated (`[attr|="val"]`), prefix (`[attr^="val"]`), suffix (`[attr$="val"]`), substring (`[attr*="val"]`). Tree-structural pseudo-classes: `:root`, `:empty`, `:first-child`, `:last-child`, `:only-child`, `:first-of-type`, `:last-of-type`, `:only-of-type`, `:nth-child(An+B)`, `:nth-last-child(An+B)`. User-action pseudo-classes: `:hover`, `:active`, `:focus`. Link pseudo-classes: `:link`, `:visited`. Logical combinators: `:not()`, `:is()`, `:where()`. Pseudo-elements: `::before`, `::after`.
 
 ### Combinators
-- [ ] Adjacent sibling combinator (`+`)
-- [ ] General sibling combinator (`~`)
 - [ ] Column combinator (`||`)
 
 ### Attribute Selectors
-- [ ] Attribute presence (`[attr]`)
-- [ ] Exact match (`[attr="val"]`)
-- [ ] Whitespace-separated match (`[attr~="val"]`)
-- [ ] Dash-separated match (`[attr|="val"]`)
-- [ ] Prefix match (`[attr^="val"]`)
-- [ ] Suffix match (`[attr$="val"]`)
-- [ ] Substring match (`[attr*="val"]`)
 - [ ] Case-insensitive flag (`[attr="val" i]`)
 - [ ] Case-sensitive flag (`[attr="val" s]`)
 
 ### Pseudo-classes — Tree-structural
-- [ ] `:root`
-- [ ] `:empty`
-- [ ] `:first-child`
-- [ ] `:last-child`
-- [ ] `:only-child`
-- [ ] `:first-of-type`
-- [ ] `:last-of-type`
-- [ ] `:only-of-type`
-- [ ] `:nth-child(An+B [of S]?)`
-- [ ] `:nth-last-child(An+B [of S]?)`
+- [ ] `:nth-child(An+B of S)` — selector-filtered variant
 - [ ] `:nth-of-type(An+B)`
 - [ ] `:nth-last-of-type(An+B)`
 
 ### Pseudo-classes — User-action
-- [ ] `:hover`
-- [ ] `:active`
-- [ ] `:focus`
 - [ ] `:focus-within`
 - [ ] `:focus-visible`
 
 ### Pseudo-classes — Link/Location
-- [ ] `:link`
-- [ ] `:visited`
 - [ ] `:any-link`
 - [ ] `:target`
 - [ ] `:target-within`
@@ -67,10 +46,7 @@ Currently supported: type, class, ID, universal, descendant (` `), child (`>`), 
 - [ ] `:default`
 - [ ] `:user-valid`, `:user-invalid`
 
-### Pseudo-classes — Logical combinators (Selectors Level 4)
-- [ ] `:not(selector-list)`
-- [ ] `:is(selector-list)`
-- [ ] `:where(selector-list)`
+### Pseudo-classes — Logical combinators
 - [ ] `:has(relative-selector-list)`
 
 ### Pseudo-classes — Miscellaneous
@@ -80,8 +56,6 @@ Currently supported: type, class, ID, universal, descendant (` `), child (`>`), 
 - [ ] `:scope`
 
 ### Pseudo-elements
-- [ ] `::before`
-- [ ] `::after`
 - [ ] `::first-line`
 - [ ] `::first-letter`
 - [ ] `::marker`
@@ -94,7 +68,7 @@ Currently supported: type, class, ID, universal, descendant (` `), child (`>`), 
 
 ## 2. Values and Units (CSS Values and Units Level 4)
 
-Currently supported: `px`, `em`, `rem`, `pt`, `%`, bare numbers, `auto`.
+**Implemented:** `px`, `em`, `rem`, `pt`, `%`, bare numbers, `auto`, viewport-relative (`vw`, `vh`, `vmin`, `vmax`), `calc()`, `min()`, `max()`, `clamp()` with `+`/`-`/`*`/`/` operators and relative unit support. Global keywords: `initial`, `inherit`, `unset`, `revert`.
 
 ### Absolute length units
 - [ ] `cm`, `mm`, `in`, `pc`, `Q`
@@ -102,7 +76,6 @@ Currently supported: `px`, `em`, `rem`, `pt`, `%`, bare numbers, `auto`.
 ### Relative length units
 - [ ] `ex`, `ch`, `lh`, `rlh`
 - [ ] `cap`, `ic`
-- [ ] Viewport-relative: `vw`, `vh`, `vmin`, `vmax`
 - [ ] Dynamic viewport: `dvw`, `dvh`, `dvmin`, `dvmax`
 - [ ] Small viewport: `svw`, `svh`, `svmin`, `svmax`
 - [ ] Large viewport: `lvw`, `lvh`, `lvmin`, `lvmax`
@@ -115,18 +88,12 @@ Currently supported: `px`, `em`, `rem`, `pt`, `%`, bare numbers, `auto`.
 - [ ] `dpi`, `dpcm`, `dppx`
 
 ### Math functions
-- [ ] `calc()`
-- [ ] `min()`, `max()`, `clamp()`
 - [ ] `round()`, `mod()`, `rem()`
 - [ ] `abs()`, `sign()`
 - [ ] `sin()`, `cos()`, `tan()`, `asin()`, `acos()`, `atan()`, `atan2()`
 - [ ] `pow()`, `sqrt()`, `hypot()`, `log()`, `exp()`
 
 ### Global keywords
-- [ ] `initial`
-- [ ] `inherit`
-- [ ] `unset`
-- [ ] `revert`
 - [ ] `revert-layer`
 
 ---
@@ -142,7 +109,7 @@ Currently supported: `px`, `em`, `rem`, `pt`, `%`, bare numbers, `auto`.
 
 ## 4. Color (CSS Color Level 4)
 
-Currently supported: hex (#RGB, #RRGGBB, #RRGGBBAA), `rgb()`, `rgba()`, 37 named colors.
+**Implemented:** hex (#RGB, #RRGGBB, #RRGGBBAA), `rgb()`, `rgba()`, 37+ named colors.
 
 ### Color functions
 - [ ] `hsl()` / `hsla()`
@@ -159,7 +126,7 @@ Currently supported: hex (#RGB, #RRGGBB, #RRGGBBAA), `rgb()`, `rgba()`, 37 named
 - [ ] `none` keyword in color components
 
 ### Named colors
-- [ ] Full CSS Color Level 4 named colors (148 colors — currently only 37 implemented)
+- [ ] Full CSS Color Level 4 named colors (148 colors — currently ~37 implemented)
 
 ### System colors
 - [ ] `Canvas`, `CanvasText`, `LinkText`, `VisitedText`, `ActiveText`, `ButtonFace`, `ButtonText`, `Field`, `FieldText`, `Highlight`, `HighlightText`, `SelectedItem`, `SelectedItemText`, `Mark`, `MarkText`, `GrayText`, `AccentColor`, `AccentColorText`
@@ -171,24 +138,20 @@ Currently supported: hex (#RGB, #RRGGBB, #RRGGBBAA), `rgb()`, `rgba()`, 37 named
 
 ## 5. Cascade and Inheritance (CSS Cascade Level 5/6)
 
-Currently supported: specificity, `!important`, source-order sorting, 5 inherited properties.
+**Implemented:** specificity, `!important`, source-order sorting, global keywords (`initial`/`inherit`/`unset`/`revert`), user-agent stylesheet. Inherited properties: `color`, `font-size`, `font-family`, `font-weight`, `font-style`, `text-align`, `line-height`, `white-space`, `visibility`, `text-transform`, `letter-spacing`, `word-spacing`, `cursor`, `word-break`, `overflow-wrap`, `list-style-type`.
 
 - [ ] `@import` rule
 - [ ] `@layer` (cascade layers)
 - [ ] `@scope` (scoped styles)
 - [ ] Origin-based cascade (user-agent / user / author)
-- [ ] Full inherited property list (spec defines 40+; only 5 implemented: `color`, `font-size`, `font-family`, `text-align`, `line-height`)
-- [ ] Additional inherited properties: `font-weight`, `font-style`, `font-variant`, `letter-spacing`, `word-spacing`, `white-space`, `visibility`, `cursor`, `list-style-*`, `border-collapse`, `caption-side`, `direction`, `quotes`, `text-indent`, `text-transform`, `word-break`, `overflow-wrap`, `tab-size`, `orphans`, `widows`
+- [ ] Additional inherited properties: `font-variant`, `border-collapse`, `caption-side`, `direction`, `quotes`, `text-indent`, `tab-size`, `orphans`, `widows`
 
 ---
 
 ## 6. Box Model (CSS Box Model Level 3/4)
 
-Currently supported: `width`, `height`, `margin-*`, `padding-*`, `border-*-width`.
+**Implemented:** `width`, `height`, `margin-*`, `padding-*`, `border-*-width`, `box-sizing` (`content-box`/`border-box`), `min-width`, `max-width`, `min-height`, `max-height`.
 
-- [ ] `box-sizing` (`content-box`, `border-box`)
-- [ ] `min-width`, `max-width`
-- [ ] `min-height`, `max-height`
 - [ ] Logical properties: `margin-block-*`, `margin-inline-*`, `padding-block-*`, `padding-inline-*`, `border-block-*-width`, `border-inline-*-width`
 - [ ] `inline-size`, `block-size`, `min-inline-size`, `max-inline-size`, `min-block-size`, `max-block-size`
 - [ ] Margin collapsing through empty blocks, between parent and first/last child (only basic vertical sibling collapsing exists)
@@ -197,13 +160,11 @@ Currently supported: `width`, `height`, `margin-*`, `padding-*`, `border-*-width
 
 ## 7. Display (CSS Display Level 3)
 
-Currently supported: `block`, `inline`, `none`.
+**Implemented:** `block`, `inline`, `inline-block`, `flex`, `flow-root`, `none`.
 
-- [ ] `inline-block`
-- [ ] `flex` / `inline-flex`
+- [ ] `inline-flex`
 - [ ] `grid` / `inline-grid`
 - [ ] `table` / `inline-table` (and other table display types)
-- [ ] `flow-root`
 - [ ] `list-item`
 - [ ] `contents`
 - [ ] Multi-keyword syntax: `block flow`, `inline flow`, `block flex`, `inline flex`, `block grid`, `inline grid`
@@ -212,32 +173,20 @@ Currently supported: `block`, `inline`, `none`.
 
 ## 8. Positioning (CSS Positioned Layout Level 3)
 
-Currently supported: `position: static | relative | absolute` (parsed but **not applied** in layout), `top`, `left`, `right`, `bottom` (parsed but not applied).
+**Implemented:** `position: static | relative | absolute` with layout application, `top`, `left`, `right`, `bottom`, `z-index` with stacking context.
 
-- [P] `position: relative` — offset calculation
-- [P] `position: absolute` — out-of-flow positioning with containing block resolution
 - [ ] `position: fixed` — viewport-relative positioning
 - [ ] `position: sticky` — scroll-aware positioning
-- [ ] Containing block resolution for positioned elements
-- [ ] `z-index` and stacking context creation
 - [ ] Inset shorthand: `inset`, `inset-block`, `inset-inline`
 
 ---
 
 ## 9. Flexbox (CSS Flexible Box Level 1)
 
-- [ ] `display: flex` / `display: inline-flex`
-- [ ] `flex-direction` (`row`, `row-reverse`, `column`, `column-reverse`)
-- [ ] `flex-wrap` (`nowrap`, `wrap`, `wrap-reverse`)
-- [ ] `flex-flow` shorthand
-- [ ] `justify-content` (`flex-start`, `flex-end`, `center`, `space-between`, `space-around`, `space-evenly`)
-- [ ] `align-items` (`flex-start`, `flex-end`, `center`, `baseline`, `stretch`)
-- [ ] `align-self`
+**Implemented:** `display: flex`, `flex-direction` (row/row-reverse/column/column-reverse), `flex-wrap` (nowrap/wrap/wrap-reverse), `flex-flow` shorthand, `justify-content` (flex-start/flex-end/center/space-between/space-around/space-evenly), `align-items` (flex-start/flex-end/center/baseline/stretch), `align-self`, `flex-grow`, `flex-shrink`, `flex-basis`, `flex` shorthand, `gap`/`row-gap`/`column-gap`, `order`.
+
 - [ ] `align-content`
-- [ ] `order`
-- [ ] `flex-grow`, `flex-shrink`, `flex-basis`
-- [ ] `flex` shorthand
-- [ ] `gap`, `row-gap`, `column-gap`
+- [ ] `inline-flex` display type
 
 ---
 
@@ -272,16 +221,18 @@ Currently supported: `position: static | relative | absolute` (parsed but **not 
 
 ## 12. Overflow (CSS Overflow Level 3)
 
-- [ ] `overflow`, `overflow-x`, `overflow-y` (`visible`, `hidden`, `clip`, `scroll`, `auto`)
+**Implemented:** `overflow` (`visible`, `hidden`, `scroll`, `auto`), `text-overflow` (`clip`, `ellipsis`). `overflow: hidden` triggers clip regions in painting.
+
+- [ ] `overflow-x`, `overflow-y` (separate axes)
+- [ ] `overflow: clip` value
 - [ ] `overflow-clip-margin`
-- [ ] `text-overflow` (`clip`, `ellipsis`)
-- [ ] Scroll container establishment
+- [ ] Scroll container establishment (per-element scrolling)
 
 ---
 
 ## 13. Backgrounds and Borders (CSS Backgrounds and Borders Level 3)
 
-Currently supported: `background-color`, `border-width`, `border-color`, `border-style` (as single values), `border` shorthand.
+**Implemented:** `background-color`, `border-width`/`border-color`/`border-style` (single and per-side), `border` shorthand, `border-top`/`border-right`/`border-bottom`/`border-left` shorthands, `border-radius` (shorthand and all four longhand corners).
 
 ### Background
 - [ ] `background-image` (`url()`, gradients)
@@ -299,15 +250,6 @@ Currently supported: `background-color`, `border-width`, `border-color`, `border
 - [ ] `radial-gradient()`, `repeating-radial-gradient()`
 - [ ] `conic-gradient()`, `repeating-conic-gradient()`
 
-### Border per-side style/color
-- [ ] `border-top-style`, `border-right-style`, `border-bottom-style`, `border-left-style`
-- [ ] `border-top-color`, `border-right-color`, `border-bottom-color`, `border-left-color`
-- [ ] `border-top`, `border-right`, `border-bottom`, `border-left` shorthands
-
-### Border radius
-- [ ] `border-radius`
-- [ ] `border-top-left-radius`, `border-top-right-radius`, `border-bottom-right-radius`, `border-bottom-left-radius`
-
 ### Box shadow
 - [ ] `box-shadow` (offset-x, offset-y, blur, spread, color, inset)
 
@@ -318,10 +260,8 @@ Currently supported: `background-color`, `border-width`, `border-color`, `border
 
 ## 14. Fonts (CSS Fonts Level 4)
 
-Currently supported: `font-size` (px/em/rem/pt/%/keywords), `font-family`.
+**Implemented:** `font-size` (px/em/rem/pt/%/keywords), `font-family` (comma-separated list with generic family fallback), `font-weight` (normal/bold/numeric 1-1000), `font-style` (normal/italic/oblique). Dynamic font atlas with Regular/Bold/Monospace variants. `SystemFontLocator` resolves families from system fonts. `GenericFontFamilies` maps serif/sans-serif/monospace/cursive/fantasy/system-ui to platform defaults. CJK fallback font chains.
 
-- [ ] `font-weight` (`normal`, `bold`, `bolder`, `lighter`, numeric 1-1000)
-- [ ] `font-style` (`normal`, `italic`, `oblique [angle]`)
 - [ ] `font-variant` and its sub-properties
 - [ ] `font-stretch`
 - [ ] `font` shorthand
@@ -332,19 +272,16 @@ Currently supported: `font-size` (px/em/rem/pt/%/keywords), `font-family`.
 - [ ] Variable fonts (`wght`, `wdth`, `ital`, `slnt`, `opsz` axes)
 - [ ] `font-optical-sizing`
 - [ ] System font keywords: `caption`, `icon`, `menu`, `message-box`, `small-caption`, `status-bar`
-- [ ] Generic font families: `serif`, `sans-serif`, `monospace`, `cursive`, `fantasy`, `system-ui`, `ui-serif`, `ui-sans-serif`, `ui-monospace`, `ui-rounded`, `math`, `emoji`, `fangsong`
 
 ---
 
 ## 15. Text (CSS Text Level 3/4)
 
-Currently supported: `text-align` (left/right/center/justify).
+**Implemented:** `text-align` (left/right/center/justify), `text-transform` (uppercase/lowercase/capitalize/none), `text-decoration-line` (none/underline/overline/line-through), `text-overflow` (clip/ellipsis), `letter-spacing`, `word-spacing`, `white-space` (normal/pre/nowrap/pre-wrap/pre-line), `word-break` (normal/break-all/keep-all), `overflow-wrap` (normal/break-word).
 
 - [ ] `text-align-last`
 - [ ] `text-indent`
-- [ ] `text-transform` (`uppercase`, `lowercase`, `capitalize`, `none`, `full-width`, `full-size-kana`)
-- [ ] `text-decoration` (shorthand)
-- [ ] `text-decoration-line` (`none`, `underline`, `overline`, `line-through`)
+- [ ] `text-decoration` shorthand (full — only line is currently applied)
 - [ ] `text-decoration-color`
 - [ ] `text-decoration-style` (`solid`, `double`, `dotted`, `dashed`, `wavy`)
 - [ ] `text-decoration-thickness`
@@ -352,13 +289,8 @@ Currently supported: `text-align` (left/right/center/justify).
 - [ ] `text-underline-position`
 - [ ] `text-emphasis` and its sub-properties
 - [ ] `text-shadow`
-- [ ] `text-overflow` (`clip`, `ellipsis`)
-- [ ] `letter-spacing`
-- [ ] `word-spacing`
-- [ ] `white-space` (`normal`, `pre`, `nowrap`, `pre-wrap`, `pre-line`, `break-spaces`)
 - [ ] `white-space-collapse`, `text-wrap` (CSS Text Level 4 replacements)
-- [ ] `word-break` (`normal`, `break-all`, `keep-all`)
-- [ ] `overflow-wrap` / `word-wrap` (`normal`, `break-word`, `anywhere`)
+- [ ] `overflow-wrap: anywhere`
 - [ ] `line-break`
 - [ ] `hyphens` (`none`, `manual`, `auto`)
 - [ ] `tab-size`
@@ -368,7 +300,7 @@ Currently supported: `text-align` (left/right/center/justify).
 
 ## 16. Inline Layout (CSS Inline Level 3)
 
-Currently supported: basic inline text layout with word wrapping, line-height as multiplier.
+**Implemented:** basic inline text layout with word wrapping, `line-height` as multiplier.
 
 - [ ] `vertical-align` (`baseline`, `sub`, `super`, `top`, `text-top`, `middle`, `bottom`, `text-bottom`, length, percentage)
 - [ ] `dominant-baseline`, `alignment-baseline`
@@ -379,7 +311,9 @@ Currently supported: basic inline text layout with word wrapping, line-height as
 
 ## 17. Lists (CSS Lists and Counters Level 3)
 
-- [ ] `list-style-type` (`disc`, `circle`, `square`, `decimal`, `lower-alpha`, `upper-alpha`, `lower-roman`, `upper-roman`, `none`, custom `@counter-style`)
+**Implemented:** `list-style-type` (basic marker rendering for `disc`/`circle`/`square`/`decimal`/`none`), list item indentation via UA stylesheet.
+
+- [ ] `list-style-type` — additional values (`lower-alpha`, `upper-alpha`, `lower-roman`, `upper-roman`, custom `@counter-style`)
 - [ ] `list-style-position` (`inside`, `outside`)
 - [ ] `list-style-image`
 - [ ] `list-style` shorthand
@@ -465,11 +399,8 @@ Currently supported: basic inline text layout with word wrapping, line-height as
 
 ## 25. Visual Properties
 
-Currently supported: `background-color`, `color` (text color), border rendering.
+**Implemented:** `background-color`, `color`, `opacity`, `visibility` (visible/hidden/collapse), `cursor` (auto/default/pointer/text/crosshair/move/not-allowed/grab/grabbing/etc.), `content` (for `::before`/`::after`), border rendering.
 
-- [ ] `opacity`
-- [ ] `visibility` (`visible`, `hidden`, `collapse`)
-- [ ] `cursor`
 - [ ] `pointer-events`
 - [ ] `user-select`
 - [ ] `resize`
@@ -479,7 +410,6 @@ Currently supported: `background-color`, `color` (text color), border rendering.
 - [ ] `appearance`
 - [ ] `object-fit`, `object-position` (for replaced elements)
 - [ ] `image-rendering`
-- [ ] `content` (for `::before`/`::after`)
 - [ ] `quotes`
 
 ---
@@ -582,7 +512,6 @@ Currently supported: none.
 - [ ] `will-change`
 - [ ] `all` shorthand (resets all properties)
 - [ ] `aspect-ratio`
-- [ ] `gap` (for flex/grid)
 - [ ] `place-items`, `place-content`, `place-self` (shorthands)
 - [ ] `touch-action`
 - [ ] `overscroll-behavior`

@@ -3,19 +3,21 @@
 Tracks missing DOM / Web API features relative to the WHATWG DOM Living Standard and related specs.
 Each section lists what **is** implemented, then what remains.
 
+*Last updated: 2026-04-12*
+
 ---
 
 ## 1. Node Interface
 
-**Implemented:** `nodeType`, `nodeName`, `parentNode`, `parentElement`, `firstChild`, `lastChild`, `nextSibling`, `previousSibling`, `childNodes`, `textContent`, `appendChild()`, `removeChild()`, `insertBefore()`, `hasChildNodes()`
+**Implemented:** `nodeType`, `nodeName`, `parentNode`, `parentElement`, `firstChild`, `lastChild`, `nextSibling`, `previousSibling`, `childNodes`, `textContent`, `appendChild()`, `removeChild()`, `insertBefore()`, `hasChildNodes()`, `replaceChild()`, `cloneNode(deep)`, `contains()`, `addEventListener()`, `removeEventListener()`, `dispatchEvent()`
+
+**Partially implemented:**
+- `nodeValue` — exposed on TextNode (via `JsTextNodeWrapper`), not on other node types
 
 **TODO:**
-- [ ] `nodeValue` property (on all node types, not just TextNode)
+- [ ] `nodeValue` property on all node types (currently only TextNode)
 - [ ] `ownerDocument` property (backing exists in C# but not exposed to JS)
 - [ ] `isConnected` property
-- [ ] `cloneNode(deep)` method (C# `DomMutationApi.CloneElement` exists but not wired to JS)
-- [ ] `replaceChild(newChild, oldChild)` method
-- [ ] `contains(node)` method
 - [ ] `getRootNode(options)` method
 - [ ] `normalize()` method — merge adjacent text nodes
 - [ ] `compareDocumentPosition(other)` method
@@ -26,27 +28,21 @@ Each section lists what **is** implemented, then what remains.
 
 ## 2. Element Interface
 
-**Implemented:** `tagName`, `id`, `className`, `classList` (add/remove/toggle/contains), `innerText`, `innerHTML` (get/set), `children`, `style`, `getAttribute()`, `setAttribute()`, `removeAttribute()`, `hasAttribute()`, `querySelector()`, `querySelectorAll()`
+**Implemented:** `tagName`, `id`, `className`, `classList` (add/remove/toggle/contains), `innerText`, `innerHTML` (get/set), `children`, `style`, `dataset`, `firstElementChild`, `lastElementChild`, `childElementCount`, `getAttribute()`, `setAttribute()`, `removeAttribute()`, `hasAttribute()`, `toggleAttribute()`, `querySelector()`, `querySelectorAll()`, `matches()`, `closest()`, `after()`, `before()`, `remove()`
 
 **TODO:**
 - [ ] `attributes` property (NamedNodeMap)
 - [ ] `outerHTML` property (read/write)
-- [ ] `dataset` property — `data-*` attribute access
 - [ ] `slot` property
 - [ ] `classList` — full DOMTokenList (item, length, value, replace, supports, entries/keys/values/forEach)
-- [ ] `matches(selector)` method
-- [ ] `closest(selector)` method
 - [ ] `getElementsByTagName(name)` method (on Element, not just Document)
 - [ ] `getElementsByClassName(name)` method (on Element, not just Document)
 - [ ] `insertAdjacentHTML(position, text)` method
 - [ ] `insertAdjacentElement(position, element)` method
 - [ ] `insertAdjacentText(position, text)` method
 - [ ] `replaceWith(...nodes)` method
-- [ ] `remove()` method
-- [ ] `before(...nodes)` / `after(...nodes)` methods
 - [ ] `prepend(...nodes)` / `append(...nodes)` / `replaceChildren(...nodes)` methods
 - [ ] `getAttributeNames()` method
-- [ ] `toggleAttribute(name, force)` method
 - [ ] `hasAttributes()` method
 - [ ] `innerHTML` getter — proper HTML escaping for attribute values and text content
 
@@ -70,7 +66,7 @@ Each section lists what **is** implemented, then what remains.
 
 ## 3. Document Interface
 
-**Implemented:** `documentElement`, `body`, `head`, `title`, `createElement()`, `createTextNode()`, `getElementById()`, `getElementsByTagName()`, `getElementsByClassName()`, `querySelector()`, `querySelectorAll()`
+**Implemented:** `documentElement`, `body`, `head`, `title`, `cookie` (get/set, when configured via DomBridge), `createElement()`, `createTextNode()`, `getElementById()`, `getElementsByTagName()`, `getElementsByClassName()`, `querySelector()`, `querySelectorAll()`
 
 **TODO:**
 - [ ] `createComment(data)` method
@@ -93,32 +89,24 @@ Each section lists what **is** implemented, then what remains.
 - [ ] `documentURI` / `URL` property
 - [ ] `domain` property
 - [ ] `lastModified` property
-- [ ] `location` property (Location object)
+- [ ] `location` property (Location object on document)
 - [ ] `referrer` property
-- [ ] `cookie` property (read/write)
 - [ ] `hidden` / `visibilityState` properties
 - [ ] `defaultView` property (→ window)
 - [ ] `forms` / `images` / `links` / `scripts` collections
-- [ ] `DOMContentLoaded` and `load` event firing
 
 ---
 
 ## 4. Window Interface
 
-**Implemented:** `document`, `innerWidth`, `innerHeight`, `devicePixelRatio`, `console`, `setTimeout()` (stub), `clearTimeout()`, `setInterval()` (stub), `clearInterval()`, `alert()`
+**Implemented:** `document`, `innerWidth`, `innerHeight`, `devicePixelRatio`, `console`, `setTimeout()` (real async via TimerScheduler), `clearTimeout()`, `setInterval()` (real recurring via TimerScheduler), `clearInterval()`, `requestAnimationFrame()`, `cancelAnimationFrame()`, `alert()`, `location` (full Location object), `history` (full History object), `localStorage` (full Storage API), `sessionStorage` (full Storage API), `fetch()` (returns Promise with Response)
 
 **TODO:**
 
 ### Timers & Animation
-- [ ] `setTimeout()` — actual async scheduling (currently only fires if delay ≤ 0)
-- [ ] `setInterval()` — actual recurring scheduling (currently stub)
-- [ ] `requestAnimationFrame(callback)` method
-- [ ] `cancelAnimationFrame(id)` method
 - [ ] `queueMicrotask(callback)` method
 
 ### Navigation & Location
-- [ ] `location` property — full Location object (href, protocol, host, pathname, search, hash, assign, replace, reload)
-- [ ] `history` property — History object (pushState, replaceState, back, forward, go)
 - [ ] `navigator` property — Navigator object (userAgent, language, platform, etc.)
 
 ### Layout & Display
@@ -131,12 +119,7 @@ Each section lists what **is** implemented, then what remains.
 - [ ] `print()` method
 - [ ] `confirm(message)` / `prompt(message, default)` methods
 
-### Storage
-- [ ] `localStorage` property — Storage object (getItem, setItem, removeItem, clear, length, key)
-- [ ] `sessionStorage` property — Storage object
-
 ### Networking
-- [ ] `fetch()` function — Fetch API
 - [ ] `XMLHttpRequest` constructor
 - [ ] `WebSocket` constructor
 - [ ] `URL` / `URLSearchParams` constructors
@@ -153,25 +136,20 @@ Each section lists what **is** implemented, then what remains.
 
 ---
 
-## 5. Event System (completely missing)
+## 5. Event System
 
-The entire DOM event system is unimplemented.
+**Implemented:** Full EventTarget interface on Node (addEventListener, removeEventListener, dispatchEvent). Event propagation with capture → target → bubble phases. DomEvent base class (type, target, currentTarget, bubbles, cancelable, eventPhase, defaultPrevented, preventDefault, stopPropagation, stopImmediatePropagation). MouseEvent (clientX, clientY, button, ctrlKey, shiftKey, altKey, metaKey). KeyboardEvent (key, code, ctrlKey, shiftKey, altKey, metaKey, repeat). JsEventWrapper exposes all event properties/methods to JS. Browser dispatches: mousedown, mouseup, click, mousemove, mouseover, mouseout, mouseenter, mouseleave. Document fires DOMContentLoaded and load events after page load. InteractionStateHelper manages :hover/:focus/:active pseudo-class state.
 
-### EventTarget Interface
-- [ ] `addEventListener(type, listener, options)` method
-- [ ] `removeEventListener(type, listener, options)` method
-- [ ] `dispatchEvent(event)` method
-- [ ] All Node/Element/Document/Window types should inherit EventTarget
+**TODO:**
 
-### Event Interface
-- [ ] `Event` constructor
-- [ ] Properties: `type`, `target`, `currentTarget`, `eventPhase`, `bubbles`, `cancelable`, `defaultPrevented`, `composed`, `isTrusted`, `timeStamp`
-- [ ] Methods: `preventDefault()`, `stopPropagation()`, `stopImmediatePropagation()`, `composedPath()`
-- [ ] Event propagation phases: capture → target → bubble
+### Event Interface Gaps
+- [ ] `Event` constructor (allow `new Event('custom')` from JS)
+- [ ] `composedPath()` method
+- [ ] `composed` property
+- [ ] `isTrusted` property
+- [ ] `timeStamp` property
 
 ### UI Event Types
-- [ ] `MouseEvent` — click, dblclick, mousedown, mouseup, mousemove, mouseenter, mouseleave, mouseover, mouseout, contextmenu
-- [ ] `KeyboardEvent` — keydown, keyup, keypress (deprecated but common)
 - [ ] `FocusEvent` — focus, blur, focusin, focusout
 - [ ] `InputEvent` — input, beforeinput
 - [ ] `WheelEvent` — wheel
@@ -180,19 +158,18 @@ The entire DOM event system is unimplemented.
 - [ ] `DragEvent` — dragstart, drag, dragenter, dragleave, dragover, drop, dragend
 
 ### Document/Window Events
-- [ ] `DOMContentLoaded` event
-- [ ] `load` / `unload` / `beforeunload` events
 - [ ] `resize` event
 - [ ] `scroll` event
 - [ ] `hashchange` / `popstate` events
 - [ ] `visibilitychange` event
 - [ ] `error` event (window-level)
+- [ ] `unload` / `beforeunload` events
 
 ### Element Events
 - [ ] `submit` / `reset` events (forms)
 - [ ] `change` / `input` events (form controls)
 - [ ] `on*` properties on elements (onclick, onmouseover, etc.)
-- [ ] `CustomEvent` constructor — user-defined events
+- [ ] `CustomEvent` constructor — user-defined events with `detail`
 
 ---
 
@@ -254,7 +231,7 @@ The entire DOM event system is unimplemented.
 
 ## 8. CSSStyleDeclaration Gaps
 
-**Implemented (28 properties):** color, backgroundColor, fontSize, fontFamily, fontWeight, fontStyle, textAlign, lineHeight, margin (+ 4 sides), padding (+ 4 sides), width, height, display, position, top/left/right/bottom, borderWidth/Color/Style, textDecoration, cssText
+**Implemented (65 properties via JsCssStyleDeclaration):** cssText, color, backgroundColor, fontSize, fontFamily, fontWeight, fontStyle, textAlign, lineHeight, letterSpacing, wordSpacing, textTransform, textDecoration, textOverflow, whiteSpace, visibility, opacity, cursor, overflow, boxSizing, margin, marginTop, marginRight, marginBottom, marginLeft, padding, paddingTop, paddingRight, paddingBottom, paddingLeft, width, height, minWidth, maxWidth, minHeight, maxHeight, display, position, top, left, right, bottom, zIndex, border, borderWidth, borderColor, borderStyle, borderTop, borderRight, borderBottom, borderLeft, borderRadius, borderTopLeftRadius, borderTopRightRadius, borderBottomRightRadius, borderBottomLeftRadius, flexDirection, flexWrap, flexGrow, flexShrink, flexBasis, flex, justifyContent, alignItems, alignSelf, gap, listStyleType
 
 **TODO:**
 - [ ] `getPropertyValue(property)` method
@@ -265,7 +242,7 @@ The entire DOM event system is unimplemented.
 - [ ] `item(index)` method
 - [ ] Index-based access
 - [ ] CSS custom properties (`--variable-name`)
-- [ ] Additional properties: opacity, visibility, overflow, float, clear, zIndex, cursor, transform, transition, animation, flexDirection, justifyContent, alignItems, gap, gridTemplateColumns, gridTemplateRows, boxShadow, borderRadius, outline, minWidth, maxWidth, minHeight, maxHeight, boxSizing, verticalAlign, whiteSpace, wordBreak, overflowWrap, letterSpacing, wordSpacing, textTransform, textIndent, textShadow, listStyleType, listStylePosition, listStyleImage, tableLayout, borderCollapse, borderSpacing, emptyCells, captionSide, content, counterIncrement, counterReset, resize, userSelect, pointerEvents, objectFit, objectPosition, filter, backdropFilter, mixBlendMode, isolation, willChange, contain, aspectRatio, accentColor, colorScheme, etc.
+- [ ] Additional properties: float, clear, transform, transition, animation, gridTemplateColumns, gridTemplateRows, boxShadow, outline, verticalAlign, wordBreak, overflowWrap, textIndent, textShadow, listStylePosition, listStyleImage, tableLayout, borderCollapse, borderSpacing, emptyCells, captionSide, content, counterIncrement, counterReset, resize, userSelect, pointerEvents, objectFit, objectPosition, filter, backdropFilter, mixBlendMode, isolation, willChange, contain, aspectRatio, accentColor, colorScheme, etc.
 
 ---
 
@@ -278,9 +255,25 @@ The entire DOM event system is unimplemented.
 - [ ] `IntersectionObserver`
 - [ ] `ResizeObserver`
 - [ ] `FormData` constructor
-- [ ] `Headers` / `Request` / `Response` (Fetch API types)
+- [ ] `Headers` / `Request` / `Response` (Fetch API types — partial: JsResponseWrapper exists with status/statusText/url/ok/headers/text()/json())
 - [ ] `Blob` / `File` / `FileReader`
 - [ ] `TextEncoder` / `TextDecoder`
 - [ ] `Worker` / `SharedWorker` — Web Workers
 - [ ] `BroadcastChannel`
 - [ ] `MessageChannel` / `MessagePort`
+
+---
+
+## 10. Additional Implemented Infrastructure (not in spec but supporting)
+
+- `JsTextNodeWrapper` — TextNode-specific: `data` (get/set), `nodeValue` (get/set), `length` (get)
+- `JsNodeListWrapper` — NodeList: `length`, numeric index access, `item()`, `forEach()`
+- `NodeWrapperCache` — ConditionalWeakTable for 1:1 C# node ↔ JS wrapper identity
+- `JsWrapperExtensions` — `DefineMethod`/`DefineGetter`/`DefineGetterSetter` helpers
+- `TimerScheduler` — Stopwatch-based monotonic timer queue: setTimeout/setInterval/requestAnimationFrame with real delays, drained per frame
+- `JsResponseWrapper` — fetch() Response object: status, statusText, url, ok, headers, text(), json()
+- `JsLocationWrapper` — window.location: href, protocol, host, hostname, port, pathname, search, hash, origin, assign(), replace(), reload(), toString()
+- `JsHistoryWrapper` — window.history: length, state, pushState(), replaceState(), back(), forward(), go()
+- `JsStorageWrapper` — localStorage/sessionStorage: length, getItem(), setItem(), removeItem(), clear(), key()
+- `JsFetchApi` — global fetch() returning Promise, async HTTP via Task.Run + main-thread marshaling
+- `DomBridge` — entry point installing document/window/fetch/timers/storage/location/history globals
