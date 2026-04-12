@@ -71,6 +71,20 @@ public sealed partial class StyleResolver
                 };
                 break;
 
+            case CssPropertyNames.AlignContent:
+                style.AlignContent = value.Raw.ToLowerInvariant() switch
+                {
+                    "stretch" => AlignContentType.Stretch,
+                    "flex-start" => AlignContentType.FlexStart,
+                    "flex-end" => AlignContentType.FlexEnd,
+                    "center" => AlignContentType.Center,
+                    "space-between" => AlignContentType.SpaceBetween,
+                    "space-around" => AlignContentType.SpaceAround,
+                    "space-evenly" => AlignContentType.SpaceEvenly,
+                    _ => style.AlignContent
+                };
+                break;
+
             case CssPropertyNames.FlexGrow:
                 if (value.Type is CssValueType.Number)
                     style.FlexGrow = (float)value.NumericValue;

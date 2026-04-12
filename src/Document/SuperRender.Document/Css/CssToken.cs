@@ -18,6 +18,7 @@ public enum CssTokenType
     Function,
     LeftParen,
     RightParen,
+    AtKeyword,
     Delim,
     EndOfFile
 }

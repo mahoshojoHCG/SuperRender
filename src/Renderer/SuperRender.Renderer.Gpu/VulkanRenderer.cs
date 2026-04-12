@@ -383,6 +383,22 @@ public sealed unsafe class VulkanRenderer : IDisposable
                     });
                     break;
                 }
+
+                case DrawLinearGradientCommand gradient:
+                    GradientRenderer.EmitLinearGradient(current.QuadVertices, current.QuadIndices, gradient);
+                    break;
+
+                case DrawRadialGradientCommand radial:
+                    GradientRenderer.EmitRadialGradient(current.QuadVertices, current.QuadIndices, radial);
+                    break;
+
+                case DrawBoxShadowCommand shadow:
+                    GradientRenderer.EmitBoxShadow(current.QuadVertices, current.QuadIndices, shadow);
+                    break;
+
+                case DrawOutlineCommand outline:
+                    GradientRenderer.EmitOutline(current.QuadVertices, current.QuadIndices, outline);
+                    break;
             }
         }
 

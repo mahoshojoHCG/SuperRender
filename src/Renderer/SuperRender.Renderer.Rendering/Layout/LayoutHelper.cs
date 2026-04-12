@@ -20,6 +20,8 @@ internal static class LayoutHelper
             ContainingBlockSize = containingBlockSize,
             ViewportWidth = 0,
             ViewportHeight = 0,
+            LineHeight = style.LineHeight,
+            RootLineHeight = PropertyDefaults.DefaultLineHeight,
         };
     }
 

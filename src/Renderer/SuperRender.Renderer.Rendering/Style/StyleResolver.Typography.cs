@@ -23,6 +23,8 @@ public sealed partial class StyleResolver
                     "right" => TextAlign.Right,
                     "center" => TextAlign.Center,
                     "justify" => TextAlign.Justify,
+                    "start" => TextAlign.Left,   // LTR default
+                    "end" => TextAlign.Right,     // LTR default
                     _ => style.TextAlign
                 };
                 break;
@@ -118,6 +120,34 @@ public sealed partial class StyleResolver
             case CssPropertyNames.ListStyle:
                 // Simplified: treat entire value as list-style-type
                 style.ListStyleType = value.Raw.ToLowerInvariant();
+                break;
+
+            case CssPropertyNames.TextIndent:
+                style.TextIndent = ResolveLength(value, parentStyle);
+                break;
+
+            case CssPropertyNames.TabSize:
+                if (value.Type == CssValueType.Number)
+                    style.TabSize = (float)value.NumericValue;
+                else
+                    style.TabSize = ResolveLength(value, parentStyle);
+                break;
+
+            case CssPropertyNames.FontVariant:
+                style.FontVariant = value.Raw.ToLowerInvariant();
+                break;
+
+            case CssPropertyNames.Direction:
+                style.Direction = value.Raw.ToLowerInvariant() switch
+                {
+                    "ltr" => "ltr",
+                    "rtl" => "rtl",
+                    _ => style.Direction
+                };
+                break;
+
+            case CssPropertyNames.Quotes:
+                style.Quotes = value.Raw;
                 break;
 
             default:

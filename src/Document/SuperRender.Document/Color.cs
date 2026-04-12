@@ -83,9 +83,212 @@ public readonly struct Color : IEquatable<Color>
         return new((float)(r1 + m), (float)(g1 + m), (float)(b1 + m), (float)a);
     }
 
+    // --- HWB (CSS Color Level 4) ---
+
+    public static Color FromHwb(double h, double w, double b)
+        => FromHwba(h, w, b, 1.0);
+
+    public static Color FromHwba(double h, double w, double b, double a)
+    {
+        h = ((h % 360) + 360) % 360;
+        w = Math.Clamp(w, 0, 1);
+        b = Math.Clamp(b, 0, 1);
+        a = Math.Clamp(a, 0, 1);
+
+        if (w + b >= 1)
+        {
+            float gray = (float)(w / (w + b));
+            return new(gray, gray, gray, (float)a);
+        }
+
+        var hsl = FromHsla(h, 1.0, 0.5, 1.0);
+        float scale = (float)(1 - w - b);
+        float wf = (float)w;
+        return new(
+            Math.Clamp(hsl.R * scale + wf, 0, 1),
+            Math.Clamp(hsl.G * scale + wf, 0, 1),
+            Math.Clamp(hsl.B * scale + wf, 0, 1),
+            (float)a);
+    }
+
+    // --- Lab / LCH (CSS Color Level 4, CIE Lab D50) ---
+
+    public static Color FromLab(double l, double a, double b)
+        => FromLaba(l, a, b, 1.0);
+
+    public static Color FromLaba(double l, double a, double b, double alpha)
+    {
+        alpha = Math.Clamp(alpha, 0, 1);
+        // Lab → XYZ (D50)
+        LabToXyzD50(l, a, b, out double x, out double y, out double z);
+        // D50 → D65 via Bradford
+        XyzD50ToD65(x, y, z, out double xd65, out double yd65, out double zd65);
+        // XYZ (D65) → linear sRGB → sRGB
+        XyzD65ToLinearSrgb(xd65, yd65, zd65, out double lr, out double lg, out double lb);
+        return new(
+            (float)Math.Clamp(LinearToSrgb(lr), 0, 1),
+            (float)Math.Clamp(LinearToSrgb(lg), 0, 1),
+            (float)Math.Clamp(LinearToSrgb(lb), 0, 1),
+            (float)alpha);
+    }
+
+    public static Color FromLch(double l, double c, double h)
+        => FromLcha(l, c, h, 1.0);
+
+    public static Color FromLcha(double l, double c, double h, double alpha)
+    {
+        double hRad = h * Math.PI / 180.0;
+        double a = c * Math.Cos(hRad);
+        double b = c * Math.Sin(hRad);
+        return FromLaba(l, a, b, alpha);
+    }
+
+    // --- OKLab / OKLCH (CSS Color Level 4) ---
+
+    public static Color FromOklab(double l, double a, double b)
+        => FromOklaba(l, a, b, 1.0);
+
+    public static Color FromOklaba(double l, double a, double b, double alpha)
+    {
+        alpha = Math.Clamp(alpha, 0, 1);
+        // OKLab → LMS (cube roots)
+        double lp = l + 0.3963377774 * a + 0.2158037573 * b;
+        double mp = l - 0.1055613458 * a - 0.0638541728 * b;
+        double sp = l - 0.0894841775 * a - 1.2914855480 * b;
+        double ll = lp * lp * lp;
+        double mm = mp * mp * mp;
+        double ss = sp * sp * sp;
+        // LMS → linear sRGB
+        double lr = +4.0767416621 * ll - 3.3077115913 * mm + 0.2309699292 * ss;
+        double lg = -1.2684380046 * ll + 2.6097574011 * mm - 0.3413193965 * ss;
+        double lb = -0.0041960863 * ll - 0.7034186147 * mm + 1.7076147010 * ss;
+        return new(
+            (float)Math.Clamp(LinearToSrgb(lr), 0, 1),
+            (float)Math.Clamp(LinearToSrgb(lg), 0, 1),
+            (float)Math.Clamp(LinearToSrgb(lb), 0, 1),
+            (float)alpha);
+    }
+
+    public static Color FromOklch(double l, double c, double h)
+        => FromOklcha(l, c, h, 1.0);
+
+    public static Color FromOklcha(double l, double c, double h, double alpha)
+    {
+        double hRad = h * Math.PI / 180.0;
+        double a = c * Math.Cos(hRad);
+        double b = c * Math.Sin(hRad);
+        return FromOklaba(l, a, b, alpha);
+    }
+
+    // --- color-mix() (CSS Color Level 5) ---
+
+    /// <summary>
+    /// Mixes two colors in sRGB space. Percentages are 0-1.
+    /// If both percentages are NaN, defaults to 50%/50%.
+    /// </summary>
+    public static Color ColorMix(Color c1, Color c2, double p1 = 0.5, double p2 = double.NaN)
+    {
+        if (double.IsNaN(p1) && double.IsNaN(p2)) { p1 = 0.5; p2 = 0.5; }
+        else if (double.IsNaN(p2)) p2 = 1.0 - p1;
+        else if (double.IsNaN(p1)) p1 = 1.0 - p2;
+
+        double sum = p1 + p2;
+        if (sum <= 0) return Transparent;
+        p1 /= sum;
+        p2 /= sum;
+
+        return new(
+            (float)Math.Clamp(c1.R * p1 + c2.R * p2, 0, 1),
+            (float)Math.Clamp(c1.G * p1 + c2.G * p2, 0, 1),
+            (float)Math.Clamp(c1.B * p1 + c2.B * p2, 0, 1),
+            (float)Math.Clamp(c1.A * p1 + c2.A * p2, 0, 1));
+    }
+
+    // --- light-dark() (CSS Color Level 5) ---
+
+    /// <summary>
+    /// Returns lightColor in light mode, darkColor in dark mode.
+    /// Currently always returns lightColor (dark mode not yet supported).
+    /// </summary>
+    public static Color LightDark(Color lightColor, Color darkColor, bool isDarkMode = false)
+        => isDarkMode ? darkColor : lightColor;
+
+    // --- System Colors (CSS Color Level 4) ---
+
+    public static bool TryFromSystemColor(string name, out Color color)
+        => SystemColors.TryGetValue(name.ToLowerInvariant(), out color);
+
+    // --- Color space conversion helpers ---
+
+    private static void LabToXyzD50(double l, double a, double b, out double x, out double y, out double z)
+    {
+        const double epsilon = 216.0 / 24389.0;
+        const double kappa = 24389.0 / 27.0;
+        const double xn = 0.96422;
+        const double yn = 1.0;
+        const double zn = 0.82521;
+
+        double fy = (l + 16.0) / 116.0;
+        double fx = a / 500.0 + fy;
+        double fz = fy - b / 200.0;
+
+        double xr = fx * fx * fx > epsilon ? fx * fx * fx : (116.0 * fx - 16.0) / kappa;
+        double yr = l > kappa * epsilon ? Math.Pow((l + 16.0) / 116.0, 3) : l / kappa;
+        double zr = fz * fz * fz > epsilon ? fz * fz * fz : (116.0 * fz - 16.0) / kappa;
+
+        x = xr * xn;
+        y = yr * yn;
+        z = zr * zn;
+    }
+
+    private static void XyzD50ToD65(double x50, double y50, double z50, out double x65, out double y65, out double z65)
+    {
+        // Bradford chromatic adaptation D50 → D65
+        x65 = 0.9555766 * x50 + -0.0230393 * y50 + 0.0631636 * z50;
+        y65 = -0.0282895 * x50 + 1.0099416 * y50 + 0.0210077 * z50;
+        z65 = 0.0122982 * x50 + -0.0204830 * y50 + 1.3299098 * z50;
+    }
+
+    private static void XyzD65ToLinearSrgb(double x, double y, double z, out double r, out double g, out double b)
+    {
+        r = 3.2404542 * x + -1.5371385 * y + -0.4985314 * z;
+        g = -0.9692660 * x + 1.8760108 * y + 0.0415560 * z;
+        b = 0.0556434 * x + -0.2040259 * y + 1.0572252 * z;
+    }
+
+    private static double LinearToSrgb(double c)
+    {
+        if (c <= 0.0031308)
+            return 12.92 * c;
+        return 1.055 * Math.Pow(c, 1.0 / 2.4) - 0.055;
+    }
+
     public static readonly Color Black = new(0, 0, 0, 1);
     public static readonly Color White = new(1, 1, 1, 1);
     public static readonly Color Transparent = new(0, 0, 0, 0);
+
+    private static readonly Dictionary<string, Color> SystemColors = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["canvas"] = White,
+        ["canvastext"] = Black,
+        ["linktext"] = FromRgb(0, 0, 238),
+        ["visitedtext"] = FromRgb(85, 26, 139),
+        ["activetext"] = FromRgb(255, 0, 0),
+        ["buttonface"] = FromRgb(240, 240, 240),
+        ["buttontext"] = Black,
+        ["buttonborder"] = FromRgb(118, 118, 118),
+        ["field"] = White,
+        ["fieldtext"] = Black,
+        ["highlight"] = FromRgb(0, 120, 215),
+        ["highlighttext"] = White,
+        ["selecteditem"] = FromRgb(0, 120, 215),
+        ["selecteditemtext"] = White,
+        ["mark"] = FromRgb(255, 255, 0),
+        ["marktext"] = Black,
+        ["graytext"] = FromRgb(128, 128, 128),
+        ["accentcolor"] = FromRgb(0, 120, 215),
+        ["accentcolortext"] = White,
+    };
 
     // Full CSS Color Level 4 named colors (148 colors + transparent)
     private static readonly Dictionary<string, Color> NamedColors = new(StringComparer.OrdinalIgnoreCase)

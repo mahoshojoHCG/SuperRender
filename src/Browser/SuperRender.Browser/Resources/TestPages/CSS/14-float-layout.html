@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html><head><title>CSS Test 14 - Float Layout</title>
+<style>
+    body { font-family: Helvetica, sans-serif; font-size: 14px; margin: 20px; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
+    .test-section { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; overflow: hidden; }
+    .label { font-weight: bold; margin-bottom: 8px; }
+    .float-left { float: left; width: 100px; height: 100px; background-color: #3498db; margin-right: 15px; }
+    .float-right { float: right; width: 100px; height: 100px; background-color: #e74c3c; margin-left: 15px; }
+    .clear-both { clear: both; }
+</style></head>
+<body>
+    <h1>CSS Test 14: Float Layout</h1>
+    <div class="test-section">
+        <div class="label">14a: float: left</div>
+        <div class="float-left"></div>
+        <p>This text flows around the blue floated box on the left. The text wraps below when it reaches the bottom of the float.</p>
+    </div>
+    <div class="test-section">
+        <div class="label">14b: float: right</div>
+        <div class="float-right"></div>
+        <p>This text flows around the red floated box on the right side.</p>
+    </div>
+    <div class="test-section">
+        <div class="label">14c: clear: both</div>
+        <div class="float-left"></div>
+        <div class="float-right"></div>
+        <div class="clear-both"></div>
+        <p>This paragraph appears below both floats due to clear: both.</p>
+    </div>
+</body></html>

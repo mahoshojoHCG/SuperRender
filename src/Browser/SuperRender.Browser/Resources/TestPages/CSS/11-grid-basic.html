@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html><head><title>CSS Test 11 - Grid Basic</title>
+<style>
+    body { font-family: Helvetica, sans-serif; font-size: 14px; margin: 20px; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
+    .test-section { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; }
+    .label { font-weight: bold; margin-bottom: 8px; }
+    .grid { display: grid; gap: 10px; }
+    .grid-2col { grid-template-columns: 1fr 1fr; }
+    .grid-3col { grid-template-columns: 1fr 1fr 1fr; }
+    .grid-fixed { grid-template-columns: 100px 200px 100px; }
+    .item { padding: 15px; color: white; text-align: center; }
+    .r { background-color: #e74c3c; }
+    .g { background-color: #2ecc71; }
+    .b { background-color: #3498db; }
+    .p { background-color: #9b59b6; }
+    .o { background-color: #f39c12; }
+    .t { background-color: #1abc9c; }
+</style></head>
+<body>
+    <h1>CSS Test 11: Grid Basic</h1>
+    <div class="test-section">
+        <div class="label">11a: 2-column grid (1fr 1fr)</div>
+        <div class="grid grid-2col">
+            <div class="item r">1</div><div class="item g">2</div>
+            <div class="item b">3</div><div class="item p">4</div>
+        </div>
+    </div>
+    <div class="test-section">
+        <div class="label">11b: 3-column grid (1fr 1fr 1fr)</div>
+        <div class="grid grid-3col">
+            <div class="item r">1</div><div class="item g">2</div><div class="item b">3</div>
+            <div class="item p">4</div><div class="item o">5</div><div class="item t">6</div>
+        </div>
+    </div>
+    <div class="test-section">
+        <div class="label">11c: Fixed-width columns (100px 200px 100px)</div>
+        <div class="grid grid-fixed">
+            <div class="item r">100px</div><div class="item g">200px</div><div class="item b">100px</div>
+        </div>
+    </div>
+</body></html>

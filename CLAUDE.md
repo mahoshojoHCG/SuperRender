@@ -20,8 +20,8 @@ A complete HTML+CSS rendering engine built with C# (.NET 10), using Silk.NET + V
   - `SuperRender.Browser/` — Browser application with tabs, address bar, networking, cookies, storage (SQLite), HTTP caching, CORS, HiDPI, image loading
 - `src/Demo/`
   - `SuperRender.Demo/` — Minimal Vulkan demo app (uses Gpu library)
-- `tests/SuperRender.Document.Tests/` — xUnit tests for Document (295 tests: HTML, CSS, DOM, selectors, entities)
-- `tests/SuperRender.Renderer.Tests/` — xUnit tests for Renderer (216 tests: Style, Layout, Flexbox, Painting)
+- `tests/SuperRender.Document.Tests/` — xUnit tests for Document (546 tests: HTML, CSS, DOM, selectors, entities, color functions, at-rules, media queries, gradients, box-shadow)
+- `tests/SuperRender.Renderer.Tests/` — xUnit tests for Renderer (543 tests: Style, Layout, Flexbox, Grid, Painting, Transforms, Transitions, Filters, Logical Properties)
 - `tests/SuperRender.Renderer.Image.Tests/` — xUnit tests for Image decoders (25 tests: PNG, BMP, JPEG)
 - `tests/SuperRender.EcmaScript.Tests/` — xUnit tests for EcmaScript (668 tests)
 - `tests/SuperRender.Browser.Tests/` — xUnit tests for Browser + DOM bindings (265 tests)
@@ -30,7 +30,7 @@ A complete HTML+CSS rendering engine built with C# (.NET 10), using Silk.NET + V
 
 ```bash
 dotnet build              # Build all projects (warnings are errors)
-dotnet test               # Run all unit tests (1469 total)
+dotnet test               # Run all unit tests (2047 total)
 dotnet run --project src/Demo/SuperRender.Demo  # Launch the demo window (requires Vulkan)
 dotnet run --project src/Browser/SuperRender.Browser  # Launch the browser (requires Vulkan)
 dotnet run --project src/EcmaScript/SuperRender.EcmaScript.Repl  # Launch the JS console REPL
@@ -38,21 +38,21 @@ dotnet run --project src/EcmaScript/SuperRender.EcmaScript.Repl  # Launch the JS
 
 ## Architecture
 
-**Rendering pipeline:** HTML string → Parse → DOM tree → Style resolution (cascade/specificity/inheritance) → Layout (block/inline/flex box model) → Paint commands → Vulkan GPU rendering
+**Rendering pipeline:** HTML string → Parse → DOM tree → Style resolution (cascade/specificity/inheritance/custom properties/at-rules) → Layout (block/inline/flex/grid/table/float box model) → Paint commands → Vulkan GPU rendering
 
 **Key components:**
 - `RenderPipeline` — orchestrator with dirty-flag optimization
 - `HtmlParser` — state-machine tokenizer + tree builder with auto-closing rules and adoption agency algorithm. `HtmlTokenizer` split into partial classes: `HtmlTokenizer.cs` (fields, dispatch loop, helpers) and `HtmlTokenizer.States.cs` (16 state handler methods)
-- `CssParser` — tokenizer + parser with shorthand expansion (margin/padding/border/flex/flex-flow/border-radius). Split into partial classes: `CssParser.cs` (core parsing, value parsing, token helpers) and `CssParser.Shorthands.cs` (all `Expand*Shorthand` methods)
-- `StyleResolver` — cascade, specificity, `!important`, global keywords (`initial`/`inherit`/`unset`/`revert`), inherited properties (color, font-size, font-family, font-weight, font-style, text-align, line-height, white-space, visibility, text-transform, letter-spacing, word-spacing, cursor, word-break, overflow-wrap, list-style-type), `hidden` attribute, box-sizing, min/max constraints, overflow, z-index, opacity, CSS font-family list parsing, `calc()`/`min()`/`max()`/`clamp()` evaluation, viewport units (vw/vh/vmin/vmax). Split into partial classes: `StyleResolver.cs` (core resolution), `StyleResolver.BoxModel.cs`, `StyleResolver.Typography.cs`, `StyleResolver.Color.cs`, `StyleResolver.Position.cs`, `StyleResolver.Flex.cs`, `StyleResolver.Helpers.cs`
-- `LayoutEngine` — block layout, inline layout with word-wrap, anonymous block wrapping, inline-block layout, flexbox layout (`FlexLayout` with direction/wrap/justify/align/grow/shrink/basis/gap, decomposed into phases: collect items, wrap into lines, resolve sizes, position items), position:relative/absolute, white-space modes, replaced element sizing for `<img>` with intrinsic dimensions and aspect ratio preservation. `BoxDimensions` provides `HorizontalEdge`/`VerticalEdge`/`LeftEdge`/`TopEdge` helpers for margin+border+padding calculations. `ImageIntrinsicSizeHelper` provides shared image dimension reading used by both `BlockLayout` and `FlexLayout`.
-- `Painter` — generates FillRect/DrawText/DrawImage/PushClip/PopClip commands from layout tree, per-run inline background painting, text-decoration rendering, z-index ordering, overflow:hidden clipping, list markers, opacity compositing, visibility:hidden support, `<img>` alt text fallback
-- `SelectorMatcher` — CSS Selectors Level 4: descendant/child/adjacent-sibling/general-sibling combinators, attribute selectors, structural pseudo-classes (`:first-child`/`:last-child`/`:nth-child(An+B)`/`:only-child`/`:first-of-type`/etc.), functional pseudo-classes (`:not()`/`:is()`/`:where()`), dynamic pseudo-classes (`:hover`/`:focus`/`:active`/`:link`/`:visited`), pseudo-elements (`::before`/`::after`), `:root`/`:empty`
+- `CssParser` — tokenizer + parser with shorthand expansion (margin/padding/border/flex/flex-flow/border-radius/inset/background/outline/place-*/logical properties), at-rule parsing (`@import`/`@media`/`@supports`/`@layer`/`@scope`/`@font-face`/`@keyframes`/`@namespace`), CSS nesting support, gradient parsing (linear/radial/conic), box-shadow parsing. Split into partial classes: `CssParser.cs` (core parsing, value parsing, token helpers, at-rules, nesting) and `CssParser.Shorthands.cs` (all `Expand*Shorthand` methods)
+- `StyleResolver` — cascade, specificity, `!important`, global keywords (`initial`/`inherit`/`unset`/`revert`), custom properties (`--*`/`var()` with cycle detection), `@media`/`@supports` conditional evaluation, `@layer` cascade layers, inherited properties (color, font-size, font-family, font-weight, font-style, text-align, line-height, white-space, visibility, text-transform, letter-spacing, word-spacing, cursor, word-break, overflow-wrap, list-style-type, text-indent, tab-size, font-variant, direction, quotes), `hidden` attribute, box-sizing, min/max constraints, overflow, z-index, opacity, CSS font-family list parsing, `calc()`/`min()`/`max()`/`clamp()` + 17 extended math functions evaluation, viewport units (vw/vh/vmin/vmax + dynamic/small/large variants), absolute units (cm/mm/in/pc/Q), font-relative units (ex/ch/lh/rlh), angle units (deg/grad/rad/turn), time units (s/ms). Split into partial classes: `StyleResolver.cs` (core resolution, custom property wiring), `StyleResolver.BoxModel.cs` (+ logical properties), `StyleResolver.Typography.cs`, `StyleResolver.Color.cs`, `StyleResolver.Position.cs`, `StyleResolver.Flex.cs`, `StyleResolver.Helpers.cs` (+ ResolveAngle/ResolveTime), `StyleResolver.Transform.cs`, `StyleResolver.Animation.cs`, `StyleResolver.Grid.cs`, `StyleResolver.Background.cs`, `StyleResolver.Visual.cs`, `StyleResolver.Filter.cs`
+- `LayoutEngine` — block layout, inline layout with word-wrap, anonymous block wrapping, inline-block layout, flexbox layout (`FlexLayout` with direction/wrap/justify/align-items/align-content/grow/shrink/basis/gap, decomposed into phases: collect items, wrap into lines, resolve sizes, position items, align-content distribution), grid layout (`GridLayout` with template columns/rows, `fr` units, `repeat()`, auto-placement, explicit placement), table layout (`TableLayout` with fixed/auto algorithms, border-collapse/spacing), float layout (`FloatLayout` with left/right floating, clear), position:static/relative/absolute/fixed/sticky, white-space modes, replaced element sizing for `<img>` with intrinsic dimensions and aspect ratio preservation, `aspect-ratio` property, margin collapsing (sibling, parent-first-child, empty blocks). `BoxDimensions` provides `HorizontalEdge`/`VerticalEdge`/`LeftEdge`/`TopEdge` helpers for margin+border+padding calculations. `ImageIntrinsicSizeHelper` provides shared image dimension reading used by both `BlockLayout` and `FlexLayout`.
+- `Painter` — generates FillRect/DrawText/DrawImage/PushClip/PopClip/DrawGradient/DrawBoxShadow/DrawOutline/PushTransform/PopTransform/PushFilter/PopFilter commands from layout tree, per-run inline background painting, text-decoration rendering, z-index ordering, overflow:hidden clipping, list markers, opacity compositing, visibility:hidden support, `<img>` alt text fallback, gradient backgrounds, box-shadow (before background), outline (after content), transform matrix push/pop
+- `SelectorMatcher` — CSS Selectors Level 4: descendant/child/adjacent-sibling/general-sibling combinators, attribute selectors (with case-insensitive `[i]`/case-sensitive `[s]` flags), structural pseudo-classes (`:first-child`/`:last-child`/`:nth-child(An+B)`/`:nth-of-type(An+B)`/`:nth-last-of-type(An+B)`/`:only-child`/`:first-of-type`/etc.), functional pseudo-classes (`:not()`/`:is()`/`:where()`/`:has()`), dynamic pseudo-classes (`:hover`/`:focus`/`:active`/`:focus-within`/`:focus-visible`/`:link`/`:visited`/`:any-link`), form pseudo-classes (`:enabled`/`:disabled`/`:checked`/`:required`/`:optional`/`:read-only`/`:read-write`/`:placeholder-shown`), linguistic pseudo-classes (`:lang()`/`:dir()`), pseudo-elements (`::before`/`::after`/`::first-line`/`::first-letter`/`::marker`/`::placeholder`/`::selection`/`::backdrop`), `:root`/`:empty`/`:defined`/`:scope`/`:target`
 - `SelectionPainter` — generates highlight FillRect commands for text selection ranges, font-aware width measurement
 - `TextHitTester` — hit-tests mouse coordinates against laid-out TextRuns to find character positions, font-aware measurement, respects overflow:hidden clip regions (clipped text cannot be selected)
 - `LayoutBoxHitTester` — hit-tests layout boxes by coordinate to find clicked DOM elements, walks to `<a>` ancestors for link navigation
 - `TextSelectionState` — tracks selection start/end as `TextPosition(RunIndex, CharOffset)`
-- `VulkanRenderer` — frame loop with quad pipeline (backgrounds/borders) + text pipeline (font atlas with alpha blending), HiDPI content scale support
+- `VulkanRenderer` — frame loop with quad pipeline (backgrounds/borders) + text pipeline (font atlas with alpha blending) + gradient pipeline (linear/radial with SDF clipping) + shadow pipeline (SDF-based Gaussian blur), HiDPI content scale support
 - `DomMutationApi` — runtime DOM modification with automatic re-layout
 - `DomEvent` / `MouseEvent` / `KeyboardEvent` — DOM event classes with capture/target/bubble propagation
 - `EventListener` — registered event handler on a DOM node (type, handler, capture flag)
@@ -72,6 +72,22 @@ Pure C# image decoders in `SuperRender.Renderer.Image` (zero external dependenci
 
 **Integration:** `Tab.LoadImagesAsync()` fetches image bytes via `ResourceLoader.FetchImageBytesAsync()` (supports HTTP/file/data: URIs), decodes with `ImageDecoder`, stores in `ImageCache`, sets `data-natural-width`/`data-natural-height` attributes on `<img>` elements for layout sizing.
 
+## CSS Feature Coverage
+
+**Color:** hex (#RGB/#RRGGBB/#RRGGBBAA), `rgb()`/`rgba()` (comma + space-separated, percentage alpha, `none` keyword), `hsl()`/`hsla()`, `hwb()`, `lab()`/`lch()`, `oklab()`/`oklch()`, `color()` (sRGB), `color-mix()`, `light-dark()`, `currentcolor`, 148 named colors, 19 system colors
+
+**Custom Properties:** `--*` declarations, `var()` with fallback, cyclic dependency detection, inherits by default. `CustomPropertyResolver` handles var() substitution before property application.
+
+**At-rules:** `@import`, `@media` (with `MediaQuery` evaluator: all/screen/print, min-width/max-width/min-height/max-height, orientation, and/not/only, comma lists), `@supports` (with `SupportsCondition` evaluator: and/or/not, property feature queries), `@layer`, `@scope`, `@font-face` (parsed), `@keyframes` (parsed), `@namespace`. CSS Nesting (`.parent { .child {} }`, `&` selector expansion).
+
+**Selectors:** type, class, ID, universal, combinators (descendant/child/adjacent-sibling/general-sibling), attribute selectors with `[i]`/`[s]` case flags, 26 pseudo-classes (structural, dynamic, form, linguistic, logical including `:has()`), 9 pseudo-element types.
+
+**Values & Units:** `px`/`em`/`rem`/`pt`/`%`/`auto`, absolute (`cm`/`mm`/`in`/`pc`/`Q`), font-relative (`ex`/`ch`/`lh`/`rlh`/`cap`/`ic`), viewport (`vw`/`vh`/`vmin`/`vmax` + dynamic/small/large variants), angles (`deg`/`grad`/`rad`/`turn`), time (`s`/`ms`), resolution (`dpi`/`dpcm`/`dppx`). Math: `calc()`/`min()`/`max()`/`clamp()` + `abs()`/`sign()`/`round()`/`mod()`/`rem()`/`sin()`/`cos()`/`tan()`/`asin()`/`acos()`/`atan()`/`atan2()`/`pow()`/`sqrt()`/`hypot()`/`log()`/`exp()`.
+
+**Layout:** block, inline, inline-block, flex (with align-content), grid (template rows/columns, fr, repeat, auto-placement), table (fixed/auto), float/clear, `display: contents`/`list-item`/`inline-flex`, position fixed/sticky, logical properties, aspect-ratio, margin collapsing.
+
+**Visual Effects:** `linear-gradient()`/`radial-gradient()`/`conic-gradient()` + repeating variants (GPU-rendered), `box-shadow` (GPU SDF blur), `outline`, CSS transforms (18 functions, 4x4 matrix), CSS transitions (timing functions: ease/linear/cubic-bezier/steps), CSS animations (@keyframes), CSS filters (blur/brightness/contrast/grayscale/sepia/invert/hue-rotate/saturate/drop-shadow), `backdrop-filter`, `mix-blend-mode`, `clip-path`.
+
 ## EcmaScript Engine
 
 **Pipeline:** JS source → Lexer (tokens) → Parser (AST) → JsCompiler (DLR Expression trees) → Compiled delegate → Execution
@@ -90,7 +106,7 @@ Pure C# image decoders in `SuperRender.Renderer.Image` (zero external dependenci
 
 **Deferred features** tracked in `docs/es-2025-todos.md`: Tail Call Optimization, Decorators, Pattern Matching, Module Workers. Most ES2025 features are now implemented (BigInt, Iterator Helpers, Set Methods, RegExp enhancements, Promise.withResolvers, groupBy, String well-formed, WeakRef, FinalizationRegistry, SharedArrayBuffer, Atomics, TypedArrays, structuredClone, eval, Function(), Pipeline Operator, Intl, Temporal, ShadowRealm, Import Assertions, for-await-of, Array.fromAsync). Manual test pages for JS features at `Resources/TestPages/JS/`; see `docs/MANUAL_TESTS_JS.md`.
 
-**Deferred CSS features** tracked in `docs/css-todos.md`: grid, custom properties, transforms, transitions, animations, media queries, container queries, CSS nesting, and more.
+**Remaining CSS feature gaps** tracked in `docs/css-todos.md`: subgrid, masonry layout, full @font-face font loading, variable fonts, container query units (cqw/cqh), full writing-mode layout integration, scroll-driven animations. Many CSS features are now implemented (custom properties, at-rules, media queries, CSS nesting, transforms, transitions, animations, grid, table, float layout, gradients, box-shadow, filters, blend modes, clip-path, logical properties, and more). Manual test pages for CSS features at `Resources/TestPages/CSS/`; see `docs/MANUAL_TESTS_CSS.md`.
 
 **Deferred HTML features** tracked in `docs/html-todos.md`: full WHATWG tokenizer states, forms, tables, embedded content, Shadow DOM, MutationObserver, and more.
 
@@ -171,6 +187,10 @@ Prefer GPU rendering and compute over CPU wherever feasible:
 - `Shaders/idct_dequant.comp.glsl` — compute shader: 64 threads per workgroup, shared memory dequantization + IDCT in a single dispatch (eliminates one CPU→GPU transfer vs separate passes)
 - `Shaders/ycbcr_to_rgba.comp.glsl` — compute shader: 256 threads per workgroup, each thread converts one pixel from YCbCr to RGBA
 - `ShaderCompiler` supports `"comp"` stage (shaderc kind 5) via `LoadOrCompileComputeShader()`
+- `Shaders/gradient.vert.glsl` — vertex shader for gradient quads (same layout as quad pipeline)
+- `Shaders/gradient.frag.glsl` — fragment shader with rounded-rect SDF clipping for gradient rectangles, multi-stop color interpolation for linear/radial gradients
+- `Shaders/shadow.frag.glsl` — fragment shader with SDF-based Gaussian blur approximation for box-shadow rendering
+- `GradientRenderer` — builds GPU vertex data for linear/radial gradients (multi-stop with hardware color interpolation), box shadows (SDF-based), and outlines (4-rect stroke)
 
 ## Browser
 
@@ -190,7 +210,7 @@ A Vulkan-powered browser application with tabbed browsing support.
 - `ResourceLoader` — HTTP client for fetching HTML/CSS/JS/image resources, file:// URI support for local files, sr:// for embedded test pages, data: URI for embedded images
 - `SecurityPolicy` — same-origin checks + CORS header validation for sub-resources
 - `UrlResolver` — resolves relative URLs against base URI (root-relative paths resolve to origin, not file://), normalizes address bar input (supports http/https/file/sr/about schemes, bare domain names, absolute file paths)
-- `TestPages` — provides access to embedded manual test page resources via `sr://test/{name}` protocol, supports P0/P1/JS subdirectories. JS test pages (`sr://test/JS/{name}`) cover ECMAScript 2025 features (BigInt, Iterator Helpers, Set Methods, Temporal, Intl, etc.). See `docs/MANUAL_TESTS_JS.md` for the full JS test plan.
+- `TestPages` — provides access to embedded manual test page resources via `sr://test/{name}` protocol, supports P0/P1/JS/CSS subdirectories. JS test pages (`sr://test/JS/{name}`) cover ECMAScript 2025 features (BigInt, Iterator Helpers, Set Methods, Temporal, Intl, etc.). CSS test pages (`sr://test/CSS/{name}`) cover advanced CSS features (transforms, transitions, animations, grid, filters, etc.). See `docs/MANUAL_TESTS_JS.md` and `docs/MANUAL_TESTS_CSS.md` for test plans.
 - `ImageCache` — thread-safe in-memory cache for decoded images, keyed by URL
 - `CookieJar` — in-memory cookie storage with Set-Cookie parsing, domain/path matching, Secure/HttpOnly/SameSite enforcement
 - `HttpCache` — SQLite-backed HTTP response cache with Cache-Control/ETag/Last-Modified/Expires support
@@ -252,7 +272,7 @@ Shared Vulkan rendering library used by both Demo and Browser.
 **Key components:**
 - `VulkanContext` — Vulkan instance/device/queues + MoltenVK setup for macOS
 - `SwapchainManager` — swapchain, render pass, framebuffers
-- `PipelineManager` — quad pipeline (solid rects, alpha-blended) + text pipeline (font atlas sampling, alpha-blended)
+- `PipelineManager` — quad pipeline (solid rects, alpha-blended) + text pipeline (font atlas sampling, alpha-blended) + gradient pipeline (linear/radial gradient rendering with SDF clipping) + shadow pipeline (SDF-based Gaussian blur for box-shadow)
 - `BufferManager` — persistent mapped ring buffers for vertex/index data (eliminates per-frame alloc/free), staging helpers for texture uploads, partial-region atlas updates
 - `VulkanRenderer` — segment-based frame loop with per-segment scissor clipping, GPU-side `vertexOffset` in draw calls, HiDPI content scale support, partial dirty-region atlas re-upload. `BrowserWindow` uses two-pass content rendering (quads pass → selection highlights → text pass) to ensure correct z-ordering across clip segments.
 - `FontAtlas` — dynamic glyph atlas (2048x4096, BaseFontSize=32, HiDPI-scaled): pre-renders ASCII + common symbols at startup, renders additional glyphs (CJK, Unicode) on demand via FreeType. Regular + bold + monospace variants. CJK fallback font chain. Dirty-region tracking for partial GPU texture uploads.

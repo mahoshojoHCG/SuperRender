@@ -47,10 +47,36 @@ public sealed class LayoutEngine
 
         if (root.BoxType == LayoutBoxType.FlexContainer)
             FlexLayout.Layout(root, viewport, _textMeasurer);
+        else if (root.BoxType == LayoutBoxType.GridContainer)
+            GridLayout.Layout(root, viewport, _textMeasurer);
+        else if (root.BoxType == LayoutBoxType.TableContainer)
+            TableLayout.Layout(root, viewport, _textMeasurer);
         else
             BlockLayout.Layout(root, viewport, _textMeasurer);
 
+        // Layout fixed-position elements relative to the viewport
+        LayoutFixedDescendants(root, viewport, _textMeasurer);
+
         return root;
+    }
+
+    /// <summary>
+    /// Recursively finds and lays out all position:fixed descendants relative to the viewport.
+    /// Fixed elements are treated like absolute during layout but use viewport as containing block.
+    /// </summary>
+    private static void LayoutFixedDescendants(LayoutBox box, BoxDimensions viewport, ITextMeasurer measurer)
+    {
+        foreach (var child in box.Children)
+        {
+            if (child.Style.Position == PositionType.Fixed)
+            {
+                BlockLayout.LayoutFixedChild(child, viewport, measurer);
+            }
+            else
+            {
+                LayoutFixedDescendants(child, viewport, measurer);
+            }
+        }
     }
 
     private static LayoutBox BuildBox(Node node, Dictionary<Node, ComputedStyle> styles,
@@ -95,7 +121,12 @@ public sealed class LayoutEngine
         {
             DisplayType.Inline => LayoutBoxType.Inline,
             DisplayType.InlineBlock => LayoutBoxType.InlineBlock,
-            DisplayType.Flex => LayoutBoxType.FlexContainer,
+            DisplayType.Flex or DisplayType.InlineFlex => LayoutBoxType.FlexContainer,
+            DisplayType.Grid or DisplayType.InlineGrid => LayoutBoxType.GridContainer,
+            DisplayType.Table or DisplayType.InlineTable => LayoutBoxType.TableContainer,
+            DisplayType.TableRow => LayoutBoxType.TableRow,
+            DisplayType.TableCell => LayoutBoxType.TableCell,
+            DisplayType.ListItem => LayoutBoxType.Block,
             _ => LayoutBoxType.Block,
         };
 
@@ -128,6 +159,13 @@ public sealed class LayoutEngine
             if (childStyle.Display == DisplayType.None)
                 continue;
 
+            // display: contents — flatten this child's children into the current box
+            if (childStyle.Display == DisplayType.Contents)
+            {
+                AddContentsChildren(child, box, styles, style, pseudoElements);
+                continue;
+            }
+
             var childBox = BuildBox(child, styles, pseudoElements);
 
             // Skip empty text nodes in block context (unless white-space preserves them)
@@ -155,6 +193,37 @@ public sealed class LayoutEngine
         }
 
         return box;
+    }
+
+    /// <summary>
+    /// For display:contents elements, recursively adds their children to the parent box,
+    /// skipping the element's own box generation.
+    /// </summary>
+    private static void AddContentsChildren(Node contentsNode, LayoutBox parentBox,
+        Dictionary<Node, ComputedStyle> styles, ComputedStyle parentStyle,
+        Dictionary<(Element, PseudoElementType), StyleResolver.PseudoElementInfo>? pseudoElements)
+    {
+        foreach (var grandchild in contentsNode.Children)
+        {
+            var grandchildStyle = styles.GetValueOrDefault(grandchild) ?? new ComputedStyle();
+            if (grandchildStyle.Display == DisplayType.None)
+                continue;
+
+            if (grandchildStyle.Display == DisplayType.Contents)
+            {
+                AddContentsChildren(grandchild, parentBox, styles, parentStyle, pseudoElements);
+                continue;
+            }
+
+            var childBox = BuildBox(grandchild, styles, pseudoElements);
+
+            if (childBox.TextContent != null && string.IsNullOrWhiteSpace(childBox.TextContent) &&
+                parentBox.BoxType == LayoutBoxType.Block && parentBox.Children.Count == 0 &&
+                parentStyle.WhiteSpace != WhiteSpaceType.Pre && parentStyle.WhiteSpace != WhiteSpaceType.PreWrap)
+                continue;
+
+            parentBox.Children.Add(childBox);
+        }
     }
 
     internal static string ProcessWhitespace(string text, WhiteSpaceType whiteSpace)

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Test 01 - Transforms</title>
+    <style>
+        body { font-family: Helvetica, sans-serif; font-size: 14px; color: #222; margin: 20px; line-height: 1.5; }
+        h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
+        .test-section { margin-bottom: 30px; padding: 15px; border: 1px solid #ccc; background-color: #f9f9f9; }
+        .label { font-weight: bold; margin-bottom: 8px; color: #333; font-size: 16px; }
+        .info { font-size: 12px; color: #666; margin-top: 8px; }
+        .box { width: 80px; height: 80px; background-color: #3498db; margin: 20px; display: inline-block; }
+        .translate { transform: translate(30px, 20px); }
+        .rotate { transform: rotate(45deg); }
+        .scale { transform: scale(1.5); }
+        .skew { transform: skewX(20deg); }
+        .multi { transform: translate(10px, 10px) rotate(30deg) scale(0.8); }
+        .origin-tl { transform: rotate(45deg); transform-origin: top left; }
+    </style>
+</head>
+<body>
+    <h1>CSS Test 01: Transforms</h1>
+    <div class="test-section">
+        <div class="label">1a: translate(30px, 20px)</div>
+        <div class="box translate">T</div>
+        <div class="info">Box should be shifted 30px right and 20px down from normal position.</div>
+    </div>
+    <div class="test-section">
+        <div class="label">1b: rotate(45deg)</div>
+        <div class="box rotate">R</div>
+        <div class="info">Box should be rotated 45 degrees clockwise around its center.</div>
+    </div>
+    <div class="test-section">
+        <div class="label">1c: scale(1.5)</div>
+        <div class="box scale">S</div>
+        <div class="info">Box should appear 50% larger than normal.</div>
+    </div>
+    <div class="test-section">
+        <div class="label">1d: skewX(20deg)</div>
+        <div class="box skew">K</div>
+        <div class="info">Box should be skewed horizontally by 20 degrees.</div>
+    </div>
+    <div class="test-section">
+        <div class="label">1e: Multiple transforms</div>
+        <div class="box multi">M</div>
+        <div class="info">Box should be translated, rotated 30deg, and scaled to 80%.</div>
+    </div>
+    <div class="test-section">
+        <div class="label">1f: transform-origin: top left</div>
+        <div class="box origin-tl">O</div>
+        <div class="info">Box should rotate around its top-left corner instead of center.</div>
+    </div>
+</body>
+</html>

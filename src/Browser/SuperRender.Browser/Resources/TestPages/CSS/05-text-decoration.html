@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Test 05 - Text Decoration</title>
+    <style>
+        body { font-family: Helvetica, sans-serif; font-size: 14px; color: #222; margin: 20px; }
+        h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
+        .test-section { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; }
+        .label { font-weight: bold; margin-bottom: 8px; }
+        .solid { text-decoration: underline; text-decoration-style: solid; }
+        .double { text-decoration: underline; text-decoration-style: double; }
+        .dotted { text-decoration: underline; text-decoration-style: dotted; }
+        .dashed { text-decoration: underline; text-decoration-style: dashed; }
+        .wavy { text-decoration: underline; text-decoration-style: wavy; text-decoration-color: red; }
+        .thick { text-decoration: underline; text-decoration-thickness: 3px; }
+        .offset { text-decoration: underline; text-underline-offset: 5px; }
+    </style>
+</head>
+<body>
+    <h1>CSS Test 05: Text Decoration Styles</h1>
+    <div class="test-section">
+        <div class="label">5a: solid underline</div><p class="solid">Solid underline text</p>
+        <div class="label">5b: double underline</div><p class="double">Double underline text</p>
+        <div class="label">5c: dotted underline</div><p class="dotted">Dotted underline text</p>
+        <div class="label">5d: dashed underline</div><p class="dashed">Dashed underline text</p>
+        <div class="label">5e: wavy red underline</div><p class="wavy">Wavy red underline text</p>
+        <div class="label">5f: thick underline (3px)</div><p class="thick">Thick underline text</p>
+        <div class="label">5g: underline offset (5px)</div><p class="offset">Offset underline text</p>
+    </div>
+</body>
+</html>

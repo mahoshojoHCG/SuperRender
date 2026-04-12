@@ -27,6 +27,11 @@ public static class PropertyDefaults
         CssPropertyNames.WordBreak,
         CssPropertyNames.OverflowWrap,
         CssPropertyNames.ListStyleType,
+        CssPropertyNames.TextIndent,
+        CssPropertyNames.TabSize,
+        CssPropertyNames.FontVariant,
+        CssPropertyNames.Direction,
+        CssPropertyNames.Quotes,
     ];
 
     public static bool IsInherited(string property) => InheritedProperties.Contains(property);
@@ -68,7 +73,11 @@ public static class PropertyDefaults
             case CssPropertyNames.Right: style.Right = float.NaN; break;
             case CssPropertyNames.Bottom: style.Bottom = float.NaN; break;
             case CssPropertyNames.ZIndex: style.ZIndex = 0; style.ZIndexIsAuto = true; break;
-            case CssPropertyNames.Overflow or CssPropertyNames.OverflowX or CssPropertyNames.OverflowY: style.Overflow = OverflowType.Visible; break;
+            case CssPropertyNames.Overflow or CssPropertyNames.OverflowX or CssPropertyNames.OverflowY:
+                style.Overflow = OverflowType.Visible;
+                style.OverflowX = OverflowType.Visible;
+                style.OverflowY = OverflowType.Visible;
+                break;
             case CssPropertyNames.TextOverflow: style.TextOverflow = TextOverflowType.Clip; break;
             case CssPropertyNames.BoxSizing: style.BoxSizing = BoxSizingType.ContentBox; break;
             case CssPropertyNames.MinWidth: style.MinWidth = 0; break;
@@ -93,12 +102,19 @@ public static class PropertyDefaults
             case CssPropertyNames.JustifyContent: style.JustifyContent = JustifyContentType.FlexStart; break;
             case CssPropertyNames.AlignItems: style.AlignItems = AlignItemsType.Stretch; break;
             case CssPropertyNames.AlignSelf: style.AlignSelf = AlignSelfType.Auto; break;
+            case CssPropertyNames.AlignContent: style.AlignContent = AlignContentType.Stretch; break;
             case CssPropertyNames.FlexGrow: style.FlexGrow = 0; break;
             case CssPropertyNames.FlexShrink: style.FlexShrink = 1; break;
             case CssPropertyNames.FlexBasis: style.FlexBasis = float.NaN; break;
             case CssPropertyNames.Gap: style.Gap = 0; break;
             case CssPropertyNames.RowGap: style.RowGap = float.NaN; break;
             case CssPropertyNames.ColumnGap: style.ColumnGap = float.NaN; break;
+            case CssPropertyNames.AspectRatio: style.AspectRatio = float.NaN; break;
+            case CssPropertyNames.TextIndent: style.TextIndent = 0; break;
+            case CssPropertyNames.TabSize: style.TabSize = 8f; break;
+            case CssPropertyNames.FontVariant: style.FontVariant = "normal"; break;
+            case CssPropertyNames.Direction: style.Direction = "ltr"; break;
+            case CssPropertyNames.Quotes: style.Quotes = ""; break;
         }
     }
 
@@ -132,19 +148,30 @@ public static class PropertyDefaults
             case CssPropertyNames.BackgroundColor: target.BackgroundColor = source.BackgroundColor; break;
             case CssPropertyNames.Opacity: target.Opacity = source.Opacity; break;
             case CssPropertyNames.Position: target.Position = source.Position; break;
-            case CssPropertyNames.Overflow or CssPropertyNames.OverflowX or CssPropertyNames.OverflowY: target.Overflow = source.Overflow; break;
+            case CssPropertyNames.Overflow or CssPropertyNames.OverflowX or CssPropertyNames.OverflowY:
+                target.Overflow = source.Overflow;
+                target.OverflowX = source.OverflowX;
+                target.OverflowY = source.OverflowY;
+                break;
             case CssPropertyNames.BoxSizing: target.BoxSizing = source.BoxSizing; break;
             case CssPropertyNames.FlexDirection: target.FlexDirection = source.FlexDirection; break;
             case CssPropertyNames.FlexWrap: target.FlexWrap = source.FlexWrap; break;
             case CssPropertyNames.JustifyContent: target.JustifyContent = source.JustifyContent; break;
             case CssPropertyNames.AlignItems: target.AlignItems = source.AlignItems; break;
             case CssPropertyNames.AlignSelf: target.AlignSelf = source.AlignSelf; break;
+            case CssPropertyNames.AlignContent: target.AlignContent = source.AlignContent; break;
             case CssPropertyNames.FlexGrow: target.FlexGrow = source.FlexGrow; break;
             case CssPropertyNames.FlexShrink: target.FlexShrink = source.FlexShrink; break;
             case CssPropertyNames.FlexBasis: target.FlexBasis = source.FlexBasis; break;
             case CssPropertyNames.Gap: target.Gap = source.Gap; break;
             case CssPropertyNames.RowGap: target.RowGap = source.RowGap; break;
             case CssPropertyNames.ColumnGap: target.ColumnGap = source.ColumnGap; break;
+            case CssPropertyNames.AspectRatio: target.AspectRatio = source.AspectRatio; break;
+            case CssPropertyNames.TextIndent: target.TextIndent = source.TextIndent; break;
+            case CssPropertyNames.TabSize: target.TabSize = source.TabSize; break;
+            case CssPropertyNames.FontVariant: target.FontVariant = source.FontVariant; break;
+            case CssPropertyNames.Direction: target.Direction = source.Direction; break;
+            case CssPropertyNames.Quotes: target.Quotes = source.Quotes; break;
         }
     }
 }

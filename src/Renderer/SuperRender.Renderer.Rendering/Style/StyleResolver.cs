@@ -32,18 +32,31 @@ public sealed partial class StyleResolver
         _viewportWidth = viewportWidth;
         _viewportHeight = viewportHeight;
         PseudoElements = new Dictionary<(Element, PseudoElementType), PseudoElementInfo>();
+        _customProperties = new Dictionary<Node, Dictionary<string, string>>();
         var styles = new Dictionary<Node, ComputedStyle>();
-        ResolveNode(document, null, styles);
+        ResolveNode(document, null, styles, null);
         return styles;
     }
 
-    private void ResolveNode(Node node, ComputedStyle? parentStyle, Dictionary<Node, ComputedStyle> styles)
+    /// <summary>Per-element custom property maps for CSS variables.</summary>
+    private Dictionary<Node, Dictionary<string, string>>? _customProperties;
+
+    /// <summary>Gets the resolved custom properties for an element (for external access).</summary>
+    public Dictionary<string, string>? GetCustomProperties(Node node)
+        => _customProperties?.GetValueOrDefault(node);
+
+    private void ResolveNode(Node node, ComputedStyle? parentStyle, Dictionary<Node, ComputedStyle> styles,
+        Dictionary<string, string>? parentCustomProps)
     {
         ComputedStyle style;
+        Dictionary<string, string>? elementCustomProps = parentCustomProps;
 
         if (node is Element element)
         {
-            style = Resolve(element, parentStyle);
+            style = Resolve(element, parentStyle, parentCustomProps, out var resolvedCustomProps);
+            elementCustomProps = resolvedCustomProps;
+            if (_customProperties != null && resolvedCustomProps != null && resolvedCustomProps.Count > 0)
+                _customProperties[node] = resolvedCustomProps;
 
             // Resolve pseudo-elements for this element
             if (PseudoElements != null)
@@ -61,7 +74,6 @@ public sealed partial class StyleResolver
         }
         else if (node is TextNode)
         {
-            // Text nodes only inherit text-related properties, not box-model properties
             style = new ComputedStyle { Display = DisplayType.Inline };
             if (parentStyle != null)
                 InheritFromParent(style, parentStyle);
@@ -75,11 +87,15 @@ public sealed partial class StyleResolver
 
         foreach (var child in node.Children)
         {
-            ResolveNode(child, style, styles);
+            ResolveNode(child, style, styles, elementCustomProps);
         }
     }
 
     public ComputedStyle Resolve(Element element, ComputedStyle? parentStyle = null)
+        => Resolve(element, parentStyle, null, out _);
+
+    private ComputedStyle Resolve(Element element, ComputedStyle? parentStyle,
+        Dictionary<string, string>? parentCustomProps, out Dictionary<string, string>? customProps)
     {
         var style = new ComputedStyle();
 
@@ -110,17 +126,33 @@ public sealed partial class StyleResolver
             return a.SourceOrder.CompareTo(b.SourceOrder);
         });
 
-        // Apply declarations in order (later overrides earlier)
-        foreach (var matched in matchedDeclarations)
-        {
-            ApplyDeclaration(style, matched.Declaration, parentStyle);
-        }
-
-        // Apply inline style attribute (highest specificity for non-!important)
+        // Collect inline style declarations
+        var inlineDecls = new List<Declaration>();
         var inlineStyle = element.GetAttribute(HtmlAttributeNames.Style);
         if (!string.IsNullOrWhiteSpace(inlineStyle))
         {
-            ApplyInlineStyle(style, inlineStyle, parentStyle);
+            inlineDecls = CssParser.ParseInlineStyleDeclarations(inlineStyle);
+        }
+
+        // Resolve custom properties (--* variables)
+        var allDecls = matchedDeclarations.Select(m => m.Declaration).Concat(inlineDecls).ToList();
+        customProps = CustomPropertyResolver.Resolve(allDecls, parentCustomProps);
+
+        // Apply declarations in order (later overrides earlier), resolving var() references
+        foreach (var matched in matchedDeclarations)
+        {
+            var decl = matched.Declaration;
+            if (decl.Property.StartsWith("--", StringComparison.Ordinal)) continue; // Custom properties already collected
+            var resolvedDecl = ResolveVarInDeclaration(decl, customProps);
+            ApplyDeclaration(style, resolvedDecl, parentStyle);
+        }
+
+        // Apply inline style (highest specificity for non-!important)
+        foreach (var decl in inlineDecls)
+        {
+            if (decl.Property.StartsWith("--", StringComparison.Ordinal)) continue;
+            var resolvedDecl = ResolveVarInDeclaration(decl, customProps);
+            ApplyDeclaration(style, resolvedDecl, parentStyle);
         }
 
         // Apply hidden attribute
@@ -151,11 +183,24 @@ public sealed partial class StyleResolver
         return result;
     }
 
-    private static void CollectFromStylesheet(
+    private void CollectFromStylesheet(
         Stylesheet stylesheet, Element element,
         List<MatchedDeclaration> result, ref int sourceOrder)
     {
-        foreach (var rule in stylesheet.Rules)
+        CollectFromRules(stylesheet.Rules, element, result, ref sourceOrder);
+
+        // Process at-rules (media, supports, layer, scope)
+        foreach (var atRule in stylesheet.AtRules)
+        {
+            CollectFromAtRule(atRule, element, result, ref sourceOrder);
+        }
+    }
+
+    private static void CollectFromRules(
+        List<CssRule> rules, Element element,
+        List<MatchedDeclaration> result, ref int sourceOrder)
+    {
+        foreach (var rule in rules)
         {
             foreach (var selector in rule.Selectors)
             {
@@ -178,6 +223,47 @@ public sealed partial class StyleResolver
                     }
                     break; // Only match once per rule
                 }
+            }
+        }
+    }
+
+    private void CollectFromAtRule(
+        CssAtRule atRule, Element element,
+        List<MatchedDeclaration> result, ref int sourceOrder)
+    {
+        switch (atRule)
+        {
+            case CssMediaRule mediaRule:
+            {
+                var mq = new MediaQuery(mediaRule.MediaQuery);
+                if (mq.Evaluate(_viewportWidth, _viewportHeight))
+                {
+                    CollectFromRules(mediaRule.Rules, element, result, ref sourceOrder);
+                    foreach (var nested in mediaRule.NestedAtRules)
+                        CollectFromAtRule(nested, element, result, ref sourceOrder);
+                }
+                break;
+            }
+            case CssSupportsRule supportsRule:
+            {
+                var sc = new SupportsCondition(supportsRule.Condition);
+                if (sc.Evaluate())
+                {
+                    CollectFromRules(supportsRule.Rules, element, result, ref sourceOrder);
+                    foreach (var nested in supportsRule.NestedAtRules)
+                        CollectFromAtRule(nested, element, result, ref sourceOrder);
+                }
+                break;
+            }
+            case CssLayerRule layerRule:
+            {
+                CollectFromRules(layerRule.Rules, element, result, ref sourceOrder);
+                break;
+            }
+            case CssScopeRule scopeRule:
+            {
+                CollectFromRules(scopeRule.Rules, element, result, ref sourceOrder);
+                break;
             }
         }
     }
@@ -320,7 +406,41 @@ public sealed partial class StyleResolver
             return;
         if (ApplyPositionProperty(style, prop, value, parentStyle))
             return;
-        ApplyFlexProperty(style, prop, value, parentStyle);
+        if (ApplyFlexProperty(style, prop, value, parentStyle))
+            return;
+        if (ApplyTransformProperty(style, prop, value, parentStyle))
+            return;
+        if (ApplyAnimationProperty(style, prop, value, parentStyle))
+            return;
+        if (ApplyGridProperty(style, prop, value, parentStyle))
+            return;
+        if (ApplyVisualProperty(style, prop, value, parentStyle))
+            return;
+        if (ApplyBackgroundProperty(style, prop, value, parentStyle))
+            return;
+        ApplyFilterProperty(style, prop, value, parentStyle);
+    }
+
+    private static Declaration ResolveVarInDeclaration(Declaration decl, Dictionary<string, string>? customProps)
+    {
+        if (decl.Value.VarName != null)
+        {
+            var resolved = CustomPropertyResolver.ResolveVarValue(decl.Value, customProps);
+            return new Declaration { Property = decl.Property, Value = resolved, Important = decl.Important };
+        }
+
+        // Check if the raw value contains var() (for values not parsed as function tokens)
+        if (customProps != null && customProps.Count > 0 && decl.Value.Raw.Contains("var(", StringComparison.OrdinalIgnoreCase))
+        {
+            var substituted = CustomPropertyResolver.SubstituteVars(decl.Value.Raw, customProps);
+            if (substituted != decl.Value.Raw)
+            {
+                var resolved = CssParser.ParseValueText(substituted);
+                return new Declaration { Property = decl.Property, Value = resolved, Important = decl.Important };
+            }
+        }
+
+        return decl;
     }
 
     private void ApplyInlineStyle(ComputedStyle style, string cssText, ComputedStyle? parentStyle)
@@ -404,6 +524,11 @@ public sealed partial class StyleResolver
         style.WordBreak = parentStyle.WordBreak;
         style.OverflowWrap = parentStyle.OverflowWrap;
         style.ListStyleType = parentStyle.ListStyleType;
+        style.TextIndent = parentStyle.TextIndent;
+        style.TabSize = parentStyle.TabSize;
+        style.FontVariant = parentStyle.FontVariant;
+        style.Direction = parentStyle.Direction;
+        style.Quotes = parentStyle.Quotes;
     }
 
     private static DisplayType GetDefaultDisplay(string tagName) => tagName switch

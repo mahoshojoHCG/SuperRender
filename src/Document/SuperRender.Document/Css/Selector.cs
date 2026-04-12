@@ -92,6 +92,7 @@ public sealed class AttributeSelector
     public required string Name { get; init; }
     public AttributeOp Op { get; init; }
     public string? Value { get; init; }
+    public AttributeCaseSensitivity CaseSensitivity { get; init; } = AttributeCaseSensitivity.Default;
 }
 
 public enum AttributeOp
@@ -103,6 +104,13 @@ public enum AttributeOp
     Contains,      // [attr*="val"]
     DashMatch,     // [attr|="val"]
     WordMatch      // [attr~="val"]
+}
+
+public enum AttributeCaseSensitivity
+{
+    Default,       // Use default case sensitivity (type-dependent)
+    CaseInsensitive, // [attr="val" i]
+    CaseSensitive    // [attr="val" s]
 }
 
 // --- Pseudo-classes ---
@@ -134,6 +142,32 @@ public enum PseudoClassType
     Not,
     Is,
     Where,
+    // Phase 5 additions
+    NthOfType,
+    NthLastOfType,
+    FocusWithin,
+    FocusVisible,
+    AnyLink,
+    Target,
+    Has,
+    Enabled,
+    Disabled,
+    Checked,
+    Indeterminate,
+    Required,
+    Optional,
+    Valid,
+    Invalid,
+    InRange,
+    OutOfRange,
+    ReadOnly,
+    ReadWrite,
+    PlaceholderShown,
+    Default,
+    Lang,
+    Dir,
+    Defined,
+    Scope,
 }
 
 // --- Pseudo-elements ---
@@ -142,4 +176,12 @@ public enum PseudoElementType
 {
     Before,
     After,
+    // Phase 5 additions
+    FirstLine,
+    FirstLetter,
+    Marker,
+    Placeholder,
+    Selection,
+    Backdrop,
+    FileSelectorButton,
 }

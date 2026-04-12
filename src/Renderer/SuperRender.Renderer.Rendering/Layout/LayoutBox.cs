@@ -15,7 +15,7 @@ public sealed class TextRun
     public bool IsPseudoElement { get; init; }
 }
 
-public enum LayoutBoxType { Block, Inline, AnonymousBlock, InlineBlock, FlexContainer }
+public enum LayoutBoxType { Block, Inline, AnonymousBlock, InlineBlock, FlexContainer, GridContainer, TableContainer, TableRow, TableCell }
 
 public sealed class LayoutBox
 {

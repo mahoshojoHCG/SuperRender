@@ -192,20 +192,20 @@ Each section lists what **is** implemented, then what remains.
 
 ## 10. Grid (CSS Grid Level 1 / Level 2)
 
-- [ ] `display: grid` / `display: inline-grid`
-- [ ] `grid-template-rows`, `grid-template-columns`
-- [ ] `grid-template-areas`
+- [x] `display: grid` / `display: inline-grid`
+- [x] `grid-template-rows`, `grid-template-columns`
+- [x] `grid-template-areas`
 - [ ] `grid-template` shorthand
-- [ ] `grid-row-start`, `grid-row-end`, `grid-column-start`, `grid-column-end`
-- [ ] `grid-row`, `grid-column` shorthands
-- [ ] `grid-area` shorthand
-- [ ] `grid-auto-rows`, `grid-auto-columns`, `grid-auto-flow`
+- [x] `grid-row-start`, `grid-row-end`, `grid-column-start`, `grid-column-end`
+- [x] `grid-row`, `grid-column` shorthands
+- [x] `grid-area` shorthand
+- [x] `grid-auto-rows`, `grid-auto-columns`, `grid-auto-flow`
 - [ ] `grid` shorthand
-- [ ] `gap`, `row-gap`, `column-gap`
-- [ ] `fr` unit
-- [ ] `repeat()`, `minmax()`, `auto-fill`, `auto-fit`
+- [x] `gap`, `row-gap`, `column-gap`
+- [x] `fr` unit
+- [x] `repeat()`, `minmax()`, `auto-fill`, `auto-fit`
 - [ ] Named grid lines and areas
-- [ ] Implicit grid
+- [x] Implicit grid
 - [ ] Subgrid (Level 2)
 - [ ] Masonry layout (Level 3, experimental)
 
@@ -213,9 +213,9 @@ Each section lists what **is** implemented, then what remains.
 
 ## 11. Floats and Clear (CSS 2)
 
-- [ ] `float` (`left`, `right`, `none`, `inline-start`, `inline-end`)
-- [ ] `clear` (`left`, `right`, `both`, `none`, `inline-start`, `inline-end`)
-- [ ] Float containing/clearing (block formatting context)
+- [x] `float` (`left`, `right`, `none`, `inline-start`, `inline-end`)
+- [x] `clear` (`left`, `right`, `both`, `none`, `inline-start`, `inline-end`)
+- [P] Float containing/clearing (block formatting context)
 
 ---
 
@@ -281,14 +281,14 @@ Each section lists what **is** implemented, then what remains.
 
 - [ ] `text-align-last`
 - [ ] `text-indent`
-- [ ] `text-decoration` shorthand (full — only line is currently applied)
+- [ ] `text-decoration` shorthand (full -- only line is currently applied)
 - [ ] `text-decoration-color`
-- [ ] `text-decoration-style` (`solid`, `double`, `dotted`, `dashed`, `wavy`)
-- [ ] `text-decoration-thickness`
-- [ ] `text-underline-offset`
+- [x] `text-decoration-style` (`solid`, `double`, `dotted`, `dashed`, `wavy`)
+- [x] `text-decoration-thickness`
+- [x] `text-underline-offset`
 - [ ] `text-underline-position`
 - [ ] `text-emphasis` and its sub-properties
-- [ ] `text-shadow`
+- [x] `text-shadow`
 - [ ] `white-space-collapse`, `text-wrap` (CSS Text Level 4 replacements)
 - [ ] `overflow-wrap: anywhere`
 - [ ] `line-break`
@@ -300,9 +300,9 @@ Each section lists what **is** implemented, then what remains.
 
 ## 16. Inline Layout (CSS Inline Level 3)
 
-**Implemented:** basic inline text layout with word wrapping, `line-height` as multiplier.
+**Implemented:** basic inline text layout with word wrapping, `line-height` as multiplier, `vertical-align` keywords and length values.
 
-- [ ] `vertical-align` (`baseline`, `sub`, `super`, `top`, `text-top`, `middle`, `bottom`, `text-bottom`, length, percentage)
+- [x] `vertical-align` (`baseline`, `sub`, `super`, `top`, `text-top`, `middle`, `bottom`, `text-bottom`, length, percentage)
 - [ ] `dominant-baseline`, `alignment-baseline`
 - [ ] `initial-letter`
 - [ ] Line box height calculation per spec (strut, inline-level box baselines)
@@ -311,10 +311,10 @@ Each section lists what **is** implemented, then what remains.
 
 ## 17. Lists (CSS Lists and Counters Level 3)
 
-**Implemented:** `list-style-type` (basic marker rendering for `disc`/`circle`/`square`/`decimal`/`none`), list item indentation via UA stylesheet.
+**Implemented:** `list-style-type` (basic marker rendering for `disc`/`circle`/`square`/`decimal`/`none`/`lower-alpha`/`upper-alpha`/`lower-roman`/`upper-roman`), list item indentation via UA stylesheet, `list-style-position`, CSS counters (`counter-reset`, `counter-increment`).
 
-- [ ] `list-style-type` — additional values (`lower-alpha`, `upper-alpha`, `lower-roman`, `upper-roman`, custom `@counter-style`)
-- [ ] `list-style-position` (`inside`, `outside`)
+- [x] `list-style-type` -- additional values (`lower-alpha`, `upper-alpha`, `lower-roman`, `upper-roman`, custom `@counter-style`)
+- [x] `list-style-position` (`inside`, `outside`)
 - [ ] `list-style-image`
 - [ ] `list-style` shorthand
 - [ ] `::marker` pseudo-element styling
@@ -324,10 +324,10 @@ Each section lists what **is** implemented, then what remains.
 
 ## 18. Tables (CSS 2 + CSS Table Level 3)
 
-- [ ] Table layout algorithm (`table-layout: auto | fixed`)
-- [ ] Display types: `table`, `table-row`, `table-cell`, `table-row-group`, `table-header-group`, `table-footer-group`, `table-column`, `table-column-group`, `table-caption`, `inline-table`
-- [ ] `border-collapse` (`separate`, `collapse`)
-- [ ] `border-spacing`
+- [x] Table layout algorithm (`table-layout: auto | fixed`)
+- [x] Display types: `table`, `table-row`, `table-cell`, `table-row-group`, `table-header-group`, `table-footer-group`, `table-column`, `table-column-group`, `table-caption`, `inline-table`
+- [x] `border-collapse` (`separate`, `collapse`)
+- [x] `border-spacing`
 - [ ] `caption-side`
 - [ ] `empty-cells`
 - [ ] `vertical-align` in table cells
@@ -336,39 +336,39 @@ Each section lists what **is** implemented, then what remains.
 
 ## 19. Transforms (CSS Transforms Level 1/2)
 
-- [ ] `transform` (2D: `translate()`, `translateX()`, `translateY()`, `scale()`, `scaleX()`, `scaleY()`, `rotate()`, `skew()`, `skewX()`, `skewY()`, `matrix()`)
-- [ ] `transform` (3D: `translate3d()`, `translateZ()`, `scale3d()`, `scaleZ()`, `rotate3d()`, `rotateX()`, `rotateY()`, `rotateZ()`, `perspective()`, `matrix3d()`)
-- [ ] `transform-origin`
-- [ ] `transform-style` (`flat`, `preserve-3d`)
-- [ ] `perspective`, `perspective-origin`
-- [ ] `backface-visibility`
+- [x] `transform` (2D: `translate()`, `translateX()`, `translateY()`, `scale()`, `scaleX()`, `scaleY()`, `rotate()`, `skew()`, `skewX()`, `skewY()`, `matrix()`)
+- [x] `transform` (3D: `translate3d()`, `translateZ()`, `scale3d()`, `scaleZ()`, `rotate3d()`, `rotateX()`, `rotateY()`, `rotateZ()`, `perspective()`, `matrix3d()`)
+- [x] `transform-origin`
+- [x] `transform-style` (`flat`, `preserve-3d`)
+- [x] `perspective`, `perspective-origin`
+- [x] `backface-visibility`
 - [ ] Individual transform properties: `translate`, `rotate`, `scale`
 
 ---
 
 ## 20. Transitions (CSS Transitions Level 1)
 
-- [ ] `transition-property`
-- [ ] `transition-duration`
-- [ ] `transition-timing-function` (`ease`, `linear`, `ease-in`, `ease-out`, `ease-in-out`, `cubic-bezier()`, `steps()`)
-- [ ] `transition-delay`
-- [ ] `transition` shorthand
+- [x] `transition-property`
+- [x] `transition-duration`
+- [x] `transition-timing-function` (`ease`, `linear`, `ease-in`, `ease-out`, `ease-in-out`, `cubic-bezier()`, `steps()`)
+- [x] `transition-delay`
+- [x] `transition` shorthand
 - [ ] `transition-behavior` (Level 2, experimental)
 
 ---
 
 ## 21. Animations (CSS Animations Level 1)
 
-- [ ] `@keyframes` rule
-- [ ] `animation-name`
-- [ ] `animation-duration`
-- [ ] `animation-timing-function`
-- [ ] `animation-delay`
-- [ ] `animation-iteration-count`
-- [ ] `animation-direction`
-- [ ] `animation-fill-mode`
-- [ ] `animation-play-state`
-- [ ] `animation` shorthand
+- [P] `@keyframes` rule
+- [x] `animation-name`
+- [x] `animation-duration`
+- [x] `animation-timing-function`
+- [x] `animation-delay`
+- [x] `animation-iteration-count`
+- [x] `animation-direction`
+- [x] `animation-fill-mode`
+- [x] `animation-play-state`
+- [x] `animation` shorthand
 - [ ] `animation-composition` (Level 2)
 - [ ] `animation-timeline` (Scroll-driven Animations)
 
@@ -376,22 +376,22 @@ Each section lists what **is** implemented, then what remains.
 
 ## 22. Filter Effects (CSS Filter Effects Level 1)
 
-- [ ] `filter` (`blur()`, `brightness()`, `contrast()`, `drop-shadow()`, `grayscale()`, `hue-rotate()`, `invert()`, `opacity()`, `saturate()`, `sepia()`, `url()`)
-- [ ] `backdrop-filter`
+- [x] `filter` (`blur()`, `brightness()`, `contrast()`, `drop-shadow()`, `grayscale()`, `hue-rotate()`, `invert()`, `opacity()`, `saturate()`, `sepia()`, `url()`)
+- [x] `backdrop-filter`
 
 ---
 
 ## 23. Compositing and Blending (CSS Compositing and Blending Level 1)
 
-- [ ] `mix-blend-mode`
-- [ ] `isolation`
+- [x] `mix-blend-mode`
+- [x] `isolation`
 - [ ] `background-blend-mode`
 
 ---
 
 ## 24. Masking (CSS Masking Level 1)
 
-- [ ] `clip-path` (`inset()`, `circle()`, `ellipse()`, `polygon()`, `path()`, `url()`)
+- [x] `clip-path` (`inset()`, `circle()`, `ellipse()`, `polygon()`, `path()`, `url()`)
 - [ ] `mask` and its sub-properties
 - [ ] `mask-image`, `mask-mode`, `mask-repeat`, `mask-position`, `mask-clip`, `mask-origin`, `mask-size`
 
@@ -399,16 +399,16 @@ Each section lists what **is** implemented, then what remains.
 
 ## 25. Visual Properties
 
-**Implemented:** `background-color`, `color`, `opacity`, `visibility` (visible/hidden/collapse), `cursor` (auto/default/pointer/text/crosshair/move/not-allowed/grab/grabbing/etc.), `content` (for `::before`/`::after`), border rendering.
+**Implemented:** `background-color`, `color`, `opacity`, `visibility` (visible/hidden/collapse), `cursor` (auto/default/pointer/text/crosshair/move/not-allowed/grab/grabbing/etc.), `content` (for `::before`/`::after`), border rendering, `pointer-events`, `user-select`, `object-fit`, `object-position`, `appearance`, `outline` shorthand and longhands.
 
-- [ ] `pointer-events`
-- [ ] `user-select`
+- [x] `pointer-events`
+- [x] `user-select`
 - [ ] `resize`
-- [ ] `outline`, `outline-color`, `outline-style`, `outline-width`, `outline-offset`
+- [x] `outline`, `outline-color`, `outline-style`, `outline-width`, `outline-offset`
 - [ ] `caret-color`
 - [ ] `accent-color`
-- [ ] `appearance`
-- [ ] `object-fit`, `object-position` (for replaced elements)
+- [x] `appearance`
+- [x] `object-fit`, `object-position` (for replaced elements)
 - [ ] `image-rendering`
 - [ ] `quotes`
 
@@ -424,8 +424,8 @@ Each section lists what **is** implemented, then what remains.
 
 ## 27. Container Queries (CSS Containment Level 3)
 
-- [ ] `container-type`
-- [ ] `container-name`
+- [x] `container-type`
+- [x] `container-name`
 - [ ] `container` shorthand
 - [ ] `@container` rule
 - [ ] Container query length units (`cqw`, `cqh`, etc.)
@@ -490,18 +490,18 @@ Currently supported: none.
 
 ## 32. Writing Modes (CSS Writing Modes Level 4)
 
-- [ ] `writing-mode` (`horizontal-tb`, `vertical-rl`, `vertical-lr`, `sideways-rl`, `sideways-lr`)
-- [ ] `direction` (`ltr`, `rtl`)
+- [x] `writing-mode` (`horizontal-tb`, `vertical-rl`, `vertical-lr`, `sideways-rl`, `sideways-lr`)
+- [x] `direction` (`ltr`, `rtl`)
 - [ ] `unicode-bidi`
-- [ ] `text-orientation`
+- [x] `text-orientation`
 - [ ] `text-combine-upright`
 
 ---
 
 ## 33. Scroll Snap (CSS Scroll Snap Level 1)
 
-- [ ] `scroll-snap-type`
-- [ ] `scroll-snap-align`
+- [x] `scroll-snap-type`
+- [x] `scroll-snap-align`
 - [ ] `scroll-padding`, `scroll-margin`
 - [ ] `scroll-snap-stop`
 

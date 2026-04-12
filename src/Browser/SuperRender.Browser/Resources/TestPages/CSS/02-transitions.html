@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Test 02 - Transitions</title>
+    <style>
+        body { font-family: Helvetica, sans-serif; font-size: 14px; color: #222; margin: 20px; line-height: 1.5; }
+        h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
+        .test-section { margin-bottom: 30px; padding: 15px; border: 1px solid #ccc; background-color: #f9f9f9; }
+        .label { font-weight: bold; margin-bottom: 8px; }
+        .info { font-size: 12px; color: #666; margin-top: 8px; }
+        .box { width: 100px; height: 60px; background-color: #e74c3c; margin: 10px; display: inline-block; transition: background-color 0.5s ease; }
+        .box:hover { background-color: #2ecc71; }
+        .fade-box { width: 100px; height: 60px; background-color: #3498db; opacity: 1; transition: opacity 0.3s ease-in; }
+        .fade-box:hover { opacity: 0.3; }
+        .grow-box { width: 80px; height: 80px; background-color: #9b59b6; transition: transform 0.4s ease-out; }
+        .grow-box:hover { transform: scale(1.3); }
+        .multi-box { width: 100px; height: 60px; background-color: #f39c12; transition: all 0.5s ease-in-out; }
+        .multi-box:hover { background-color: #1abc9c; transform: translateX(50px); }
+    </style>
+</head>
+<body>
+    <h1>CSS Test 02: Transitions</h1>
+    <div class="test-section">
+        <div class="label">2a: Color transition on hover</div>
+        <div class="box">Hover me</div>
+        <div class="info">Box should smoothly change from red to green on hover over 0.5s.</div>
+    </div>
+    <div class="test-section">
+        <div class="label">2b: Opacity transition</div>
+        <div class="fade-box">Fade</div>
+        <div class="info">Box should fade to 30% opacity on hover with ease-in timing.</div>
+    </div>
+    <div class="test-section">
+        <div class="label">2c: Transform transition (scale)</div>
+        <div class="grow-box">Grow</div>
+        <div class="info">Box should smoothly grow 30% on hover with ease-out timing.</div>
+    </div>
+    <div class="test-section">
+        <div class="label">2d: Multiple property transition</div>
+        <div class="multi-box">Multi</div>
+        <div class="info">Box should change color and slide right simultaneously on hover.</div>
+    </div>
+</body>
+</html>

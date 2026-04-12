@@ -23,9 +23,14 @@ public sealed class SelectorParser
 
         while (!IsEnd())
         {
+            int posBefore = _pos;
             var selector = ParseSelector();
             if (selector.Components.Count > 0)
                 selectors.Add(selector);
+
+            // Safety: if no tokens were consumed, skip one to prevent infinite loop
+            if (_pos == posBefore && !IsEnd())
+                _pos++;
 
             SkipWhitespace();
             if (!IsEnd() && Current().Type == CssTokenType.Comma)
@@ -170,7 +175,7 @@ public sealed class SelectorParser
                 _pos++;
                 if (!IsEnd() && Current().Type == CssTokenType.Colon)
                 {
-                    // Pseudo-element (::before, ::after)
+                    // Pseudo-element (::before, ::after, ::first-line, etc.)
                     _pos++;
                     if (!IsEnd() && Current().Type == CssTokenType.Ident)
                     {
@@ -178,6 +183,13 @@ public sealed class SelectorParser
                         {
                             "before" => PseudoElementType.Before,
                             "after" => PseudoElementType.After,
+                            "first-line" => PseudoElementType.FirstLine,
+                            "first-letter" => PseudoElementType.FirstLetter,
+                            "marker" => PseudoElementType.Marker,
+                            "placeholder" => PseudoElementType.Placeholder,
+                            "selection" => PseudoElementType.Selection,
+                            "backdrop" => PseudoElementType.Backdrop,
+                            "file-selector-button" => PseudoElementType.FileSelectorButton,
                             _ => null
                         };
                         _pos++;
@@ -297,11 +309,30 @@ public sealed class SelectorParser
 
         SkipWhitespace();
 
+        // Check for case-sensitivity flag before closing ]
+        var caseSensitivity = AttributeCaseSensitivity.Default;
+        if (!IsEnd() && Current().Type == CssTokenType.Ident)
+        {
+            var flag = Current().Value.ToLowerInvariant();
+            if (flag == "i")
+            {
+                caseSensitivity = AttributeCaseSensitivity.CaseInsensitive;
+                _pos++;
+                SkipWhitespace();
+            }
+            else if (flag == "s")
+            {
+                caseSensitivity = AttributeCaseSensitivity.CaseSensitive;
+                _pos++;
+                SkipWhitespace();
+            }
+        }
+
         // Skip closing ]
         if (!IsEnd() && Current().Type == CssTokenType.Delim && Current().Value == "]")
             _pos++;
 
-        return new AttributeSelector { Name = attrName, Op = op, Value = value };
+        return new AttributeSelector { Name = attrName, Op = op, Value = value, CaseSensitivity = caseSensitivity };
     }
 
     private PseudoClass? ParsePseudoClass()
@@ -318,9 +349,14 @@ public sealed class SelectorParser
             {
                 "nth-child" => ParseNthPseudoClass(PseudoClassType.NthChild),
                 "nth-last-child" => ParseNthPseudoClass(PseudoClassType.NthLastChild),
+                "nth-of-type" => ParseNthPseudoClass(PseudoClassType.NthOfType),
+                "nth-last-of-type" => ParseNthPseudoClass(PseudoClassType.NthLastOfType),
                 "not" => ParseSelectorFunctionPseudoClass(PseudoClassType.Not),
                 "is" => ParseSelectorFunctionPseudoClass(PseudoClassType.Is),
                 "where" => ParseSelectorFunctionPseudoClass(PseudoClassType.Where),
+                "has" => ParseSelectorFunctionPseudoClass(PseudoClassType.Has),
+                "lang" => ParseStringArgPseudoClass(PseudoClassType.Lang),
+                "dir" => ParseStringArgPseudoClass(PseudoClassType.Dir),
                 _ => SkipToCloseParen()
             };
         }
@@ -345,8 +381,34 @@ public sealed class SelectorParser
             "hover" => new PseudoClass { Type = PseudoClassType.Hover },
             "focus" => new PseudoClass { Type = PseudoClassType.Focus },
             "active" => new PseudoClass { Type = PseudoClassType.Active },
+            "focus-within" => new PseudoClass { Type = PseudoClassType.FocusWithin },
+            "focus-visible" => new PseudoClass { Type = PseudoClassType.FocusVisible },
+            "any-link" => new PseudoClass { Type = PseudoClassType.AnyLink },
+            "target" => new PseudoClass { Type = PseudoClassType.Target },
+            "enabled" => new PseudoClass { Type = PseudoClassType.Enabled },
+            "disabled" => new PseudoClass { Type = PseudoClassType.Disabled },
+            "checked" => new PseudoClass { Type = PseudoClassType.Checked },
+            "indeterminate" => new PseudoClass { Type = PseudoClassType.Indeterminate },
+            "required" => new PseudoClass { Type = PseudoClassType.Required },
+            "optional" => new PseudoClass { Type = PseudoClassType.Optional },
+            "valid" => new PseudoClass { Type = PseudoClassType.Valid },
+            "invalid" => new PseudoClass { Type = PseudoClassType.Invalid },
+            "in-range" => new PseudoClass { Type = PseudoClassType.InRange },
+            "out-of-range" => new PseudoClass { Type = PseudoClassType.OutOfRange },
+            "read-only" => new PseudoClass { Type = PseudoClassType.ReadOnly },
+            "read-write" => new PseudoClass { Type = PseudoClassType.ReadWrite },
+            "placeholder-shown" => new PseudoClass { Type = PseudoClassType.PlaceholderShown },
+            "default" => new PseudoClass { Type = PseudoClassType.Default },
+            "defined" => new PseudoClass { Type = PseudoClassType.Defined },
+            "scope" => new PseudoClass { Type = PseudoClassType.Scope },
             _ => null
         };
+    }
+
+    private PseudoClass ParseStringArgPseudoClass(PseudoClassType type)
+    {
+        var argStr = CollectFunctionArgument();
+        return new PseudoClass { Type = type, Argument = argStr };
     }
 
     private PseudoClass ParseNthPseudoClass(PseudoClassType type)

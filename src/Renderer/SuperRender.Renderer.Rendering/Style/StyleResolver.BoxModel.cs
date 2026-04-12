@@ -156,6 +156,100 @@ public sealed partial class StyleResolver
                 style.BorderBottomLeftRadius = ResolveBorderRadius(value, parentStyle);
                 break;
 
+            // Logical margin properties (mapped to physical for LTR horizontal-tb)
+            case CssPropertyNames.MarginBlockStart:
+                style.Margin = style.Margin with { Top = ResolveLength(value, parentStyle) };
+                break;
+            case CssPropertyNames.MarginBlockEnd:
+                style.Margin = style.Margin with { Bottom = ResolveLength(value, parentStyle) };
+                break;
+            case CssPropertyNames.MarginInlineStart:
+                style.Margin = style.Margin with { Left = ResolveLength(value, parentStyle) };
+                break;
+            case CssPropertyNames.MarginInlineEnd:
+                style.Margin = style.Margin with { Right = ResolveLength(value, parentStyle) };
+                break;
+
+            // Logical padding properties
+            case CssPropertyNames.PaddingBlockStart:
+                style.Padding = style.Padding with { Top = ResolveLength(value, parentStyle) };
+                break;
+            case CssPropertyNames.PaddingBlockEnd:
+                style.Padding = style.Padding with { Bottom = ResolveLength(value, parentStyle) };
+                break;
+            case CssPropertyNames.PaddingInlineStart:
+                style.Padding = style.Padding with { Left = ResolveLength(value, parentStyle) };
+                break;
+            case CssPropertyNames.PaddingInlineEnd:
+                style.Padding = style.Padding with { Right = ResolveLength(value, parentStyle) };
+                break;
+
+            // Logical sizing properties
+            case CssPropertyNames.InlineSize:
+                if (value.Type == CssValueType.Calc && value.CalcExpr != null)
+                {
+                    style.WidthCalc = value.CalcExpr;
+                    style.Width = float.NaN;
+                }
+                else if (value.Type == CssValueType.Percentage)
+                {
+                    style.WidthCalc = new CalcValueNode(value);
+                    style.Width = float.NaN;
+                }
+                else
+                {
+                    style.Width = ResolveLength(value, parentStyle);
+                    style.WidthCalc = null;
+                }
+                break;
+            case CssPropertyNames.BlockSize:
+                if (value.Type == CssValueType.Calc && value.CalcExpr != null)
+                {
+                    style.HeightCalc = value.CalcExpr;
+                    style.Height = float.NaN;
+                }
+                else if (value.Type == CssValueType.Percentage)
+                {
+                    style.HeightCalc = new CalcValueNode(value);
+                    style.Height = float.NaN;
+                }
+                else
+                {
+                    style.Height = ResolveLength(value, parentStyle);
+                    style.HeightCalc = null;
+                }
+                break;
+            case CssPropertyNames.MinInlineSize:
+            {
+                var minIS = ResolveLength(value, parentStyle);
+                style.MinWidth = float.IsNaN(minIS) ? 0 : minIS;
+                break;
+            }
+            case CssPropertyNames.MaxInlineSize:
+                if (value.Raw.Equals("none", StringComparison.OrdinalIgnoreCase))
+                    style.MaxWidth = float.PositiveInfinity;
+                else
+                {
+                    var maxIS = ResolveLength(value, parentStyle);
+                    style.MaxWidth = float.IsNaN(maxIS) ? float.PositiveInfinity : maxIS;
+                }
+                break;
+            case CssPropertyNames.MinBlockSize:
+            {
+                var minBS = ResolveLength(value, parentStyle);
+                style.MinHeight = float.IsNaN(minBS) ? 0 : minBS;
+                break;
+            }
+            case CssPropertyNames.MaxBlockSize:
+                if (value.Raw.Equals("none", StringComparison.OrdinalIgnoreCase))
+                    style.MaxHeight = float.PositiveInfinity;
+                else
+                {
+                    var maxBS = ResolveLength(value, parentStyle);
+                    style.MaxHeight = float.IsNaN(maxBS) ? float.PositiveInfinity : maxBS;
+                }
+                break;
+
             default:
                 return false;
         }

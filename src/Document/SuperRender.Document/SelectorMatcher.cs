@@ -111,15 +111,19 @@ public static class SelectorMatcher
 
         if (!hasAttr || attrValue == null) return false;
 
+        var comparison = attr.CaseSensitivity == AttributeCaseSensitivity.CaseInsensitive
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
         return attr.Op switch
         {
-            AttributeOp.Equals => attrValue.Equals(attr.Value, StringComparison.Ordinal),
-            AttributeOp.StartsWith => attr.Value != null && attrValue.StartsWith(attr.Value, StringComparison.Ordinal),
-            AttributeOp.EndsWith => attr.Value != null && attrValue.EndsWith(attr.Value, StringComparison.Ordinal),
-            AttributeOp.Contains => attr.Value != null && attrValue.Contains(attr.Value, StringComparison.Ordinal),
-            AttributeOp.DashMatch => attrValue.Equals(attr.Value, StringComparison.Ordinal) ||
-                                    (attr.Value != null && attrValue.StartsWith(attr.Value + "-", StringComparison.Ordinal)),
-            AttributeOp.WordMatch => attr.Value != null && attrValue.Split(' ').Any(w => w.Equals(attr.Value, StringComparison.Ordinal)),
+            AttributeOp.Equals => attrValue.Equals(attr.Value, comparison),
+            AttributeOp.StartsWith => attr.Value != null && attrValue.StartsWith(attr.Value, comparison),
+            AttributeOp.EndsWith => attr.Value != null && attrValue.EndsWith(attr.Value, comparison),
+            AttributeOp.Contains => attr.Value != null && attrValue.Contains(attr.Value, comparison),
+            AttributeOp.DashMatch => attrValue.Equals(attr.Value, comparison) ||
+                                    (attr.Value != null && attrValue.StartsWith(attr.Value + "-", comparison)),
+            AttributeOp.WordMatch => attr.Value != null && attrValue.Split(' ').Any(w => w.Equals(attr.Value, comparison)),
             _ => false
         };
     }
@@ -145,6 +149,14 @@ public static class SelectorMatcher
                 if (pc.Argument == null) return false;
                 return NthChildParser.Matches(pc.Argument, GetElementIndexFromEnd(element));
 
+            case PseudoClassType.NthOfType:
+                if (pc.Argument == null) return false;
+                return NthChildParser.Matches(pc.Argument, GetNthOfTypeIndex(element));
+
+            case PseudoClassType.NthLastOfType:
+                if (pc.Argument == null) return false;
+                return NthChildParser.Matches(pc.Argument, GetNthLastOfTypeIndex(element));
+
             case PseudoClassType.FirstOfType:
                 return IsFirstOfType(element);
 
@@ -165,6 +177,11 @@ public static class SelectorMatcher
                 return element.TagName.Equals("a", StringComparison.OrdinalIgnoreCase) &&
                        element.Attributes.ContainsKey("href");
 
+            case PseudoClassType.AnyLink:
+                return (element.TagName.Equals("a", StringComparison.OrdinalIgnoreCase) ||
+                        element.TagName.Equals("area", StringComparison.OrdinalIgnoreCase)) &&
+                       element.Attributes.ContainsKey("href");
+
             case PseudoClassType.Visited:
                 return false; // Never match :visited for privacy
 
@@ -177,6 +194,15 @@ public static class SelectorMatcher
             case PseudoClassType.Active:
                 return element.IsActive;
 
+            case PseudoClassType.FocusWithin:
+                return element.IsFocused || HasFocusedDescendant(element);
+
+            case PseudoClassType.FocusVisible:
+                return element.IsFocused; // Simplified: same as :focus
+
+            case PseudoClassType.Target:
+                return false; // Would need fragment identifier tracking
+
             case PseudoClassType.Not:
                 if (pc.SelectorArgument == null) return true;
                 return !pc.SelectorArgument.Any(sel => Matches(sel, element));
@@ -185,6 +211,48 @@ public static class SelectorMatcher
             case PseudoClassType.Where:
                 if (pc.SelectorArgument == null) return false;
                 return pc.SelectorArgument.Any(sel => Matches(sel, element));
+
+            case PseudoClassType.Has:
+                if (pc.SelectorArgument == null) return false;
+                return MatchesHas(element, pc.SelectorArgument);
+
+            // Form pseudo-classes
+            case PseudoClassType.Enabled:
+                return IsFormElement(element) && !element.Attributes.ContainsKey("disabled");
+            case PseudoClassType.Disabled:
+                return IsFormElement(element) && element.Attributes.ContainsKey("disabled");
+            case PseudoClassType.Checked:
+                return element.Attributes.ContainsKey("checked");
+            case PseudoClassType.Required:
+                return element.Attributes.ContainsKey("required");
+            case PseudoClassType.Optional:
+                return IsFormElement(element) && !element.Attributes.ContainsKey("required");
+            case PseudoClassType.ReadOnly:
+                return element.Attributes.ContainsKey("readonly") || element.Attributes.ContainsKey("disabled");
+            case PseudoClassType.ReadWrite:
+                return IsFormElement(element) && !element.Attributes.ContainsKey("readonly") && !element.Attributes.ContainsKey("disabled");
+            case PseudoClassType.PlaceholderShown:
+                return element.Attributes.ContainsKey("placeholder") &&
+                       (!element.Attributes.TryGetValue("value", out var val) || string.IsNullOrEmpty(val));
+
+            // Misc
+            case PseudoClassType.Lang:
+                if (pc.Argument == null) return false;
+                return MatchesLang(element, pc.Argument);
+            case PseudoClassType.Dir:
+                return pc.Argument?.Equals("ltr", StringComparison.OrdinalIgnoreCase) == true; // Default LTR
+            case PseudoClassType.Defined:
+                return true; // All elements are "defined" in our engine
+            case PseudoClassType.Scope:
+                return element.Parent is Dom.Document; // Without explicit scope, :scope matches :root
+
+            case PseudoClassType.Indeterminate:
+            case PseudoClassType.Valid:
+            case PseudoClassType.Invalid:
+            case PseudoClassType.InRange:
+            case PseudoClassType.OutOfRange:
+            case PseudoClassType.Default:
+                return false; // Requires form validation state tracking
 
             default:
                 return false;
@@ -273,5 +341,96 @@ public static class SelectorMatcher
             if (child is Element el) prev = el;
         }
         return null;
+    }
+
+    private static int GetNthOfTypeIndex(Element element)
+    {
+        if (element.Parent == null) return 1;
+        int index = 0;
+        foreach (var child in element.Parent.Children)
+        {
+            if (child is Element el && el.TagName.Equals(element.TagName, StringComparison.OrdinalIgnoreCase))
+            {
+                index++;
+                if (child == element) return index;
+            }
+        }
+        return 1;
+    }
+
+    private static int GetNthLastOfTypeIndex(Element element)
+    {
+        if (element.Parent == null) return 1;
+        int index = 0;
+        for (int i = element.Parent.Children.Count - 1; i >= 0; i--)
+        {
+            if (element.Parent.Children[i] is Element el && el.TagName.Equals(element.TagName, StringComparison.OrdinalIgnoreCase))
+            {
+                index++;
+                if (element.Parent.Children[i] == element) return index;
+            }
+        }
+        return 1;
+    }
+
+    private static bool HasFocusedDescendant(Element element)
+    {
+        foreach (var child in element.Children)
+        {
+            if (child is Element el)
+            {
+                if (el.IsFocused) return true;
+                if (HasFocusedDescendant(el)) return true;
+            }
+        }
+        return false;
+    }
+
+    private static bool MatchesHas(Element element, List<Selector> selectorArgs)
+    {
+        // :has(selector) matches if any descendant matches the selector
+        foreach (var selector in selectorArgs)
+        {
+            if (HasMatchingDescendant(element, selector))
+                return true;
+        }
+        return false;
+    }
+
+    private static bool HasMatchingDescendant(Element element, Selector selector)
+    {
+        foreach (var child in element.Children)
+        {
+            if (child is Element el)
+            {
+                if (Matches(selector, el)) return true;
+                if (HasMatchingDescendant(el, selector)) return true;
+            }
+        }
+        return false;
+    }
+
+    private static bool IsFormElement(Element element)
+    {
+        return element.TagName.Equals("input", StringComparison.OrdinalIgnoreCase) ||
+               element.TagName.Equals("select", StringComparison.OrdinalIgnoreCase) ||
+               element.TagName.Equals("textarea", StringComparison.OrdinalIgnoreCase) ||
+               element.TagName.Equals("button", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool MatchesLang(Element element, string lang)
+    {
+        // Walk up the tree looking for lang attribute
+        Node? current = element;
+        while (current != null)
+        {
+            if (current is Element el && el.Attributes.TryGetValue("lang", out var langAttr))
+            {
+                return langAttr.Equals(lang, StringComparison.OrdinalIgnoreCase) ||
+                       langAttr.StartsWith(lang + "-", StringComparison.OrdinalIgnoreCase);
+            }
+            current = current.Parent;
+        }
+        return false;
     }
 }

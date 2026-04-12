@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html><head><title>CSS Test 15 - Table Layout</title>
+<style>
+    body { font-family: Helvetica, sans-serif; font-size: 14px; margin: 20px; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
+    .test-section { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; }
+    .label { font-weight: bold; margin-bottom: 8px; }
+    .tbl { display: table; width: 100%; border-collapse: collapse; }
+    .tbl-row { display: table-row; }
+    .tbl-cell { display: table-cell; padding: 8px; border: 1px solid #ddd; }
+    .tbl-header { display: table-cell; padding: 8px; border: 1px solid #ddd; font-weight: bold; background-color: #f5f5f5; }
+    .fixed-tbl { display: table; table-layout: fixed; width: 400px; border-collapse: separate; border-spacing: 5px; }
+</style></head>
+<body>
+    <h1>CSS Test 15: Table Layout</h1>
+    <div class="test-section">
+        <div class="label">15a: CSS table with border-collapse</div>
+        <div class="tbl">
+            <div class="tbl-row"><div class="tbl-header">Name</div><div class="tbl-header">Age</div><div class="tbl-header">City</div></div>
+            <div class="tbl-row"><div class="tbl-cell">Alice</div><div class="tbl-cell">30</div><div class="tbl-cell">New York</div></div>
+            <div class="tbl-row"><div class="tbl-cell">Bob</div><div class="tbl-cell">25</div><div class="tbl-cell">London</div></div>
+        </div>
+    </div>
+    <div class="test-section">
+        <div class="label">15b: Fixed table layout with border-spacing</div>
+        <div class="fixed-tbl">
+            <div class="tbl-row"><div class="tbl-cell">A</div><div class="tbl-cell">B</div><div class="tbl-cell">C</div></div>
+            <div class="tbl-row"><div class="tbl-cell">D</div><div class="tbl-cell">E</div><div class="tbl-cell">F</div></div>
+        </div>
+    </div>
+</body></html>

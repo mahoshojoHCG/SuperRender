@@ -121,6 +121,8 @@ internal static class BlockLayout
         {
             if (child.Style.Position == PositionType.Absolute)
                 absoluteChildren.Add(child);
+            else if (child.Style.Position == PositionType.Fixed)
+                continue; // Fixed elements are laid out by LayoutEngine after the full tree
             else
                 normalChildren.Add(child);
         }
@@ -129,7 +131,10 @@ internal static class BlockLayout
         bool hasBlock = false, hasInline = false;
         foreach (var child in normalChildren)
         {
-            if (child.BoxType is LayoutBoxType.Block or LayoutBoxType.FlexContainer)
+            // inline-flex participates in inline flow (like inline-block)
+            if (child.Style.Display == DisplayType.InlineFlex)
+                hasInline = true;
+            else if (child.BoxType is LayoutBoxType.Block or LayoutBoxType.FlexContainer or LayoutBoxType.GridContainer or LayoutBoxType.TableContainer)
                 hasBlock = true;
             else
                 hasInline = true;
@@ -149,8 +154,61 @@ internal static class BlockLayout
             layoutChildren = [CreateAnonymousBlock(normalChildren, box.Style)];
         }
 
-        foreach (var child in layoutChildren)
+        float prevMarginBottom = 0;
+        bool isFirstChild = true;
+
+        // Parent-first-child margin collapsing:
+        // When parent has no border-top/padding-top, its top margin collapses
+        // with the first child's top margin.
+        bool parentCollapseTop = box.Style.BorderWidth.Top == 0 && box.Style.Padding.Top == 0;
+
+        for (int i = 0; i < layoutChildren.Count; i++)
         {
+            var child = layoutChildren[i];
+
+            // Margin collapsing between adjacent siblings
+            float childMarginTop = child.Style.Margin.Top;
+            if (float.IsNaN(childMarginTop)) childMarginTop = 0;
+
+            if (!isFirstChild && prevMarginBottom != 0 && childMarginTop != 0)
+            {
+                // Collapse adjacent margins: use the larger of the two.
+                // cursorY already includes prevMarginBottom (from MarginRect.Bottom of prev child).
+                // CalculateBlockPosition will add child's margin.Top.
+                // Without collapsing: gap = prevMarginBottom + childMarginTop
+                // With collapsing: gap = max(prevMarginBottom, childMarginTop)
+                // So we set child's margin.Top = collapsed - prevMarginBottom
+                float collapsed = Math.Max(prevMarginBottom, childMarginTop);
+                float adjustedTop = collapsed - prevMarginBottom;
+                child.Style.Margin = child.Style.Margin with { Top = adjustedTop };
+            }
+            else if (isFirstChild && parentCollapseTop && childMarginTop > 0
+                     && child.BoxType == LayoutBoxType.Block)
+            {
+                // Parent-first-child margin collapsing:
+                // The parent's top margin and first child's top margin collapse.
+                // The child's margin effectively moves to the parent.
+                float parentMarginTop = box.Style.Margin.Top;
+                if (float.IsNaN(parentMarginTop)) parentMarginTop = 0;
+                float collapsed = Math.Max(parentMarginTop, childMarginTop);
+
+                // Move the parent box up/down to account for the collapsed margin
+                var boxDims = box.Dimensions;
+                float oldParentTop = boxDims.Margin.Top;
+                boxDims.Margin = boxDims.Margin with { Top = collapsed };
+                float shift = collapsed - oldParentTop;
+                if (shift != 0)
+                {
+                    boxDims.Y += shift;
+                    box.Dimensions = boxDims;
+                    dims = box.Dimensions;
+                    cursorY = dims.Y;
+                }
+
+                // Zero out the child's top margin to avoid double-counting
+                child.Style.Margin = child.Style.Margin with { Top = 0 };
+            }
+
             var childDims = child.Dimensions;
             childDims.Y = cursorY;
             child.Dimensions = childDims;
@@ -166,6 +224,32 @@ internal static class BlockLayout
                 };
 
                 FlexLayout.Layout(child, childContainer, measurer);
+                cursorY = child.Dimensions.MarginRect.Bottom;
+            }
+            else if (child.BoxType == LayoutBoxType.GridContainer)
+            {
+                var childContainer = new BoxDimensions
+                {
+                    X = dims.X,
+                    Y = cursorY,
+                    Width = dims.Width,
+                    Height = dims.Height
+                };
+
+                GridLayout.Layout(child, childContainer, measurer);
+                cursorY = child.Dimensions.MarginRect.Bottom;
+            }
+            else if (child.BoxType == LayoutBoxType.TableContainer)
+            {
+                var childContainer = new BoxDimensions
+                {
+                    X = dims.X,
+                    Y = cursorY,
+                    Width = dims.Width,
+                    Height = dims.Height
+                };
+
+                TableLayout.Layout(child, childContainer, measurer);
                 cursorY = child.Dimensions.MarginRect.Bottom;
             }
             else if (child.BoxType == LayoutBoxType.Block)
@@ -195,6 +279,34 @@ internal static class BlockLayout
                 InlineLayout.Layout(child, childContainer, measurer);
                 cursorY = child.Dimensions.MarginRect.Bottom;
             }
+
+            // Margin collapsing through empty blocks:
+            // When a block has zero height, no border, no padding, its top and bottom margins collapse
+            float childHeight = child.Dimensions.Height;
+            float childMarginBottom = child.Style.Margin.Bottom;
+            if (float.IsNaN(childMarginBottom)) childMarginBottom = 0;
+
+            if (childHeight == 0 && child.Style.BorderWidth.Top == 0
+                && child.Style.BorderWidth.Bottom == 0
+                && child.Style.Padding.Top == 0 && child.Style.Padding.Bottom == 0
+                && child.BoxType == LayoutBoxType.Block)
+            {
+                // Empty block: collapse top and bottom margins into one
+                float effectiveChildTop = child.Style.Margin.Top;
+                if (float.IsNaN(effectiveChildTop)) effectiveChildTop = 0;
+                float collapsedMargin = Math.Max(effectiveChildTop, childMarginBottom);
+                // Rewind cursorY to before this empty block's margins
+                cursorY = child.Dimensions.Y - (float.IsNaN(child.Style.Margin.Top) ? 0 : child.Style.Margin.Top)
+                        - child.Style.BorderWidth.Top - child.Style.Padding.Top;
+                cursorY += collapsedMargin;
+                prevMarginBottom = collapsedMargin;
+            }
+            else
+            {
+                prevMarginBottom = childMarginBottom;
+            }
+
+            isFirstChild = false;
         }
 
         dims.Height = cursorY - dims.Y;
@@ -380,9 +492,135 @@ internal static class BlockLayout
         absChild.Dimensions = dims;
     }
 
+    /// <summary>
+    /// Lays out a position:fixed child relative to the viewport.
+    /// Uses the same logic as absolute positioning but always relative to viewport origin.
+    /// </summary>
+    internal static void LayoutFixedChild(LayoutBox fixedChild, BoxDimensions viewport, ITextMeasurer measurer)
+    {
+        // Reuse absolute positioning logic with viewport as containing block
+        var style = fixedChild.Style;
+        var cbDims = viewport;
+
+        float contentWidth;
+        float resolvedWidth = LayoutHelper.ResolveWidth(style, cbDims.Width);
+        if (!float.IsNaN(resolvedWidth))
+        {
+            contentWidth = resolvedWidth;
+            if (style.BoxSizing == BoxSizingType.BorderBox)
+            {
+                contentWidth -= style.Padding.Left + style.Padding.Right
+                              + style.BorderWidth.Left + style.BorderWidth.Right;
+                if (contentWidth < 0) contentWidth = 0;
+            }
+        }
+        else if (!float.IsNaN(style.Left) && !float.IsNaN(style.Right))
+        {
+            contentWidth = cbDims.Width - style.Left - style.Right
+                         - style.Margin.Left - style.Margin.Right
+                         - style.BorderWidth.Left - style.BorderWidth.Right
+                         - style.Padding.Left - style.Padding.Right;
+            if (contentWidth < 0) contentWidth = 0;
+        }
+        else
+        {
+            contentWidth = cbDims.Width;
+        }
+
+        contentWidth = ApplyMinMaxWidth(contentWidth, style);
+
+        var dims = fixedChild.Dimensions;
+        dims.Width = contentWidth;
+        dims.Padding = style.Padding;
+        dims.Border = style.BorderWidth;
+        dims.Margin = new EdgeSizes(
+            float.IsNaN(style.Margin.Top) ? 0 : style.Margin.Top,
+            float.IsNaN(style.Margin.Right) ? 0 : style.Margin.Right,
+            float.IsNaN(style.Margin.Bottom) ? 0 : style.Margin.Bottom,
+            float.IsNaN(style.Margin.Left) ? 0 : style.Margin.Left);
+
+        // Position X
+        float contentX;
+        if (!float.IsNaN(style.Left))
+        {
+            contentX = cbDims.X + style.Left + dims.Margin.Left + dims.Border.Left + dims.Padding.Left;
+        }
+        else if (!float.IsNaN(style.Right))
+        {
+            contentX = cbDims.X + cbDims.Width - style.Right - dims.Margin.Right
+                     - dims.Border.Right - dims.Padding.Right - contentWidth;
+        }
+        else
+        {
+            contentX = cbDims.X + dims.Margin.Left + dims.Border.Left + dims.Padding.Left;
+        }
+
+        // Position Y
+        float contentY;
+        if (!float.IsNaN(style.Top))
+        {
+            contentY = cbDims.Y + style.Top + dims.Margin.Top + dims.Border.Top + dims.Padding.Top;
+        }
+        else if (!float.IsNaN(style.Bottom))
+        {
+            dims.X = contentX;
+            dims.Y = cbDims.Y;
+            fixedChild.Dimensions = dims;
+
+            LayoutBlockChildren(fixedChild, measurer, new BoxDimensions
+            {
+                X = contentX, Y = cbDims.Y, Width = contentWidth, Height = cbDims.Height
+            });
+
+            float fixedResolvedH = LayoutHelper.ResolveHeight(style, cbDims.Height);
+            float height = !float.IsNaN(fixedResolvedH) ? fixedResolvedH : fixedChild.Dimensions.Height;
+            contentY = cbDims.Y + cbDims.Height - style.Bottom - dims.Margin.Bottom
+                     - dims.Border.Bottom - dims.Padding.Bottom - height;
+            dims = fixedChild.Dimensions;
+            float deltaY = contentY - dims.Y;
+            dims.X = contentX;
+            dims.Y = contentY;
+            if (!float.IsNaN(fixedResolvedH)) dims.Height = fixedResolvedH;
+            fixedChild.Dimensions = dims;
+
+            if (deltaY != 0)
+                OffsetSubtree(fixedChild, 0, deltaY);
+
+            return;
+        }
+        else
+        {
+            contentY = cbDims.Y + dims.Margin.Top + dims.Border.Top + dims.Padding.Top;
+        }
+
+        dims.X = contentX;
+        dims.Y = contentY;
+        fixedChild.Dimensions = dims;
+
+        LayoutBlockChildren(fixedChild, measurer, new BoxDimensions
+        {
+            X = contentX, Y = contentY, Width = contentWidth, Height = cbDims.Height
+        });
+
+        dims = fixedChild.Dimensions;
+        float fixedH = LayoutHelper.ResolveHeight(style, cbDims.Height);
+        if (!float.IsNaN(fixedH))
+        {
+            dims.Height = fixedH;
+            if (style.BoxSizing == BoxSizingType.BorderBox)
+            {
+                dims.Height -= style.Padding.Top + style.Padding.Bottom
+                             + style.BorderWidth.Top + style.BorderWidth.Bottom;
+                if (dims.Height < 0) dims.Height = 0;
+            }
+        }
+
+        fixedChild.Dimensions = dims;
+    }
+
     private static void ApplyRelativeOffset(LayoutBox box)
     {
-        if (box.Style.Position != PositionType.Relative) return;
+        if (box.Style.Position != PositionType.Relative && box.Style.Position != PositionType.Sticky) return;
 
         var style = box.Style;
         var dims = box.Dimensions;
@@ -460,9 +698,18 @@ internal static class BlockLayout
             // For <img> without explicit CSS height, use intrinsic height (aspect-ratio aware)
             height = intrinsicHeight;
         }
+        else if (!float.IsNaN(style.AspectRatio) && style.AspectRatio > 0)
+        {
+            // aspect-ratio: height auto + aspect-ratio set => compute height from width
+            height = dims.Width / style.AspectRatio;
+        }
 
         // When overflow is hidden and explicit height is set, clamp to that height
-        if (style.Overflow == OverflowType.Hidden && !float.IsNaN(resolvedHeight))
+        bool overflowClipsVertically = style.Overflow == OverflowType.Hidden
+                                    || style.Overflow == OverflowType.Clip
+                                    || style.OverflowY == OverflowType.Hidden
+                                    || style.OverflowY == OverflowType.Clip;
+        if (overflowClipsVertically && !float.IsNaN(resolvedHeight))
         {
             float explicitHeight = resolvedHeight;
             if (style.BoxSizing == BoxSizingType.BorderBox)

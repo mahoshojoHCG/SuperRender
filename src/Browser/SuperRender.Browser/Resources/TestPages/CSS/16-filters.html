@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html><head><title>CSS Test 16 - Filters</title>
+<style>
+    body { font-family: Helvetica, sans-serif; font-size: 14px; margin: 20px; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
+    .test-section { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; }
+    .label { font-weight: bold; margin-bottom: 8px; }
+    .box { width: 120px; height: 80px; background-color: #3498db; display: inline-block; margin: 10px; color: white; text-align: center; line-height: 80px; }
+    .blur { filter: blur(3px); }
+    .brightness { filter: brightness(1.5); }
+    .contrast { filter: contrast(0.5); }
+    .grayscale { filter: grayscale(100%); }
+    .sepia { filter: sepia(100%); }
+    .invert { filter: invert(100%); }
+    .hue-rotate { filter: hue-rotate(90deg); }
+    .saturate { filter: saturate(200%); }
+    .multi { filter: blur(1px) brightness(1.2) contrast(0.8); }
+</style></head>
+<body>
+    <h1>CSS Test 16: Filters</h1>
+    <div class="test-section">
+        <div class="box">Normal</div>
+        <div class="box blur">Blur</div>
+        <div class="box brightness">Bright</div>
+        <div class="box contrast">Contrast</div>
+        <div class="box grayscale">Gray</div>
+        <div class="box sepia">Sepia</div>
+        <div class="box invert">Invert</div>
+        <div class="box hue-rotate">Hue</div>
+        <div class="box saturate">Saturate</div>
+        <div class="box multi">Multi</div>
+    </div>
+</body></html>

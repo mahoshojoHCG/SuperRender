@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html><head><title>CSS Test 07 - Vertical Align</title>
+<style>
+    body { font-family: Helvetica, sans-serif; font-size: 14px; margin: 20px; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
+    .test-section { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; }
+    .label { font-weight: bold; margin-bottom: 8px; }
+    .line { background-color: #eee; font-size: 24px; line-height: 60px; }
+    .line span { background-color: #fdd; }
+    .baseline span { vertical-align: baseline; }
+    .va-top span { vertical-align: top; }
+    .va-middle span { vertical-align: middle; }
+    .va-bottom span { vertical-align: bottom; }
+    .va-sub span { vertical-align: sub; font-size: 12px; }
+    .va-super span { vertical-align: super; font-size: 12px; }
+</style></head>
+<body>
+    <h1>CSS Test 07: Vertical Align</h1>
+    <div class="test-section">
+        <div class="label">7a: baseline</div><div class="line baseline">Text <span>baseline</span> aligned</div>
+        <div class="label">7b: top</div><div class="line va-top">Text <span>top</span> aligned</div>
+        <div class="label">7c: middle</div><div class="line va-middle">Text <span>middle</span> aligned</div>
+        <div class="label">7d: bottom</div><div class="line va-bottom">Text <span>bottom</span> aligned</div>
+        <div class="label">7e: sub</div><div class="line va-sub">Text <span>subscript</span> text</div>
+        <div class="label">7f: super</div><div class="line va-super">Text <span>superscript</span> text</div>
+    </div>
+</body></html>

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Test 04 - Timing Functions</title>
+    <style>
+        body { font-family: Helvetica, sans-serif; font-size: 14px; color: #222; margin: 20px; }
+        h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
+        .test-section { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; background-color: #f9f9f9; }
+        .label { font-weight: bold; margin-bottom: 8px; }
+        .track { background-color: #eee; height: 40px; position: relative; margin: 10px 0; }
+        .ball { width: 40px; height: 40px; border-radius: 50%; position: absolute; left: 0; animation: move 3s infinite alternate; }
+        .ease { background-color: #e74c3c; animation-timing-function: ease; }
+        .linear { background-color: #3498db; animation-timing-function: linear; }
+        .ease-in { background-color: #2ecc71; animation-timing-function: ease-in; }
+        .ease-out { background-color: #f39c12; animation-timing-function: ease-out; }
+        .ease-in-out { background-color: #9b59b6; animation-timing-function: ease-in-out; }
+        @keyframes move { 0% { left: 0; } 100% { left: calc(100% - 40px); } }
+    </style>
+</head>
+<body>
+    <h1>CSS Test 04: Timing Functions</h1>
+    <div class="test-section">
+        <div class="label">ease</div><div class="track"><div class="ball ease"></div></div>
+        <div class="label">linear</div><div class="track"><div class="ball linear"></div></div>
+        <div class="label">ease-in</div><div class="track"><div class="ball ease-in"></div></div>
+        <div class="label">ease-out</div><div class="track"><div class="ball ease-out"></div></div>
+        <div class="label">ease-in-out</div><div class="track"><div class="ball ease-in-out"></div></div>
+    </div>
+</body>
+</html>

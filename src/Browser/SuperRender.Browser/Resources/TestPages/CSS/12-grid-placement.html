@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html><head><title>CSS Test 12 - Grid Placement</title>
+<style>
+    body { font-family: Helvetica, sans-serif; font-size: 14px; margin: 20px; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
+    .test-section { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; }
+    .label { font-weight: bold; margin-bottom: 8px; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 60px); gap: 5px; }
+    .item { padding: 10px; color: white; text-align: center; }
+    .span-col { grid-column: 1 / 3; background-color: #e74c3c; }
+    .span-row { grid-row: 2 / 4; background-color: #3498db; }
+    .placed { grid-row: 1; grid-column: 3; background-color: #2ecc71; }
+    .auto { background-color: #9b59b6; }
+</style></head>
+<body>
+    <h1>CSS Test 12: Grid Placement</h1>
+    <div class="test-section">
+        <div class="label">12a: grid-column span and explicit placement</div>
+        <div class="grid">
+            <div class="item span-col">Spans 2 cols</div>
+            <div class="item placed">Placed at col 3</div>
+            <div class="item span-row">Spans 2 rows</div>
+            <div class="item auto">Auto</div>
+            <div class="item auto">Auto</div>
+        </div>
+    </div>
+</body></html>

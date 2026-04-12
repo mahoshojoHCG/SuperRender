@@ -18,6 +18,21 @@ public sealed partial class StyleResolver
                     "flow-root" => DisplayType.FlowRoot,
                     "none" => DisplayType.None,
                     "flex" => DisplayType.Flex,
+                    "inline-flex" => DisplayType.InlineFlex,
+                    "contents" => DisplayType.Contents,
+                    "list-item" => DisplayType.ListItem,
+                    "grid" => DisplayType.Grid,
+                    "inline-grid" => DisplayType.InlineGrid,
+                    "table" => DisplayType.Table,
+                    "inline-table" => DisplayType.InlineTable,
+                    "table-row" => DisplayType.TableRow,
+                    "table-cell" => DisplayType.TableCell,
+                    "table-row-group" => DisplayType.TableRowGroup,
+                    "table-header-group" => DisplayType.TableHeaderGroup,
+                    "table-footer-group" => DisplayType.TableFooterGroup,
+                    "table-column" => DisplayType.TableColumn,
+                    "table-column-group" => DisplayType.TableColumnGroup,
+                    "table-caption" => DisplayType.TableCaption,
                     _ => style.Display
                 };
                 break;
@@ -28,6 +43,8 @@ public sealed partial class StyleResolver
                     "static" => PositionType.Static,
                     "relative" => PositionType.Relative,
                     "absolute" => PositionType.Absolute,
+                    "fixed" => PositionType.Fixed,
+                    "sticky" => PositionType.Sticky,
                     _ => style.Position
                 };
                 break;
@@ -58,15 +75,42 @@ public sealed partial class StyleResolver
                 }
                 break;
 
-            case CssPropertyNames.Overflow or CssPropertyNames.OverflowX or CssPropertyNames.OverflowY:
-                style.Overflow = value.Raw.ToLowerInvariant() switch
-                {
-                    "visible" => OverflowType.Visible,
-                    "hidden" => OverflowType.Hidden,
-                    "scroll" => OverflowType.Scroll,
-                    "auto" => OverflowType.Auto,
-                    _ => style.Overflow
-                };
+            case CssPropertyNames.Overflow:
+            {
+                var ov = ParseOverflowValue(value.Raw, style.Overflow);
+                style.Overflow = ov;
+                style.OverflowX = ov;
+                style.OverflowY = ov;
+                break;
+            }
+            case CssPropertyNames.OverflowX:
+            {
+                style.OverflowX = ParseOverflowValue(value.Raw, style.OverflowX);
+                break;
+            }
+            case CssPropertyNames.OverflowY:
+            {
+                style.OverflowY = ParseOverflowValue(value.Raw, style.OverflowY);
+                break;
+            }
+
+            // Inset logical properties (mapped to physical in LTR horizontal-tb)
+            case CssPropertyNames.InsetBlockStart:
+                style.Top = ResolveLength(value, parentStyle);
+                break;
+            case CssPropertyNames.InsetBlockEnd:
+                style.Bottom = ResolveLength(value, parentStyle);
+                break;
+            case CssPropertyNames.InsetInlineStart:
+                style.Left = ResolveLength(value, parentStyle);
+                break;
+            case CssPropertyNames.InsetInlineEnd:
+                style.Right = ResolveLength(value, parentStyle);
+                break;
+
+            // Aspect ratio
+            case CssPropertyNames.AspectRatio:
+                style.AspectRatio = ParseAspectRatio(value.Raw);
                 break;
 
             // P1: Inherited text properties
@@ -109,5 +153,54 @@ public sealed partial class StyleResolver
                 return false;
         }
         return true;
+    }
+
+    private static OverflowType ParseOverflowValue(string raw, OverflowType fallback)
+    {
+        return raw.ToLowerInvariant() switch
+        {
+            "visible" => OverflowType.Visible,
+            "hidden" => OverflowType.Hidden,
+            "scroll" => OverflowType.Scroll,
+            "auto" => OverflowType.Auto,
+            "clip" => OverflowType.Clip,
+            _ => fallback
+        };
+    }
+
+    private static float ParseAspectRatio(string raw)
+    {
+        var trimmed = raw.Trim();
+        if (trimmed.Equals("auto", StringComparison.OrdinalIgnoreCase)
+            || trimmed.Equals("none", StringComparison.OrdinalIgnoreCase))
+        {
+            return float.NaN;
+        }
+
+        // Try "W / H" format
+        var slashIndex = trimmed.IndexOf('/', StringComparison.Ordinal);
+        if (slashIndex >= 0)
+        {
+            var wStr = trimmed[..slashIndex].Trim();
+            var hStr = trimmed[(slashIndex + 1)..].Trim();
+            if (float.TryParse(wStr, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out float w)
+                && float.TryParse(hStr, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out float h)
+                && h > 0)
+            {
+                return w / h;
+            }
+        }
+
+        // Try single number
+        if (float.TryParse(trimmed, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out float single)
+            && single > 0)
+        {
+            return single;
+        }
+
+        return float.NaN;
     }
 }

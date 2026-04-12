@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html><head><title>CSS Test 09 - CSS Counters</title>
+<style>
+    body { font-family: Helvetica, sans-serif; font-size: 14px; margin: 20px; counter-reset: section; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
+    .test-section { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; }
+    .label { font-weight: bold; margin-bottom: 8px; }
+    .chapter { counter-reset: subsection; counter-increment: section; }
+    .chapter::before { content: "Chapter " counter(section) ": "; font-weight: bold; }
+    .sub { counter-increment: subsection; }
+    .sub::before { content: counter(section) "." counter(subsection) " "; }
+</style></head>
+<body>
+    <h1>CSS Test 09: CSS Counters</h1>
+    <div class="test-section">
+        <div class="label">9a: Automatic chapter numbering</div>
+        <div class="chapter">Introduction</div>
+        <div class="sub">Background</div>
+        <div class="sub">Motivation</div>
+        <div class="chapter">Methods</div>
+        <div class="sub">Approach A</div>
+        <div class="sub">Approach B</div>
+        <div class="sub">Approach C</div>
+    </div>
+</body></html>

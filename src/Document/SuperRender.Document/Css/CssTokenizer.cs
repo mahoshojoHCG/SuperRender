@@ -58,6 +58,15 @@ public sealed class CssTokenizer
                 continue;
             }
 
+            // At-keywords (@media, @import, etc.)
+            if (c == '@' && _pos + 1 < _input.Length && IsIdentStart(_input[_pos + 1]))
+            {
+                Advance(); // skip '@'
+                var ident = ConsumeIdentChars();
+                yield return new CssToken { Type = CssTokenType.AtKeyword, Value = ident };
+                continue;
+            }
+
             // Identifiers and functions
             if (IsIdentStart(c))
             {

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html><head><title>CSS Test 19 - Writing Modes</title>
+<style>
+    body { font-family: Helvetica, sans-serif; font-size: 14px; margin: 20px; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
+    .test-section { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; }
+    .label { font-weight: bold; margin-bottom: 8px; }
+    .box { border: 2px solid #3498db; padding: 10px; margin: 10px; display: inline-block; height: 150px; }
+    .htb { writing-mode: horizontal-tb; }
+    .vrl { writing-mode: vertical-rl; }
+    .vlr { writing-mode: vertical-lr; }
+    .rtl { direction: rtl; }
+</style></head>
+<body>
+    <h1>CSS Test 19: Writing Modes</h1>
+    <div class="test-section">
+        <div class="label">19a: horizontal-tb (default)</div><div class="box htb">Horizontal top-to-bottom text</div>
+        <div class="label">19b: vertical-rl</div><div class="box vrl">Vertical right-to-left</div>
+        <div class="label">19c: vertical-lr</div><div class="box vlr">Vertical left-to-right</div>
+        <div class="label">19d: direction: rtl</div><div class="box rtl">Right-to-left text direction</div>
+    </div>
+</body></html>

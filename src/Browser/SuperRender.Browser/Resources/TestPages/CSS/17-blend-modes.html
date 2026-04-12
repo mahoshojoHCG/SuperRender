@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html><head><title>CSS Test 17 - Blend Modes</title>
+<style>
+    body { font-family: Helvetica, sans-serif; font-size: 14px; margin: 20px; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
+    .test-section { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; }
+    .label { font-weight: bold; margin-bottom: 8px; }
+    .container { position: relative; width: 200px; height: 100px; background-color: #e74c3c; display: inline-block; margin: 10px; }
+    .overlay { position: absolute; top: 20px; left: 20px; width: 160px; height: 60px; background-color: #3498db; }
+    .multiply .overlay { mix-blend-mode: multiply; }
+    .screen .overlay { mix-blend-mode: screen; }
+    .overlay-mode .overlay { mix-blend-mode: overlay; }
+    .difference .overlay { mix-blend-mode: difference; }
+</style></head>
+<body>
+    <h1>CSS Test 17: Blend Modes</h1>
+    <div class="test-section">
+        <div class="label">Normal</div><div class="container"><div class="overlay"></div></div>
+        <div class="label">multiply</div><div class="container multiply"><div class="overlay"></div></div>
+        <div class="label">screen</div><div class="container screen"><div class="overlay"></div></div>
+        <div class="label">overlay</div><div class="container overlay-mode"><div class="overlay"></div></div>
+        <div class="label">difference</div><div class="container difference"><div class="overlay"></div></div>
+    </div>
+</body></html>

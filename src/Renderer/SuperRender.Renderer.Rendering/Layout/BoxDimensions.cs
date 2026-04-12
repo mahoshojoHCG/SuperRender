@@ -93,4 +93,4 @@ public struct BoxDimensions
     public float BottomEdge => Margin.Bottom + Border.Bottom + Padding.Bottom;
 }
 
-public enum DisplayType { Block, Inline, InlineBlock, FlowRoot, None, Flex }
+public enum DisplayType { Block, Inline, InlineBlock, FlowRoot, None, Flex, InlineFlex, Contents, ListItem, Grid, InlineGrid, Table, InlineTable, TableRow, TableCell, TableRowGroup, TableHeaderGroup, TableFooterGroup, TableColumn, TableColumnGroup, TableCaption }

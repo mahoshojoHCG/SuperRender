@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html><head><title>CSS Test 13 - Grid FR Units</title>
+<style>
+    body { font-family: Helvetica, sans-serif; font-size: 14px; margin: 20px; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
+    .test-section { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; }
+    .label { font-weight: bold; margin-bottom: 8px; }
+    .grid { display: grid; gap: 5px; margin-bottom: 15px; }
+    .equal { grid-template-columns: 1fr 1fr 1fr; }
+    .ratio { grid-template-columns: 1fr 2fr 1fr; }
+    .mixed { grid-template-columns: 200px 1fr 1fr; }
+    .item { padding: 15px; color: white; text-align: center; }
+    .r { background-color: #e74c3c; } .g { background-color: #2ecc71; } .b { background-color: #3498db; }
+</style></head>
+<body>
+    <h1>CSS Test 13: Grid FR Units</h1>
+    <div class="test-section">
+        <div class="label">13a: Equal columns (1fr 1fr 1fr)</div>
+        <div class="grid equal"><div class="item r">1fr</div><div class="item g">1fr</div><div class="item b">1fr</div></div>
+        <div class="label">13b: Ratio columns (1fr 2fr 1fr)</div>
+        <div class="grid ratio"><div class="item r">1fr</div><div class="item g">2fr</div><div class="item b">1fr</div></div>
+        <div class="label">13c: Mixed (200px 1fr 1fr)</div>
+        <div class="grid mixed"><div class="item r">200px</div><div class="item g">1fr</div><div class="item b">1fr</div></div>
+    </div>
+</body></html>

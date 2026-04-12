@@ -44,6 +44,12 @@ internal static class FlexLayout
             style, dims, isRow, isReverse, isWrap, availableMain, containerCrossSize,
             mainGap, crossGap, ref crossCursor, measurer);
 
+        // Phase 4: Apply align-content to distribute cross-axis space among lines
+        if (lines.Count > 1 || style.AlignContent != AlignContentType.Stretch)
+        {
+            ApplyAlignContent(lines, flexItems, style, dims, isRow, crossGap, containerCrossSize, measurer);
+        }
+
         // Calculate flex container height
         CalculateFlexContainerHeight(flexBox, lines, crossGap, isRow);
     }
@@ -762,6 +768,89 @@ internal static class FlexLayout
             return d.Height + d.Margin.Top + d.Margin.Bottom
                    + d.Border.Top + d.Border.Bottom
                    + d.Padding.Top + d.Padding.Bottom;
+        }
+    }
+
+    private static void ApplyAlignContent(
+        List<FlexLine> lines, List<LayoutBox> flexItems,
+        ComputedStyle style, BoxDimensions dims,
+        bool isRow, float crossGap, float containerCrossSize,
+        ITextMeasurer measurer)
+    {
+        if (style.AlignContent == AlignContentType.Stretch || float.IsNaN(containerCrossSize))
+            return;
+
+        float totalLineCross = 0;
+        for (int i = 0; i < lines.Count; i++)
+        {
+            totalLineCross += lines[i].CrossSize;
+            if (i < lines.Count - 1) totalLineCross += crossGap;
+        }
+
+        float freeCrossSpace = containerCrossSize - totalLineCross;
+        if (freeCrossSpace <= 0)
+            return;
+
+        float crossStart = isRow ? dims.Y : dims.X;
+        float offset = 0;
+        float lineSpacing = 0;
+
+        switch (style.AlignContent)
+        {
+            case AlignContentType.FlexStart:
+                // No offset needed, lines already at start
+                return;
+            case AlignContentType.FlexEnd:
+                offset = freeCrossSpace;
+                break;
+            case AlignContentType.Center:
+                offset = freeCrossSpace / 2f;
+                break;
+            case AlignContentType.SpaceBetween:
+                if (lines.Count > 1)
+                    lineSpacing = freeCrossSpace / (lines.Count - 1);
+                else
+                    return; // single line, no change
+                break;
+            case AlignContentType.SpaceAround:
+                if (lines.Count > 0)
+                {
+                    float around = freeCrossSpace / lines.Count;
+                    offset = around / 2f;
+                    lineSpacing = around;
+                }
+                break;
+            case AlignContentType.SpaceEvenly:
+                if (lines.Count > 0)
+                {
+                    float even = freeCrossSpace / (lines.Count + 1);
+                    offset = even;
+                    lineSpacing = even;
+                }
+                break;
+        }
+
+        if (offset == 0 && lineSpacing == 0)
+            return;
+
+        // Shift all items in each line by the accumulated offset
+        float accumulatedShift = offset;
+        for (int lineIdx = 0; lineIdx < lines.Count; lineIdx++)
+        {
+            var line = lines[lineIdx];
+            foreach (int idx in line.Items)
+            {
+                var item = flexItems[idx];
+                var itemDims = item.Dimensions;
+                if (isRow)
+                    itemDims.Y += accumulatedShift;
+                else
+                    itemDims.X += accumulatedShift;
+                item.Dimensions = itemDims;
+            }
+
+            if (lineIdx < lines.Count - 1)
+                accumulatedShift += lineSpacing;
         }
     }
 

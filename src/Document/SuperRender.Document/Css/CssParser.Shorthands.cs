@@ -336,5 +336,373 @@ public sealed partial class CssParser
         };
     }
 
+    private static List<Declaration> ExpandInsetShorthand(List<CssToken> valueTokens, bool important)
+    {
+        // inset: <top> <right> <bottom> <left> (same 1/2/3/4 value syntax as margin/padding)
+        var parts = SplitByWhitespace(valueTokens);
+
+        CssValue top, right, bottom, left;
+        switch (parts.Count)
+        {
+            case 1:
+                top = right = bottom = left = ParseValueTokens(parts[0]);
+                break;
+            case 2:
+                top = bottom = ParseValueTokens(parts[0]);
+                right = left = ParseValueTokens(parts[1]);
+                break;
+            case 3:
+                top = ParseValueTokens(parts[0]);
+                right = left = ParseValueTokens(parts[1]);
+                bottom = ParseValueTokens(parts[2]);
+                break;
+            default: // 4+
+                top = ParseValueTokens(parts[0]);
+                right = ParseValueTokens(parts[1]);
+                bottom = ParseValueTokens(parts[2]);
+                left = ParseValueTokens(parts[3]);
+                break;
+        }
+
+        return
+        [
+            new Declaration { Property = "top", Value = top, Important = important },
+            new Declaration { Property = "right", Value = right, Important = important },
+            new Declaration { Property = "bottom", Value = bottom, Important = important },
+            new Declaration { Property = "left", Value = left, Important = important },
+        ];
+    }
+
+    private static List<Declaration> ExpandInsetBlockShorthand(List<CssToken> valueTokens, bool important)
+    {
+        // inset-block: <start> <end> (1 or 2 values)
+        var parts = SplitByWhitespace(valueTokens);
+
+        CssValue start, end;
+        if (parts.Count >= 2)
+        {
+            start = ParseValueTokens(parts[0]);
+            end = ParseValueTokens(parts[1]);
+        }
+        else
+        {
+            start = end = ParseValueTokens(parts[0]);
+        }
+
+        return
+        [
+            new Declaration { Property = "inset-block-start", Value = start, Important = important },
+            new Declaration { Property = "inset-block-end", Value = end, Important = important },
+        ];
+    }
+
+    private static List<Declaration> ExpandInsetInlineShorthand(List<CssToken> valueTokens, bool important)
+    {
+        // inset-inline: <start> <end> (1 or 2 values)
+        var parts = SplitByWhitespace(valueTokens);
+
+        CssValue start, end;
+        if (parts.Count >= 2)
+        {
+            start = ParseValueTokens(parts[0]);
+            end = ParseValueTokens(parts[1]);
+        }
+        else
+        {
+            start = end = ParseValueTokens(parts[0]);
+        }
+
+        return
+        [
+            new Declaration { Property = "inset-inline-start", Value = start, Important = important },
+            new Declaration { Property = "inset-inline-end", Value = end, Important = important },
+        ];
+    }
+
+    private static List<Declaration> ExpandMarginBlockShorthand(List<CssToken> valueTokens, bool important)
+    {
+        // margin-block: <start> <end> (1 or 2 values)
+        var parts = SplitByWhitespace(valueTokens);
+
+        CssValue start, end;
+        if (parts.Count >= 2)
+        {
+            start = ParseValueTokens(parts[0]);
+            end = ParseValueTokens(parts[1]);
+        }
+        else
+        {
+            start = end = ParseValueTokens(parts[0]);
+        }
+
+        return
+        [
+            new Declaration { Property = "margin-block-start", Value = start, Important = important },
+            new Declaration { Property = "margin-block-end", Value = end, Important = important },
+        ];
+    }
+
+    private static List<Declaration> ExpandMarginInlineShorthand(List<CssToken> valueTokens, bool important)
+    {
+        // margin-inline: <start> <end> (1 or 2 values)
+        var parts = SplitByWhitespace(valueTokens);
+
+        CssValue start, end;
+        if (parts.Count >= 2)
+        {
+            start = ParseValueTokens(parts[0]);
+            end = ParseValueTokens(parts[1]);
+        }
+        else
+        {
+            start = end = ParseValueTokens(parts[0]);
+        }
+
+        return
+        [
+            new Declaration { Property = "margin-inline-start", Value = start, Important = important },
+            new Declaration { Property = "margin-inline-end", Value = end, Important = important },
+        ];
+    }
+
+    private static List<Declaration> ExpandPaddingBlockShorthand(List<CssToken> valueTokens, bool important)
+    {
+        // padding-block: <start> <end> (1 or 2 values)
+        var parts = SplitByWhitespace(valueTokens);
+
+        CssValue start, end;
+        if (parts.Count >= 2)
+        {
+            start = ParseValueTokens(parts[0]);
+            end = ParseValueTokens(parts[1]);
+        }
+        else
+        {
+            start = end = ParseValueTokens(parts[0]);
+        }
+
+        return
+        [
+            new Declaration { Property = "padding-block-start", Value = start, Important = important },
+            new Declaration { Property = "padding-block-end", Value = end, Important = important },
+        ];
+    }
+
+    private static List<Declaration> ExpandPaddingInlineShorthand(List<CssToken> valueTokens, bool important)
+    {
+        // padding-inline: <start> <end> (1 or 2 values)
+        var parts = SplitByWhitespace(valueTokens);
+
+        CssValue start, end;
+        if (parts.Count >= 2)
+        {
+            start = ParseValueTokens(parts[0]);
+            end = ParseValueTokens(parts[1]);
+        }
+        else
+        {
+            start = end = ParseValueTokens(parts[0]);
+        }
+
+        return
+        [
+            new Declaration { Property = "padding-inline-start", Value = start, Important = important },
+            new Declaration { Property = "padding-inline-end", Value = end, Important = important },
+        ];
+    }
+
+    private static List<Declaration> ExpandPlaceItemsShorthand(List<CssToken> valueTokens, bool important)
+    {
+        // place-items: <align-items> <justify-content>
+        // If only one value, it applies to both
+        var parts = SplitByWhitespace(valueTokens);
+        var first = ParseValueTokens(parts[0]);
+        var second = parts.Count >= 2 ? ParseValueTokens(parts[1]) : first;
+
+        return
+        [
+            new Declaration { Property = "align-items", Value = first, Important = important },
+            new Declaration { Property = "justify-content", Value = second, Important = important },
+        ];
+    }
+
+    private static List<Declaration> ExpandPlaceContentShorthand(List<CssToken> valueTokens, bool important)
+    {
+        // place-content: <align-content> <justify-content>
+        // If only one value, it applies to both
+        var parts = SplitByWhitespace(valueTokens);
+        var first = ParseValueTokens(parts[0]);
+        var second = parts.Count >= 2 ? ParseValueTokens(parts[1]) : first;
+
+        return
+        [
+            new Declaration { Property = "align-content", Value = first, Important = important },
+            new Declaration { Property = "justify-content", Value = second, Important = important },
+        ];
+    }
+
+    private static List<Declaration> ExpandPlaceSelfShorthand(List<CssToken> valueTokens, bool important)
+    {
+        // place-self: <align-self> <justify-self>
+        // We only support align-self, so just set align-self from first value
+        var parts = SplitByWhitespace(valueTokens);
+        var first = ParseValueTokens(parts[0]);
+
+        return
+        [
+            new Declaration { Property = "align-self", Value = first, Important = important },
+        ];
+    }
+
+    private static List<Declaration> ExpandBackgroundShorthand(List<CssToken> valueTokens, bool important)
+    {
+        // background: [color] [image] [repeat] [position] [/ size] [attachment] [origin] [clip]
+        // This is a simplified parser: extract color and gradient/url, pass rest as-is.
+        var declarations = new List<Declaration>();
+        var parts = SplitByWhitespace(valueTokens);
+
+        CssValue? bgColor = null;
+        CssValue? bgImage = null;
+
+        foreach (var part in parts)
+        {
+            var val = ParseValueTokens(part);
+
+            // Check for gradient function
+            if (val.Gradient != null)
+            {
+                bgImage = val;
+                continue;
+            }
+
+            // Check for url()
+            if (val.Raw.StartsWith("url(", System.StringComparison.OrdinalIgnoreCase))
+            {
+                bgImage = val;
+                continue;
+            }
+
+            // Check for color
+            if (val.Type == CssValueType.Color)
+            {
+                bgColor ??= val;
+                continue;
+            }
+
+            if (val.Type == CssValueType.Keyword)
+            {
+                // "none" for background-image
+                if (val.Raw.Equals("none", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    bgImage ??= val;
+                    continue;
+                }
+
+                // Named color
+                if (Document.Color.TryFromName(val.Raw, out var named))
+                {
+                    bgColor ??= new CssValue
+                    {
+                        Type = CssValueType.Color,
+                        Raw = val.Raw,
+                        ColorValue = named,
+                    };
+                    continue;
+                }
+
+                // repeat values
+                if (val.Raw is "repeat" or "repeat-x" or "repeat-y" or "no-repeat" or "space" or "round")
+                {
+                    declarations.Add(new Declaration
+                    {
+                        Property = "background-repeat",
+                        Value = val,
+                        Important = important,
+                    });
+                    continue;
+                }
+            }
+        }
+
+        if (bgColor != null)
+        {
+            declarations.Add(new Declaration
+            {
+                Property = "background-color",
+                Value = bgColor,
+                Important = important,
+            });
+        }
+
+        if (bgImage != null)
+        {
+            declarations.Add(new Declaration
+            {
+                Property = "background-image",
+                Value = bgImage,
+                Important = important,
+            });
+        }
+
+        return declarations;
+    }
+
+    private static List<Declaration> ExpandOutlineShorthand(List<CssToken> valueTokens, bool important)
+    {
+        // outline: [width] [style] [color]
+        var parts = SplitByWhitespace(valueTokens);
+        var declarations = new List<Declaration>();
+
+        var outlineStyles = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase)
+        {
+            "none", "hidden", "dotted", "dashed", "solid", "double", "groove", "ridge", "inset", "outset", "auto"
+        };
+
+        foreach (var part in parts)
+        {
+            var val = ParseValueTokens(part);
+
+            if (val.Type is CssValueType.Length or CssValueType.Number)
+            {
+                declarations.Add(new Declaration
+                {
+                    Property = "outline-width",
+                    Value = val,
+                    Important = important,
+                });
+            }
+            else if (val.Type == CssValueType.Color ||
+                     (val.Type == CssValueType.Keyword && Document.Color.TryFromName(val.Raw, out _)))
+            {
+                if (val.Type == CssValueType.Keyword)
+                {
+                    val = new CssValue
+                    {
+                        Type = CssValueType.Color,
+                        Raw = val.Raw,
+                        ColorValue = Document.Color.FromName(val.Raw),
+                    };
+                }
+                declarations.Add(new Declaration
+                {
+                    Property = "outline-color",
+                    Value = val,
+                    Important = important,
+                });
+            }
+            else if (val.Type == CssValueType.Keyword && outlineStyles.Contains(val.Raw))
+            {
+                declarations.Add(new Declaration
+                {
+                    Property = "outline-style",
+                    Value = val,
+                    Important = important,
+                });
+            }
+        }
+
+        return declarations;
+    }
+
     #endregion
 }

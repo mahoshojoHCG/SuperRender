@@ -30,16 +30,44 @@ public sealed class Painter
         // Effective opacity: multiply with parent (opacity is composited)
         float effectiveOpacity = parentOpacity * box.Style.Opacity;
 
+        // Push transform if present
+        bool hasTransform = box.Style.Transform is { Count: > 0 };
+        if (hasTransform)
+        {
+            var matrix = TransformMatrix.Compose(box.Style.Transform!.Select(f => f.ToMatrix()));
+            list.Add(new PushTransformCommand { Matrix4x4 = matrix.Elements });
+        }
+
+        // Push filter if present
+        bool hasFilter = box.Style.Filter is { Count: > 0 };
+        if (hasFilter)
+        {
+            list.Add(new PushFilterCommand { Filters = box.Style.Filter! });
+        }
+
+        // 0. Paint box shadows (before background, outer shadows only)
+        if (!isHidden)
+            PaintBoxShadow(box, list, effectiveOpacity);
+
         // 1. Paint background (if visible)
         if (!isHidden)
             PaintBackground(box, list, effectiveOpacity, roundedClip);
+
+        // 1b. Paint background image / gradient (if visible)
+        if (!isHidden)
+            PaintBackgroundImage(box, list, effectiveOpacity);
 
         // 2. Paint border (if visible)
         if (!isHidden)
             PaintBorder(box, list, effectiveOpacity);
 
-        // 3. Clip if overflow:hidden
-        bool clipping = box.Style.Overflow == OverflowType.Hidden;
+        // 3. Clip if overflow:hidden (or clip)
+        bool clipping = box.Style.Overflow == OverflowType.Hidden
+                     || box.Style.Overflow == OverflowType.Clip
+                     || box.Style.OverflowX == OverflowType.Hidden
+                     || box.Style.OverflowX == OverflowType.Clip
+                     || box.Style.OverflowY == OverflowType.Hidden
+                     || box.Style.OverflowY == OverflowType.Clip;
         RoundedClip? childClip = roundedClip;
         if (clipping)
         {
@@ -79,6 +107,22 @@ public sealed class Painter
         if (clipping)
         {
             list.Add(new PopClipCommand());
+        }
+
+        // 7b. Paint outline (after content, outside border box)
+        if (!isHidden)
+            PaintOutline(box, list, effectiveOpacity);
+
+        // 8. Pop filter
+        if (hasFilter)
+        {
+            list.Add(new PopFilterCommand());
+        }
+
+        // 9. Pop transform
+        if (hasTransform)
+        {
+            list.Add(new PopTransformCommand());
         }
     }
 
@@ -600,5 +644,152 @@ public sealed class Painter
                 });
             }
         }
+    }
+
+    private static void PaintBackgroundImage(LayoutBox box, PaintList list, float opacity)
+    {
+        var gradient = box.Style.BackgroundImage;
+        if (gradient == null) return;
+
+        // Inline elements with text runs don't get background images
+        if (box.Style.Display == DisplayType.Inline && box.TextRuns is { Count: > 0 })
+            return;
+
+        var borderRect = box.Dimensions.BorderRect;
+        if (borderRect.Width <= 0 || borderRect.Height <= 0) return;
+
+        var (rtl, rtr, rbr, rbl) = ResolveBorderRadii(box.Style, borderRect.Width, borderRect.Height);
+
+        switch (gradient)
+        {
+            case Document.Css.LinearGradient linear:
+            {
+                var stops = ConvertColorStops(linear.ColorStops, opacity);
+                if (stops.Count >= 2)
+                {
+                    list.Add(new DrawLinearGradientCommand
+                    {
+                        Rect = borderRect,
+                        AngleDeg = linear.AngleDeg,
+                        ColorStops = stops,
+                        RadiusTL = rtl,
+                        RadiusTR = rtr,
+                        RadiusBR = rbr,
+                        RadiusBL = rbl,
+                    });
+                }
+                break;
+            }
+
+            case Document.Css.RadialGradient radial:
+            {
+                var stops = ConvertColorStops(radial.ColorStops, opacity);
+                if (stops.Count >= 2)
+                {
+                    list.Add(new DrawRadialGradientCommand
+                    {
+                        Rect = borderRect,
+                        CenterX = radial.CenterX,
+                        CenterY = radial.CenterY,
+                        RadiusX = 0.5f,
+                        RadiusY = 0.5f,
+                        ColorStops = stops,
+                    });
+                }
+                break;
+            }
+
+            case Document.Css.ConicGradient conic:
+            {
+                // Conic gradients are approximated as a series of linear gradient segments
+                // For now, render a simple two-color approximation
+                var stops = ConvertColorStops(conic.ColorStops, opacity);
+                if (stops.Count >= 2)
+                {
+                    // Use linear gradient as a visual approximation
+                    list.Add(new DrawLinearGradientCommand
+                    {
+                        Rect = borderRect,
+                        AngleDeg = conic.FromAngleDeg,
+                        ColorStops = stops,
+                        RadiusTL = rtl,
+                        RadiusTR = rtr,
+                        RadiusBR = rbr,
+                        RadiusBL = rbl,
+                    });
+                }
+                break;
+            }
+        }
+    }
+
+    private static List<GradientColorStop> ConvertColorStops(
+        IReadOnlyList<Document.Css.ColorStop> cssStops, float opacity)
+    {
+        var result = new List<GradientColorStop>();
+        foreach (var stop in cssStops)
+        {
+            result.Add(new GradientColorStop
+            {
+                Color = ApplyOpacity(stop.Color, opacity),
+                Position = stop.Position ?? 0f,
+            });
+        }
+        return result;
+    }
+
+    private static void PaintBoxShadow(LayoutBox box, PaintList list, float opacity)
+    {
+        var shadows = box.Style.BoxShadows;
+        if (shadows == null || shadows.Count == 0) return;
+
+        var borderRect = box.Dimensions.BorderRect;
+        if (borderRect.Width <= 0 || borderRect.Height <= 0) return;
+
+        var (rtl, rtr, rbr, rbl) = ResolveBorderRadii(box.Style, borderRect.Width, borderRect.Height);
+
+        // Paint shadows in reverse order (first declared = topmost)
+        for (int i = shadows.Count - 1; i >= 0; i--)
+        {
+            var shadow = shadows[i];
+            var color = ApplyOpacity(shadow.Color, opacity);
+            if (color.A <= 0) continue;
+
+            list.Add(new DrawBoxShadowCommand
+            {
+                Rect = borderRect,
+                OffsetX = shadow.OffsetX,
+                OffsetY = shadow.OffsetY,
+                BlurRadius = shadow.BlurRadius,
+                SpreadRadius = shadow.SpreadRadius,
+                Color = color,
+                Inset = shadow.Inset,
+                RadiusTL = rtl,
+                RadiusTR = rtr,
+                RadiusBR = rbr,
+                RadiusBL = rbl,
+            });
+        }
+    }
+
+    private static void PaintOutline(LayoutBox box, PaintList list, float opacity)
+    {
+        var style = box.Style;
+        if (style.OutlineStyle == "none" || style.OutlineWidth <= 0) return;
+
+        var borderRect = box.Dimensions.BorderRect;
+        if (borderRect.Width <= 0 || borderRect.Height <= 0) return;
+
+        var color = ApplyOpacity(style.OutlineColor, opacity);
+        if (color.A <= 0) return;
+
+        list.Add(new DrawOutlineCommand
+        {
+            Rect = borderRect,
+            Width = style.OutlineWidth,
+            Color = color,
+            Style = style.OutlineStyle,
+            Offset = style.OutlineOffset,
+        });
     }
 }

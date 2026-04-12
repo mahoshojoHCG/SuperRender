@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html><head><title>CSS Test 08 - List Styles</title>
+<style>
+    body { font-family: Helvetica, sans-serif; font-size: 14px; margin: 20px; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
+    .test-section { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; }
+    .label { font-weight: bold; margin-bottom: 8px; }
+    .lower-alpha { list-style-type: lower-alpha; }
+    .upper-alpha { list-style-type: upper-alpha; }
+    .lower-roman { list-style-type: lower-roman; }
+    .upper-roman { list-style-type: upper-roman; }
+    .inside { list-style-position: inside; background-color: #fdd; }
+    .outside { list-style-position: outside; background-color: #dfd; }
+</style></head>
+<body>
+    <h1>CSS Test 08: List Styles</h1>
+    <div class="test-section">
+        <div class="label">8a: lower-alpha</div><ol class="lower-alpha"><li>First</li><li>Second</li><li>Third</li></ol>
+        <div class="label">8b: upper-alpha</div><ol class="upper-alpha"><li>First</li><li>Second</li><li>Third</li></ol>
+        <div class="label">8c: lower-roman</div><ol class="lower-roman"><li>First</li><li>Second</li><li>Third</li></ol>
+        <div class="label">8d: upper-roman</div><ol class="upper-roman"><li>First</li><li>Second</li><li>Third</li></ol>
+        <div class="label">8e: list-style-position: inside</div><ul class="inside"><li>Inside marker</li><li>Second item</li></ul>
+        <div class="label">8f: list-style-position: outside</div><ul class="outside"><li>Outside marker</li><li>Second item</li></ul>
+    </div>
+</body></html>

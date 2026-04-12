@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html><head><title>CSS Test 10 - Font Shorthand</title>
+<style>
+    body { font-family: Helvetica, sans-serif; font-size: 14px; margin: 20px; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
+    .test-section { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; }
+    .label { font-weight: bold; margin-bottom: 8px; }
+    .f1 { font: 20px Arial; }
+    .f2 { font: bold 16px sans-serif; }
+    .f3 { font: italic bold 18px serif; }
+    .f4 { font: small-caps 14px monospace; }
+    .f5 { font: italic 24px/1.5 Georgia; }
+</style></head>
+<body>
+    <h1>CSS Test 10: Font Shorthand</h1>
+    <div class="test-section">
+        <div class="label">10a: font: 20px Arial</div><p class="f1">Twenty pixel Arial text</p>
+        <div class="label">10b: font: bold 16px sans-serif</div><p class="f2">Bold 16px sans-serif</p>
+        <div class="label">10c: font: italic bold 18px serif</div><p class="f3">Italic bold serif</p>
+        <div class="label">10d: font: small-caps 14px monospace</div><p class="f4">Small caps monospace</p>
+        <div class="label">10e: font: italic 24px/1.5 Georgia</div><p class="f5">Italic 24px with 1.5 line-height</p>
+    </div>
+</body></html>

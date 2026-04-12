@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html><head><title>CSS Test 18 - Clip Path</title>
+<style>
+    body { font-family: Helvetica, sans-serif; font-size: 14px; margin: 20px; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
+    .test-section { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; }
+    .label { font-weight: bold; margin-bottom: 8px; }
+    .box { width: 150px; height: 150px; display: inline-block; margin: 15px; }
+    .circle { background-color: #e74c3c; clip-path: circle(50%); }
+    .ellipse { background-color: #3498db; clip-path: ellipse(40% 50% at 50% 50%); }
+    .polygon { background-color: #2ecc71; clip-path: polygon(50% 0%, 100% 100%, 0% 100%); }
+    .inset-clip { background-color: #f39c12; clip-path: inset(10px 20px 30px 40px); }
+</style></head>
+<body>
+    <h1>CSS Test 18: Clip Path</h1>
+    <div class="test-section">
+        <div class="label">18a: circle(50%)</div><div class="box circle"></div>
+        <div class="label">18b: ellipse</div><div class="box ellipse"></div>
+        <div class="label">18c: polygon (triangle)</div><div class="box polygon"></div>
+        <div class="label">18d: inset</div><div class="box inset-clip"></div>
+    </div>
+</body></html>

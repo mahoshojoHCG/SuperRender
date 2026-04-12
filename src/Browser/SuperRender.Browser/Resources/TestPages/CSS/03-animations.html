@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CSS Test 03 - Animations</title>
+    <style>
+        body { font-family: Helvetica, sans-serif; font-size: 14px; color: #222; margin: 20px; line-height: 1.5; }
+        h1 { border-bottom: 2px solid #333; padding-bottom: 8px; }
+        .test-section { margin-bottom: 30px; padding: 15px; border: 1px solid #ccc; background-color: #f9f9f9; }
+        .label { font-weight: bold; margin-bottom: 8px; }
+        .info { font-size: 12px; color: #666; margin-top: 8px; }
+        .box { width: 80px; height: 80px; margin: 20px; }
+        .pulse { background-color: #e74c3c; animation: pulse 2s ease-in-out infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
+        .slide { background-color: #3498db; animation: slide 3s linear infinite; }
+        @keyframes slide { 0% { transform: translateX(0); } 100% { transform: translateX(200px); } }
+        .color-cycle { background-color: #2ecc71; animation: colors 4s ease infinite alternate; }
+        @keyframes colors { 0% { background-color: #2ecc71; } 50% { background-color: #f39c12; } 100% { background-color: #9b59b6; } }
+    </style>
+</head>
+<body>
+    <h1>CSS Test 03: Animations</h1>
+    <div class="test-section">
+        <div class="label">3a: Pulse animation (scale, infinite)</div>
+        <div class="box pulse"></div>
+        <div class="info">Red box should pulse (grow and shrink) continuously.</div>
+    </div>
+    <div class="test-section">
+        <div class="label">3b: Slide animation (translateX, linear)</div>
+        <div class="box slide"></div>
+        <div class="info">Blue box should slide 200px right and repeat.</div>
+    </div>
+    <div class="test-section">
+        <div class="label">3c: Color cycle animation (alternate)</div>
+        <div class="box color-cycle"></div>
+        <div class="info">Box should cycle between green, orange, and purple.</div>
+    </div>
+</body>
+</html>
