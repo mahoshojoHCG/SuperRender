@@ -11,8 +11,8 @@ public sealed class StyleResolver
 {
     private readonly List<Stylesheet> _stylesheets;
     private readonly Stylesheet? _userAgentStylesheet;
-    private float _viewportWidth = 800;
-    private float _viewportHeight = 600;
+    private float _viewportWidth = PropertyDefaults.DefaultViewportWidth;
+    private float _viewportHeight = PropertyDefaults.DefaultViewportHeight;
 
     public StyleResolver(List<Stylesheet> stylesheets, Stylesheet? userAgentStylesheet = null)
     {
@@ -27,7 +27,7 @@ public sealed class StyleResolver
     /// </summary>
     public Dictionary<(Element, PseudoElementType), PseudoElementInfo>? PseudoElements { get; private set; }
 
-    public Dictionary<Node, ComputedStyle> ResolveAll(DomDocument document, float viewportWidth = 800, float viewportHeight = 600)
+    public Dictionary<Node, ComputedStyle> ResolveAll(DomDocument document, float viewportWidth = PropertyDefaults.DefaultViewportWidth, float viewportHeight = PropertyDefaults.DefaultViewportHeight)
     {
         _viewportWidth = viewportWidth;
         _viewportHeight = viewportHeight;
@@ -117,14 +117,14 @@ public sealed class StyleResolver
         }
 
         // Apply inline style attribute (highest specificity for non-!important)
-        var inlineStyle = element.GetAttribute("style");
+        var inlineStyle = element.GetAttribute(HtmlAttributeNames.Style);
         if (!string.IsNullOrWhiteSpace(inlineStyle))
         {
             ApplyInlineStyle(style, inlineStyle, parentStyle);
         }
 
         // Apply hidden attribute
-        if (element.Attributes.ContainsKey("hidden"))
+        if (element.Attributes.ContainsKey(HtmlAttributeNames.Hidden))
         {
             style.Display = DisplayType.None;
         }
@@ -1006,8 +1006,8 @@ public sealed class StyleResolver
             CssValueType.Length => value.Unit?.ToLowerInvariant() switch
             {
                 "px" => (float)value.NumericValue,
-                "em" => (float)value.NumericValue * (parentStyle?.FontSize ?? 16f),
-                "rem" => (float)value.NumericValue * 16f,
+                "em" => (float)value.NumericValue * (parentStyle?.FontSize ?? PropertyDefaults.DefaultFontSize),
+                "rem" => (float)value.NumericValue * PropertyDefaults.DefaultFontSize,
                 "vw" => (float)(value.NumericValue * _viewportWidth / 100),
                 "vh" => (float)(value.NumericValue * _viewportHeight / 100),
                 "vmin" => (float)(value.NumericValue * Math.Min(_viewportWidth, _viewportHeight) / 100),
@@ -1022,7 +1022,7 @@ public sealed class StyleResolver
 
     private static float ResolveFontSize(CssValue value, ComputedStyle? parentStyle)
     {
-        var parentFontSize = parentStyle?.FontSize ?? 16f;
+        var parentFontSize = parentStyle?.FontSize ?? PropertyDefaults.DefaultFontSize;
 
         return value.Type switch
         {
@@ -1030,7 +1030,7 @@ public sealed class StyleResolver
             {
                 "px" => (float)value.NumericValue,
                 "em" => (float)value.NumericValue * parentFontSize,
-                "rem" => (float)value.NumericValue * 16f,
+                "rem" => (float)value.NumericValue * PropertyDefaults.DefaultFontSize,
                 "pt" => (float)value.NumericValue * 1.333f,
                 _ => (float)value.NumericValue
             },
@@ -1039,7 +1039,7 @@ public sealed class StyleResolver
             CssValueType.Keyword => value.Raw.ToLowerInvariant() switch
             {
                 "small" => 13f,
-                "medium" => 16f,
+                "medium" => PropertyDefaults.DefaultFontSize,
                 "large" => 18f,
                 "x-large" => 24f,
                 "xx-large" => 32f,

@@ -313,8 +313,8 @@ internal static class InlineLayout
         // Exception: replaced elements (e.g. <img>) with intrinsic dimensions keep their
         // layout-computed width from TryGetImageIntrinsicWidth.
         bool isReplacedWithIntrinsicWidth = child.DomNode is Element imgEl
-            && imgEl.TagName == "img"
-            && (imgEl.GetAttribute("width") != null || imgEl.GetAttribute("data-natural-width") != null);
+            && imgEl.TagName == HtmlTagNames.Img
+            && (imgEl.GetAttribute(HtmlAttributeNames.Width) != null || imgEl.GetAttribute(HtmlAttributeNames.DataNaturalWidth) != null);
 
         if (float.IsNaN(style.Width) && !isReplacedWithIntrinsicWidth)
         {

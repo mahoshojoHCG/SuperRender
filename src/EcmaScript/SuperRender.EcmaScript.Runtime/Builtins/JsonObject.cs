@@ -27,7 +27,7 @@ public static class JsonObject
             }
             catch (JsonException ex)
             {
-                throw new Errors.JsSyntaxError("JSON.parse: " + ex.Message);
+                throw new Errors.JsSyntaxError("JSON.parse: " + ex.Message, ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             if (reviver is JsFunction reviverFn)

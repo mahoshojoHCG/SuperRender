@@ -129,16 +129,16 @@ public sealed class HtmlParser
             bool shouldClose = false;
 
             // Rule 1: <p> auto-closes before any block-level element.
-            if (top.TagName == "p" && BlockElements.Contains(incomingTag))
+            if (top.TagName == Dom.HtmlTagNames.P && BlockElements.Contains(incomingTag))
                 shouldClose = true;
             // Rule 2: <li> auto-closes before another <li>.
-            else if (top.TagName == "li" && incomingTag == "li")
+            else if (top.TagName == Dom.HtmlTagNames.Li && incomingTag == Dom.HtmlTagNames.Li)
                 shouldClose = true;
             // Rule 3: <dd>/<dt> auto-closes before another <dd> or <dt>.
-            else if (top.TagName is "dd" or "dt" && incomingTag is "dd" or "dt")
+            else if (top.TagName is Dom.HtmlTagNames.Dd or Dom.HtmlTagNames.Dt && incomingTag is Dom.HtmlTagNames.Dd or Dom.HtmlTagNames.Dt)
                 shouldClose = true;
             // Rule 4: <option> auto-closes before another <option>.
-            else if (top.TagName == "option" && incomingTag == "option")
+            else if (top.TagName == Dom.HtmlTagNames.Option && incomingTag == Dom.HtmlTagNames.Option)
                 shouldClose = true;
             // Rule 5: heading auto-closes before another heading.
             else if (HeadingElements.Contains(top.TagName) && HeadingElements.Contains(incomingTag))
@@ -279,7 +279,7 @@ public sealed class HtmlParser
     {
         // Check if an <html> element already exists at the document level.
         var htmlElement = doc.Children.OfType<Element>()
-            .FirstOrDefault(e => e.TagName == "html");
+            .FirstOrDefault(e => e.TagName == Dom.HtmlTagNames.Html);
 
         if (htmlElement != null)
         {
@@ -289,7 +289,7 @@ public sealed class HtmlParser
         }
 
         // No <html> element — wrap everything.
-        htmlElement = new Element("html") { OwnerDocument = doc };
+        htmlElement = new Element(Dom.HtmlTagNames.Html) { OwnerDocument = doc };
 
         // Move all current children of doc into the new html element temporarily.
         var children = doc.Children.ToList();
@@ -300,8 +300,8 @@ public sealed class HtmlParser
         EnsureHeadAndBody(doc, htmlElement);
 
         // Distribute the original children into head or body.
-        var head = htmlElement.Children.OfType<Element>().First(e => e.TagName == "head");
-        var body = htmlElement.Children.OfType<Element>().First(e => e.TagName == "body");
+        var head = htmlElement.Children.OfType<Element>().First(e => e.TagName == Dom.HtmlTagNames.Head);
+        var body = htmlElement.Children.OfType<Element>().First(e => e.TagName == Dom.HtmlTagNames.Body);
 
         foreach (var child in children)
         {
@@ -325,13 +325,13 @@ public sealed class HtmlParser
     private static void EnsureHeadAndBody(Dom.Document doc, Element htmlElement)
     {
         var head = htmlElement.Children.OfType<Element>()
-            .FirstOrDefault(e => e.TagName == "head");
+            .FirstOrDefault(e => e.TagName == Dom.HtmlTagNames.Head);
         var body = htmlElement.Children.OfType<Element>()
-            .FirstOrDefault(e => e.TagName == "body");
+            .FirstOrDefault(e => e.TagName == Dom.HtmlTagNames.Body);
 
         if (head == null)
         {
-            head = new Element("head") { OwnerDocument = doc };
+            head = new Element(Dom.HtmlTagNames.Head) { OwnerDocument = doc };
             // Insert head before body or as first child.
             if (body != null)
                 htmlElement.InsertBefore(head, body);
@@ -341,7 +341,7 @@ public sealed class HtmlParser
 
         if (body == null)
         {
-            body = new Element("body") { OwnerDocument = doc };
+            body = new Element(Dom.HtmlTagNames.Body) { OwnerDocument = doc };
             htmlElement.AppendChild(body);
         }
     }
@@ -353,7 +353,9 @@ public sealed class HtmlParser
     {
         return tagName switch
         {
-            "title" or "meta" or "link" or "style" or "base" or "script" or "noscript" => true,
+            Dom.HtmlTagNames.Title or Dom.HtmlTagNames.Meta or Dom.HtmlTagNames.Link
+                or Dom.HtmlTagNames.Style or Dom.HtmlTagNames.Base or Dom.HtmlTagNames.Script
+                or Dom.HtmlTagNames.NoScript => true,
             _ => false,
         };
     }

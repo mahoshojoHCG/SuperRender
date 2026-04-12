@@ -121,7 +121,7 @@ public static class RegExpConstructor
         {
             if (c is not ('g' or 'i' or 'm' or 's' or 'u' or 'y' or 'd'))
             {
-                throw new Errors.JsSyntaxError("Invalid regular expression flags: " + flags);
+                throw new Errors.JsSyntaxError("Invalid regular expression flags: " + flags, ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
         }
 
@@ -132,7 +132,7 @@ public static class RegExpConstructor
         }
         catch (RegexParseException ex)
         {
-            throw new Errors.JsSyntaxError("Invalid regular expression: " + ex.Message);
+            throw new Errors.JsSyntaxError("Invalid regular expression: " + ex.Message, ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
         }
     }
 
@@ -143,6 +143,6 @@ public static class RegExpConstructor
             return regex;
         }
 
-        throw new Errors.JsTypeError("Method requires that 'this' be a RegExp");
+        throw new Errors.JsTypeError("Method requires that 'this' be a RegExp", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 }

@@ -126,7 +126,7 @@ public static class PngDecoder
 
             // Reconstruct filtered scanlines
             byte[] reconstructed = new byte[height * scanlineBytes];
-            if (!ReconstructFilters(decompressedBuf, reconstructed, height, scanlineBytes, bytesPerPixel))
+            if (!ReconstructFilters(decompressedBuf.AsSpan(), reconstructed.AsSpan(), height, scanlineBytes, bytesPerPixel))
                 return null;
 
             // Convert to RGBA
@@ -176,7 +176,7 @@ public static class PngDecoder
         return totalRead;
     }
 
-    private static bool ReconstructFilters(byte[] decompressed, byte[] reconstructed,
+    private static bool ReconstructFilters(ReadOnlySpan<byte> decompressed, Span<byte> reconstructed,
         int height, int scanlineBytes, int bytesPerPixel)
     {
         for (int y = 0; y < height; y++)
@@ -222,10 +222,11 @@ public static class PngDecoder
         return pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
     }
 
-    private static byte[] ConvertToRgba(byte[] reconstructed, int width, int height,
+    private static byte[] ConvertToRgba(ReadOnlySpan<byte> reconstructed, int width, int height,
         byte colorType, byte bitDepth, int scanlineBytes, byte[]? palette, byte[]? transparency)
     {
         var pixels = new byte[width * height * 4];
+        Span<byte> dest = pixels;
 
         for (int y = 0; y < height; y++)
         {
@@ -241,10 +242,10 @@ public static class PngDecoder
                     case 0: // Grayscale
                         {
                             byte gray = ReadSample(reconstructed, srcRow, x, bitDepth);
-                            pixels[dstIdx] = gray;
-                            pixels[dstIdx + 1] = gray;
-                            pixels[dstIdx + 2] = gray;
-                            pixels[dstIdx + 3] = 255;
+                            dest[dstIdx] = gray;
+                            dest[dstIdx + 1] = gray;
+                            dest[dstIdx + 2] = gray;
+                            dest[dstIdx + 3] = 255;
 
                             // tRNS for grayscale: 2 bytes (16-bit gray value to match)
                             if (transparency != null && transparency.Length >= 2)
@@ -254,7 +255,7 @@ public static class PngDecoder
                                     : BinaryPrimitives.ReadUInt16BigEndian(transparency) >> (16 - bitDepth) & ((1 << bitDepth) - 1);
                                 // For simplicity, compare the final 8-bit value
                                 int trnGray8 = bitDepth == 16 ? transparency[0] : ScaleTo8Bit(trnGray, bitDepth);
-                                if (gray == trnGray8) pixels[dstIdx + 3] = 0;
+                                if (gray == trnGray8) dest[dstIdx + 3] = 0;
                             }
                         }
                         break;
@@ -263,18 +264,18 @@ public static class PngDecoder
                         if (bitDepth == 16)
                         {
                             int si = srcRow + x * 6;
-                            pixels[dstIdx] = reconstructed[si];         // R high byte
-                            pixels[dstIdx + 1] = reconstructed[si + 2]; // G high byte
-                            pixels[dstIdx + 2] = reconstructed[si + 4]; // B high byte
+                            dest[dstIdx] = reconstructed[si];         // R high byte
+                            dest[dstIdx + 1] = reconstructed[si + 2]; // G high byte
+                            dest[dstIdx + 2] = reconstructed[si + 4]; // B high byte
                         }
                         else
                         {
                             int si = srcRow + x * 3;
-                            pixels[dstIdx] = reconstructed[si];
-                            pixels[dstIdx + 1] = reconstructed[si + 1];
-                            pixels[dstIdx + 2] = reconstructed[si + 2];
+                            dest[dstIdx] = reconstructed[si];
+                            dest[dstIdx + 1] = reconstructed[si + 1];
+                            dest[dstIdx + 2] = reconstructed[si + 2];
                         }
-                        pixels[dstIdx + 3] = 255;
+                        dest[dstIdx + 3] = 255;
 
                         // tRNS for RGB: 6 bytes (R, G, B each as 16-bit)
                         if (transparency != null && transparency.Length >= 6)
@@ -288,8 +289,8 @@ public static class PngDecoder
                                 tg = (byte)BinaryPrimitives.ReadUInt16BigEndian(transparency.AsSpan(2));
                                 tb = (byte)BinaryPrimitives.ReadUInt16BigEndian(transparency.AsSpan(4));
                             }
-                            if (pixels[dstIdx] == tr && pixels[dstIdx + 1] == tg && pixels[dstIdx + 2] == tb)
-                                pixels[dstIdx + 3] = 0;
+                            if (dest[dstIdx] == tr && dest[dstIdx + 1] == tg && dest[dstIdx + 2] == tb)
+                                dest[dstIdx + 3] = 0;
                         }
                         break;
 
@@ -298,11 +299,11 @@ public static class PngDecoder
                             int index = ReadSample(reconstructed, srcRow, x, bitDepth);
                             if (palette != null && index * 3 + 2 < palette.Length)
                             {
-                                pixels[dstIdx] = palette[index * 3];
-                                pixels[dstIdx + 1] = palette[index * 3 + 1];
-                                pixels[dstIdx + 2] = palette[index * 3 + 2];
+                                dest[dstIdx] = palette[index * 3];
+                                dest[dstIdx + 1] = palette[index * 3 + 1];
+                                dest[dstIdx + 2] = palette[index * 3 + 2];
                             }
-                            pixels[dstIdx + 3] = (transparency != null && index < transparency.Length)
+                            dest[dstIdx + 3] = (transparency != null && index < transparency.Length)
                                 ? transparency[index]
                                 : (byte)255;
                         }
@@ -314,20 +315,20 @@ public static class PngDecoder
                             int si = srcRow + x * 4;
                             byte gray = reconstructed[si]; // high byte
                             byte alpha = reconstructed[si + 2]; // high byte
-                            pixels[dstIdx] = gray;
-                            pixels[dstIdx + 1] = gray;
-                            pixels[dstIdx + 2] = gray;
-                            pixels[dstIdx + 3] = alpha;
+                            dest[dstIdx] = gray;
+                            dest[dstIdx + 1] = gray;
+                            dest[dstIdx + 2] = gray;
+                            dest[dstIdx + 3] = alpha;
                         }
                         else
                         {
                             int si = srcRow + x * 2;
                             byte gray = reconstructed[si];
                             byte alpha = reconstructed[si + 1];
-                            pixels[dstIdx] = gray;
-                            pixels[dstIdx + 1] = gray;
-                            pixels[dstIdx + 2] = gray;
-                            pixels[dstIdx + 3] = alpha;
+                            dest[dstIdx] = gray;
+                            dest[dstIdx + 1] = gray;
+                            dest[dstIdx + 2] = gray;
+                            dest[dstIdx + 3] = alpha;
                         }
                         break;
 
@@ -335,18 +336,18 @@ public static class PngDecoder
                         if (bitDepth == 16)
                         {
                             int si = srcRow + x * 8;
-                            pixels[dstIdx] = reconstructed[si];         // R high byte
-                            pixels[dstIdx + 1] = reconstructed[si + 2]; // G high byte
-                            pixels[dstIdx + 2] = reconstructed[si + 4]; // B high byte
-                            pixels[dstIdx + 3] = reconstructed[si + 6]; // A high byte
+                            dest[dstIdx] = reconstructed[si];         // R high byte
+                            dest[dstIdx + 1] = reconstructed[si + 2]; // G high byte
+                            dest[dstIdx + 2] = reconstructed[si + 4]; // B high byte
+                            dest[dstIdx + 3] = reconstructed[si + 6]; // A high byte
                         }
                         else
                         {
                             int si = srcRow + x * 4;
-                            pixels[dstIdx] = reconstructed[si];
-                            pixels[dstIdx + 1] = reconstructed[si + 1];
-                            pixels[dstIdx + 2] = reconstructed[si + 2];
-                            pixels[dstIdx + 3] = reconstructed[si + 3];
+                            dest[dstIdx] = reconstructed[si];
+                            dest[dstIdx + 1] = reconstructed[si + 1];
+                            dest[dstIdx + 2] = reconstructed[si + 2];
+                            dest[dstIdx + 3] = reconstructed[si + 3];
                         }
                         break;
                 }
@@ -360,7 +361,7 @@ public static class PngDecoder
     /// Reads a single sample value from packed scanline data at the given pixel index,
     /// handling sub-byte bit depths (1, 2, 4) and scaling to 8-bit.
     /// </summary>
-    private static byte ReadSample(byte[] data, int rowOffset, int pixelIndex, byte bitDepth)
+    private static byte ReadSample(ReadOnlySpan<byte> data, int rowOffset, int pixelIndex, byte bitDepth)
     {
         if (bitDepth >= 8)
         {

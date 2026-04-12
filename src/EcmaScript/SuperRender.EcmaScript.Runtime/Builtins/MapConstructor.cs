@@ -28,7 +28,7 @@ public static class MapConstructor
                             var entry = arr.GetIndex(i);
                             if (entry is not JsArray pair)
                             {
-                                throw new Errors.JsTypeError("Iterator value is not an entry object");
+                                throw new Errors.JsTypeError("Iterator value is not an entry object", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                             }
 
                             map.MapSet(pair.GetIndex(0), pair.GetIndex(1));
@@ -40,7 +40,7 @@ public static class MapConstructor
             },
             CallTarget = (_, _) =>
             {
-                throw new Errors.JsTypeError("Constructor Map requires 'new'");
+                throw new Errors.JsTypeError("Constructor Map requires 'new'", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
         };
 
@@ -95,7 +95,7 @@ public static class MapConstructor
             var map = RequireMap(thisArg);
             var callback = args.Length > 0 && args[0] is JsFunction fn
                 ? fn
-                : throw new Errors.JsTypeError("forEach callback must be a function");
+                : throw new Errors.JsTypeError("forEach callback must be a function", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             var thisArgCb = BuiltinHelper.Arg(args, 1);
 
             foreach (var (key, value) in map.MapEntries())
@@ -164,7 +164,7 @@ public static class MapConstructor
             return map;
         }
 
-        throw new Errors.JsTypeError("Method requires that 'this' be a Map");
+        throw new Errors.JsTypeError("Method requires that 'this' be a Map", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 }
 

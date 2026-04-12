@@ -20,70 +20,55 @@ internal class JsElementWrapper : JsNodeWrapper
 
     private void InstallElementProperties()
     {
-        DefineOwnProperty("tagName", PropertyDescriptor.Accessor(
-            Getter(() => new JsString(_element.TagName.ToUpperInvariant())),
-            null, enumerable: true, configurable: true));
+        this.DefineGetter("tagName", () => new JsString(_element.TagName.ToUpperInvariant()));
 
-        DefineOwnProperty("id", PropertyDescriptor.Accessor(
-            Getter(() => _element.Id is not null ? new JsString(_element.Id) : new JsString("")),
-            Setter(v => _element.SetAttribute("id", v.ToJsString())),
-            enumerable: true, configurable: true));
+        this.DefineGetterSetter("id",
+            () => _element.Id is not null ? new JsString(_element.Id) : new JsString(""),
+            v => _element.SetAttribute(HtmlAttributeNames.Id, v.ToJsString()));
 
-        DefineOwnProperty("className", PropertyDescriptor.Accessor(
-            Getter(() => new JsString(_element.GetAttribute("class") ?? "")),
-            Setter(v => _element.SetAttribute("class", v.ToJsString())),
-            enumerable: true, configurable: true));
+        this.DefineGetterSetter("className",
+            () => new JsString(_element.GetAttribute(HtmlAttributeNames.Class) ?? ""),
+            v => _element.SetAttribute(HtmlAttributeNames.Class, v.ToJsString()));
 
-        DefineOwnProperty("classList", PropertyDescriptor.Accessor(
-            Getter(() =>
+        this.DefineGetter("classList", () =>
+        {
+            var list = new JsObject();
+            list.DefineMethod("add", 1, args =>
             {
-                var list = new JsObject();
-                list.DefineOwnProperty("add", PropertyDescriptor.Data(
-                    JsFunction.CreateNative("add", (_, args) =>
-                    {
-                        if (args.Length > 0)
-                            DomMutationApi.AddClass(_element, args[0].ToJsString());
-                        return Undefined;
-                    }, 1)));
-                list.DefineOwnProperty("remove", PropertyDescriptor.Data(
-                    JsFunction.CreateNative("remove", (_, args) =>
-                    {
-                        if (args.Length > 0)
-                            DomMutationApi.RemoveClass(_element, args[0].ToJsString());
-                        return Undefined;
-                    }, 1)));
-                list.DefineOwnProperty("toggle", PropertyDescriptor.Data(
-                    JsFunction.CreateNative("toggle", (_, args) =>
-                    {
-                        if (args.Length > 0)
-                            DomMutationApi.ToggleClass(_element, args[0].ToJsString());
-                        return Undefined;
-                    }, 1)));
-                list.DefineOwnProperty("contains", PropertyDescriptor.Data(
-                    JsFunction.CreateNative("contains", (_, args) =>
-                    {
-                        if (args.Length > 0)
-                            return _element.ClassList.Any(c =>
-                                c.Equals(args[0].ToJsString(), StringComparison.OrdinalIgnoreCase))
-                                ? True : False;
-                        return False;
-                    }, 1)));
-                return list;
-            }), null, enumerable: true, configurable: true));
-
-        DefineOwnProperty("innerText", PropertyDescriptor.Accessor(
-            Getter(() => new JsString(_element.InnerText)),
-            Setter(v => _element.InnerText = v.ToJsString()),
-            enumerable: true, configurable: true));
-
-        DefineOwnProperty("innerHTML", PropertyDescriptor.Accessor(
-            Getter(() => new JsString(ReconstructInnerHtml(_element))),
-            Setter(v =>
+                if (args.Length > 0) DomMutationApi.AddClass(_element, args[0].ToJsString());
+                return Undefined;
+            });
+            list.DefineMethod("remove", 1, args =>
             {
-                // Clear existing children
+                if (args.Length > 0) DomMutationApi.RemoveClass(_element, args[0].ToJsString());
+                return Undefined;
+            });
+            list.DefineMethod("toggle", 1, args =>
+            {
+                if (args.Length > 0) DomMutationApi.ToggleClass(_element, args[0].ToJsString());
+                return Undefined;
+            });
+            list.DefineMethod("contains", 1, args =>
+            {
+                if (args.Length > 0)
+                    return _element.ClassList.Any(c =>
+                        c.Equals(args[0].ToJsString(), StringComparison.OrdinalIgnoreCase))
+                        ? True : False;
+                return False;
+            });
+            return list;
+        });
+
+        this.DefineGetterSetter("innerText",
+            () => new JsString(_element.InnerText),
+            v => _element.InnerText = v.ToJsString());
+
+        this.DefineGetterSetter("innerHTML",
+            () => new JsString(ReconstructInnerHtml(_element)),
+            v =>
+            {
                 while (_element.Children.Count > 0)
                     _element.RemoveChild(_element.Children[0]);
-                // Parse the fragment and append children
                 var parser = new HtmlParser(v.ToJsString());
                 var doc = parser.Parse();
                 if (doc.Body is not null)
@@ -91,156 +76,122 @@ internal class JsElementWrapper : JsNodeWrapper
                     foreach (var child in doc.Body.Children.ToList())
                         _element.AppendChild(child);
                 }
-            }),
-            enumerable: true, configurable: true));
+            });
 
-        DefineOwnProperty("children", PropertyDescriptor.Accessor(
-            Getter(() =>
+        this.DefineGetter("children", () =>
+        {
+            var elements = _element.Children.OfType<Element>().ToList();
+            return new JsNodeListWrapper(elements.Cast<Node>().ToList(), Cache);
+        });
+
+        this.DefineMethod("getAttribute", 1, args =>
+        {
+            if (args.Length > 0)
             {
-                var elements = _element.Children.OfType<Element>().ToList();
-                return new JsNodeListWrapper(elements.Cast<Node>().ToList(), Cache);
-            }), null, enumerable: true, configurable: true));
+                var val = _element.GetAttribute(args[0].ToJsString());
+                return val is not null ? new JsString(val) : Null;
+            }
+            return Null;
+        });
 
-        DefineOwnProperty("getAttribute", PropertyDescriptor.Data(
-            JsFunction.CreateNative("getAttribute", (_, args) =>
+        this.DefineMethod("setAttribute", 2, args =>
+        {
+            if (args.Length >= 2)
+                _element.SetAttribute(args[0].ToJsString(), args[1].ToJsString());
+            return Undefined;
+        });
+
+        this.DefineMethod("removeAttribute", 1, args =>
+        {
+            if (args.Length > 0) _element.RemoveAttribute(args[0].ToJsString());
+            return Undefined;
+        });
+
+        this.DefineMethod("hasAttribute", 1, args =>
+        {
+            if (args.Length > 0)
+                return _element.GetAttribute(args[0].ToJsString()) is not null ? True : False;
+            return False;
+        });
+
+        this.DefineMethod("querySelector", 1, args =>
+        {
+            if (args.Length > 0)
             {
-                if (args.Length > 0)
-                {
-                    var val = _element.GetAttribute(args[0].ToJsString());
-                    return val is not null ? new JsString(val) : Null;
-                }
-                return Null;
-            }, 1)));
+                var result = DomMutationApi.QuerySelector(_element, args[0].ToJsString());
+                return result is not null ? Cache.GetOrCreate(result) : Null;
+            }
+            return Null;
+        });
 
-        DefineOwnProperty("setAttribute", PropertyDescriptor.Data(
-            JsFunction.CreateNative("setAttribute", (_, args) =>
+        this.DefineMethod("querySelectorAll", 1, args =>
+        {
+            if (args.Length > 0)
             {
-                if (args.Length >= 2)
-                    _element.SetAttribute(args[0].ToJsString(), args[1].ToJsString());
-                return Undefined;
-            }, 2)));
+                var results = DomMutationApi.QuerySelectorAll(_element, args[0].ToJsString()).ToList();
+                return new JsNodeListWrapper(results.Cast<Node>().ToList(), Cache);
+            }
+            return new JsNodeListWrapper([], Cache);
+        });
 
-        DefineOwnProperty("removeAttribute", PropertyDescriptor.Data(
-            JsFunction.CreateNative("removeAttribute", (_, args) =>
+        this.DefineGetter("style", () => new JsCssStyleDeclaration(_element));
+
+        this.DefineMethod("matches", 1, args =>
+        {
+            if (args.Length > 0)
+                return _element.Matches(args[0].ToJsString()) ? True : False;
+            return False;
+        });
+
+        this.DefineMethod("closest", 1, args =>
+        {
+            if (args.Length > 0)
             {
-                if (args.Length > 0)
-                    _element.RemoveAttribute(args[0].ToJsString());
-                return Undefined;
-            }, 1)));
+                var result = _element.Closest(args[0].ToJsString());
+                return Cache.WrapNullable(result);
+            }
+            return Null;
+        });
 
-        DefineOwnProperty("hasAttribute", PropertyDescriptor.Data(
-            JsFunction.CreateNative("hasAttribute", (_, args) =>
-            {
-                if (args.Length > 0)
-                    return _element.GetAttribute(args[0].ToJsString()) is not null ? True : False;
-                return False;
-            }, 1)));
+        this.DefineGetter("dataset", () =>
+        {
+            var obj = new JsObject();
+            foreach (var kvp in _element.Dataset)
+                obj.DefineOwnProperty(kvp.Key, PropertyDescriptor.Data(new JsString(kvp.Value)));
+            return obj;
+        });
 
-        DefineOwnProperty("querySelector", PropertyDescriptor.Data(
-            JsFunction.CreateNative("querySelector", (_, args) =>
-            {
-                if (args.Length > 0)
-                {
-                    var result = DomMutationApi.QuerySelector(_element, args[0].ToJsString());
-                    return result is not null ? Cache.GetOrCreate(result) : Null;
-                }
-                return Null;
-            }, 1)));
+        this.DefineMethod("toggleAttribute", 1, args =>
+        {
+            if (args.Length < 1) return False;
+            var name = args[0].ToJsString();
+            bool? force = args.Length > 1 ? args[1].ToBoolean() : null;
+            return _element.ToggleAttribute(name, force) ? True : False;
+        });
 
-        DefineOwnProperty("querySelectorAll", PropertyDescriptor.Data(
-            JsFunction.CreateNative("querySelectorAll", (_, args) =>
-            {
-                if (args.Length > 0)
-                {
-                    var results = DomMutationApi.QuerySelectorAll(_element, args[0].ToJsString()).ToList();
-                    return new JsNodeListWrapper(results.Cast<Node>().ToList(), Cache);
-                }
-                return new JsNodeListWrapper([], Cache);
-            }, 1)));
+        this.DefineGetter("firstElementChild", () => Cache.WrapNullable(_element.FirstElementChild));
+        this.DefineGetter("lastElementChild", () => Cache.WrapNullable(_element.LastElementChild));
+        this.DefineGetter("childElementCount", () => JsNumber.Create(_element.ChildElementCount));
 
-        DefineOwnProperty("style", PropertyDescriptor.Accessor(
-            Getter(() => new JsCssStyleDeclaration(_element)),
-            null, enumerable: true, configurable: true));
+        this.DefineMethod("after", 0, args =>
+        {
+            var nodes = args.OfType<JsNodeWrapper>().Select(w => w.GetNode()).ToArray();
+            if (nodes.Length > 0) _element.After(nodes);
+            return Undefined;
+        });
 
-        DefineOwnProperty("matches", PropertyDescriptor.Data(
-            JsFunction.CreateNative("matches", (_, args) =>
-            {
-                if (args.Length > 0)
-                    return _element.Matches(args[0].ToJsString()) ? True : False;
-                return False;
-            }, 1)));
+        this.DefineMethod("before", 0, args =>
+        {
+            var nodes = args.OfType<JsNodeWrapper>().Select(w => w.GetNode()).ToArray();
+            if (nodes.Length > 0) _element.Before(nodes);
+            return Undefined;
+        });
 
-        DefineOwnProperty("closest", PropertyDescriptor.Data(
-            JsFunction.CreateNative("closest", (_, args) =>
-            {
-                if (args.Length > 0)
-                {
-                    var result = _element.Closest(args[0].ToJsString());
-                    return Cache.WrapNullable(result);
-                }
-                return Null;
-            }, 1)));
-
-        DefineOwnProperty("dataset", PropertyDescriptor.Accessor(
-            Getter(() =>
-            {
-                var obj = new JsObject();
-                foreach (var kvp in _element.Dataset)
-                    obj.DefineOwnProperty(kvp.Key, PropertyDescriptor.Data(new JsString(kvp.Value)));
-                return obj;
-            }), null, enumerable: true, configurable: true));
-
-        DefineOwnProperty("toggleAttribute", PropertyDescriptor.Data(
-            JsFunction.CreateNative("toggleAttribute", (_, args) =>
-            {
-                if (args.Length < 1) return False;
-                var name = args[0].ToJsString();
-                bool? force = args.Length > 1 ? args[1].ToBoolean() : null;
-                return _element.ToggleAttribute(name, force) ? True : False;
-            }, 1)));
-
-        DefineOwnProperty("firstElementChild", PropertyDescriptor.Accessor(
-            Getter(() => Cache.WrapNullable(_element.FirstElementChild)),
-            null, enumerable: true, configurable: true));
-
-        DefineOwnProperty("lastElementChild", PropertyDescriptor.Accessor(
-            Getter(() => Cache.WrapNullable(_element.LastElementChild)),
-            null, enumerable: true, configurable: true));
-
-        DefineOwnProperty("childElementCount", PropertyDescriptor.Accessor(
-            Getter(() => JsNumber.Create(_element.ChildElementCount)),
-            null, enumerable: true, configurable: true));
-
-        DefineOwnProperty("after", PropertyDescriptor.Data(
-            JsFunction.CreateNative("after", (_, args) =>
-            {
-                var nodes = args
-                    .OfType<JsNodeWrapper>()
-                    .Select(w => w.GetNode())
-                    .ToArray();
-                if (nodes.Length > 0)
-                    _element.After(nodes);
-                return Undefined;
-            }, 0)));
-
-        DefineOwnProperty("before", PropertyDescriptor.Data(
-            JsFunction.CreateNative("before", (_, args) =>
-            {
-                var nodes = args
-                    .OfType<JsNodeWrapper>()
-                    .Select(w => w.GetNode())
-                    .ToArray();
-                if (nodes.Length > 0)
-                    _element.Before(nodes);
-                return Undefined;
-            }, 0)));
-
-        DefineOwnProperty("remove", PropertyDescriptor.Data(
-            JsFunction.CreateNative("remove", (_, _) =>
-            {
-                _element.Remove();
-                return Undefined;
-            }, 0)));
+        this.DefineMethod("remove", 0, _ =>
+        {
+            _element.Remove();
+            return Undefined;
+        });
     }
 
     private static string ReconstructInnerHtml(Element element)

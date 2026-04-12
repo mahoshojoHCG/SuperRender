@@ -71,6 +71,26 @@ public struct BoxDimensions
     public RectF BorderRect => PaddingRect.Expand(Border);
 
     public RectF MarginRect => BorderRect.Expand(Margin);
+
+    /// <summary>Total horizontal space consumed by margin + border + padding on both sides.</summary>
+    public float HorizontalEdge => Margin.Left + Border.Left + Padding.Left
+                                 + Padding.Right + Border.Right + Margin.Right;
+
+    /// <summary>Total vertical space consumed by margin + border + padding on both sides.</summary>
+    public float VerticalEdge => Margin.Top + Border.Top + Padding.Top
+                               + Padding.Bottom + Border.Bottom + Margin.Bottom;
+
+    /// <summary>Left-side margin + border + padding.</summary>
+    public float LeftEdge => Margin.Left + Border.Left + Padding.Left;
+
+    /// <summary>Right-side margin + border + padding.</summary>
+    public float RightEdge => Margin.Right + Border.Right + Padding.Right;
+
+    /// <summary>Top-side margin + border + padding.</summary>
+    public float TopEdge => Margin.Top + Border.Top + Padding.Top;
+
+    /// <summary>Bottom-side margin + border + padding.</summary>
+    public float BottomEdge => Margin.Bottom + Border.Bottom + Padding.Bottom;
 }
 
 public enum DisplayType { Block, Inline, InlineBlock, FlowRoot, None, Flex }

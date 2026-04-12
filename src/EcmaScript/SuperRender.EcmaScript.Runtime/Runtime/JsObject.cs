@@ -36,7 +36,7 @@ public class JsObject : JsValue
                 return result;
             }
 
-            throw new Errors.JsTypeError("Cannot convert object to primitive value");
+            throw new Errors.JsTypeError("Cannot convert object to primitive value", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
         }
 
         // OrdinaryToPrimitive
@@ -57,7 +57,7 @@ public class JsObject : JsValue
             }
         }
 
-        throw new Errors.JsTypeError("Cannot convert object to primitive value");
+        throw new Errors.JsTypeError("Cannot convert object to primitive value", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 
     public virtual JsValue Get(string name)
@@ -95,12 +95,12 @@ public class JsObject : JsValue
                     return;
                 }
 
-                throw new Errors.JsTypeError($"Cannot set property '{name}' which has only a getter");
+                throw new Errors.JsTypeError($"Cannot set property '{name}' which has only a getter", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             if (ownDesc.Writable == false)
             {
-                throw new Errors.JsTypeError($"Cannot assign to read only property '{name}'");
+                throw new Errors.JsTypeError($"Cannot assign to read only property '{name}'", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             ownDesc.Value = value;
@@ -117,12 +117,12 @@ public class JsObject : JsValue
                 return;
             }
 
-            throw new Errors.JsTypeError($"Cannot set property '{name}' which has only a getter");
+            throw new Errors.JsTypeError($"Cannot set property '{name}' which has only a getter", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
         }
 
         if (!Extensible)
         {
-            throw new Errors.JsTypeError($"Cannot add property '{name}', object is not extensible");
+            throw new Errors.JsTypeError($"Cannot add property '{name}', object is not extensible", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
         }
 
         DefineOwnProperty(name, PropertyDescriptor.Data(value));
@@ -147,7 +147,7 @@ public class JsObject : JsValue
 
         if (desc.Configurable == false)
         {
-            throw new Errors.JsTypeError($"Cannot delete property '{name}'");
+            throw new Errors.JsTypeError($"Cannot delete property '{name}'", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
         }
 
         _properties.Remove(name);
@@ -161,7 +161,7 @@ public class JsObject : JsValue
         {
             if (!Extensible)
             {
-                throw new Errors.JsTypeError($"Cannot define property '{name}', object is not extensible");
+                throw new Errors.JsTypeError($"Cannot define property '{name}', object is not extensible", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             _propertyOrder.Add(name);

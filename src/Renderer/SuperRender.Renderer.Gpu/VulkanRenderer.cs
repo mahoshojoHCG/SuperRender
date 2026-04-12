@@ -9,6 +9,12 @@ namespace SuperRender.Renderer.Gpu;
 public sealed unsafe class VulkanRenderer : IDisposable
 {
     private readonly VulkanContext _ctx;
+
+    /// <summary>
+    /// Exposes the underlying Vulkan context for compute pipeline creation.
+    /// </summary>
+    public VulkanContext VulkanContext => _ctx;
+
     private readonly ILogger? _logger;
     private SwapchainManager _swapchain;
     private PipelineManager _pipelines;

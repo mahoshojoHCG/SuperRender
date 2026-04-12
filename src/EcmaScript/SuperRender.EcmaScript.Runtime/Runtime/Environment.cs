@@ -39,7 +39,7 @@ public sealed class Environment
         {
             if (!binding.Initialized)
             {
-                throw new Errors.JsReferenceError($"Cannot access '{name}' before initialization");
+                throw new Errors.JsReferenceError($"Cannot access '{name}' before initialization", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             return binding.Value;
@@ -50,7 +50,7 @@ public sealed class Environment
             return Parent.GetBinding(name);
         }
 
-        throw new Errors.JsReferenceError($"{name} is not defined");
+        throw new Errors.JsReferenceError($"{name} is not defined", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 
     public void SetBinding(string name, JsValue value)
@@ -59,7 +59,7 @@ public sealed class Environment
         {
             if (!binding.Mutable)
             {
-                throw new Errors.JsTypeError($"Assignment to constant variable '{name}'");
+                throw new Errors.JsTypeError($"Assignment to constant variable '{name}'", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             binding.Value = value;
@@ -72,7 +72,7 @@ public sealed class Environment
             return;
         }
 
-        throw new Errors.JsReferenceError($"{name} is not defined");
+        throw new Errors.JsReferenceError($"{name} is not defined", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 
     public bool HasBinding(string name)

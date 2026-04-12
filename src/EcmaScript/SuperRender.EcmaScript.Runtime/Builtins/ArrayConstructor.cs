@@ -413,7 +413,7 @@ public static class ArrayConstructor
             }
             else
             {
-                if (len == 0) throw new Errors.JsTypeError("Reduce of empty array with no initial value");
+                if (len == 0) throw new Errors.JsTypeError("Reduce of empty array with no initial value", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                 accumulator = arr.GetIndex(0);
                 startIndex = 1;
             }
@@ -441,7 +441,7 @@ public static class ArrayConstructor
             }
             else
             {
-                if (len == 0) throw new Errors.JsTypeError("Reduce of empty array with no initial value");
+                if (len == 0) throw new Errors.JsTypeError("Reduce of empty array with no initial value", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                 accumulator = arr.GetIndex(len - 1);
                 startIndex = len - 2;
             }
@@ -635,7 +635,7 @@ public static class ArrayConstructor
             var len = (int)num.Value;
             if (len < 0 || len != num.Value)
             {
-                throw new Errors.JsRangeError("Invalid array length");
+                throw new Errors.JsRangeError("Invalid array length", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             arr.Set("length", JsNumber.Create(len));
@@ -658,7 +658,7 @@ public static class ArrayConstructor
             return arr;
         }
 
-        throw new Errors.JsTypeError("Array method called on non-array");
+        throw new Errors.JsTypeError("Array method called on non-array", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 
     private static JsFunction RequireFunction(JsValue value)
@@ -668,7 +668,7 @@ public static class ArrayConstructor
             return fn;
         }
 
-        throw new Errors.JsTypeError(value.ToJsString() + " is not a function");
+        throw new Errors.JsTypeError(value.ToJsString() + " is not a function", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 
     private static string I(int index) => index.ToString(CultureInfo.InvariantCulture);

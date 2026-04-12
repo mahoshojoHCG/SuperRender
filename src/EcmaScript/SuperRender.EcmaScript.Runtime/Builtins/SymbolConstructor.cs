@@ -49,7 +49,7 @@ public static class SymbolConstructor
             var sym = BuiltinHelper.Arg(args, 0);
             if (sym is not JsSymbol symbol)
             {
-                throw new Errors.JsTypeError("Symbol.keyFor requires a symbol argument");
+                throw new Errors.JsTypeError("Symbol.keyFor requires a symbol argument", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             foreach (var kvp in GlobalRegistry)
@@ -113,6 +113,6 @@ public static class SymbolConstructor
             }
         }
 
-        throw new Errors.JsTypeError("Symbol.prototype.valueOf requires that 'this' be a Symbol");
+        throw new Errors.JsTypeError("Symbol.prototype.valueOf requires that 'this' be a Symbol", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 }

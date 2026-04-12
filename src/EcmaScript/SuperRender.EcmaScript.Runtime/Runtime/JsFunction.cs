@@ -16,7 +16,7 @@ public class JsFunction : JsObject
     {
         if (CallTarget is null)
         {
-            throw new Errors.JsTypeError($"{Name} is not callable");
+            throw new Errors.JsTypeError($"{Name} is not callable", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
         }
 
         return CallTarget(thisArg, arguments);
@@ -31,7 +31,7 @@ public class JsFunction : JsObject
 
         if (!IsConstructor || CallTarget is null)
         {
-            throw new Errors.JsTypeError($"{Name} is not a constructor");
+            throw new Errors.JsTypeError($"{Name} is not a constructor", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
         }
 
         var newObj = new JsObject

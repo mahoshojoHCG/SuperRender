@@ -27,7 +27,7 @@ public static class WeakSetConstructor
                         var val = arr.GetIndex(i);
                         if (val is not JsObject objVal)
                         {
-                            throw new Errors.JsTypeError("Invalid value used in weak set");
+                            throw new Errors.JsTypeError("Invalid value used in weak set", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                         }
 
                         weakSet.WeakSetAdd(objVal);
@@ -38,7 +38,7 @@ public static class WeakSetConstructor
             },
             CallTarget = (_, _) =>
             {
-                throw new Errors.JsTypeError("Constructor WeakSet requires 'new'");
+                throw new Errors.JsTypeError("Constructor WeakSet requires 'new'", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
         };
 
@@ -50,7 +50,7 @@ public static class WeakSetConstructor
             var val = BuiltinHelper.Arg(args, 0);
             if (val is not JsObject objVal)
             {
-                throw new Errors.JsTypeError("Invalid value used in weak set");
+                throw new Errors.JsTypeError("Invalid value used in weak set", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             weakSet.WeakSetAdd(objVal);
@@ -95,7 +95,7 @@ public static class WeakSetConstructor
             return weakSet;
         }
 
-        throw new Errors.JsTypeError("Method requires that 'this' be a WeakSet");
+        throw new Errors.JsTypeError("Method requires that 'this' be a WeakSet", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 }
 

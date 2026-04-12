@@ -204,14 +204,14 @@ public static class FontAtlasGenerator
             {
                 for (int row = 0; row < bmpH; row++)
                 {
-                    for (int col = 0; col < bmpW; col++)
-                    {
-                        int srcIdx = row * bitmap.pitch + col;
-                        int dstX = cursorX + Padding + col;
-                        int dstY = cursorY + Padding + row;
-                        if (dstX < AtlasWidth && dstY < AtlasHeight)
-                            pixels[dstY * AtlasWidth + dstX] = bitmap.buffer[srcIdx];
-                    }
+                    int dstX = cursorX + Padding;
+                    int dstY = cursorY + Padding + row;
+                    if (dstY >= AtlasHeight) break;
+                    int copyWidth = Math.Min(bmpW, AtlasWidth - dstX);
+                    if (copyWidth <= 0) continue;
+                    var src = new ReadOnlySpan<byte>(bitmap.buffer + row * bitmap.pitch, copyWidth);
+                    var dst = pixels.AsSpan(dstY * AtlasWidth + dstX, copyWidth);
+                    src.CopyTo(dst);
                 }
             }
 

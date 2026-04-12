@@ -54,7 +54,7 @@ public sealed class Realm
             JsFunction.CreateNative("next", (thisArg, args) =>
             {
                 if (thisArg is not JsGeneratorObject gen)
-                    throw new Errors.JsTypeError("Method next called on incompatible receiver");
+                    throw new Errors.JsTypeError("Method next called on incompatible receiver", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                 var sent = args.Length > 0 ? args[0] : JsValue.Undefined;
                 return gen.DoNext(sent);
             }, 1), writable: true, enumerable: false, configurable: true));
@@ -63,7 +63,7 @@ public sealed class Realm
             JsFunction.CreateNative("return", (thisArg, args) =>
             {
                 if (thisArg is not JsGeneratorObject gen)
-                    throw new Errors.JsTypeError("Method return called on incompatible receiver");
+                    throw new Errors.JsTypeError("Method return called on incompatible receiver", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                 var value = args.Length > 0 ? args[0] : JsValue.Undefined;
                 return gen.DoReturn(value);
             }, 1), writable: true, enumerable: false, configurable: true));
@@ -72,7 +72,7 @@ public sealed class Realm
             JsFunction.CreateNative("throw", (thisArg, args) =>
             {
                 if (thisArg is not JsGeneratorObject gen)
-                    throw new Errors.JsTypeError("Method throw called on incompatible receiver");
+                    throw new Errors.JsTypeError("Method throw called on incompatible receiver", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                 var error = args.Length > 0 ? args[0] : JsValue.Undefined;
                 return gen.DoThrow(error);
             }, 1), writable: true, enumerable: false, configurable: true));

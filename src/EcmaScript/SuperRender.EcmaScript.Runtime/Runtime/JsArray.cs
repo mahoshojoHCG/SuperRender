@@ -40,7 +40,7 @@ public sealed class JsArray : JsObject
             var newLen = (int)value.ToNumber();
             if (newLen < 0)
             {
-                throw new Errors.JsRangeError("Invalid array length");
+                throw new Errors.JsRangeError("Invalid array length", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             while (_dense.Count > newLen)

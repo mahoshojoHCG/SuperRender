@@ -2,6 +2,13 @@ namespace SuperRender.Renderer.Rendering.Style;
 
 public static class PropertyDefaults
 {
+    // Default style values used across the style system
+    public const float DefaultFontSize = 16f;
+    public const float DefaultLineHeight = 1.2f;
+    public const int DefaultFontWeight = 400;
+    public const float DefaultViewportWidth = 800f;
+    public const float DefaultViewportHeight = 600f;
+
     public static readonly HashSet<string> InheritedProperties =
     [
         CssPropertyNames.Color,
@@ -48,12 +55,12 @@ public static class PropertyDefaults
             case CssPropertyNames.BorderLeftWidth: style.BorderWidth = style.BorderWidth with { Left = 0 }; break;
             case CssPropertyNames.Color: style.Color = Document.Color.Black; break;
             case CssPropertyNames.BackgroundColor: style.BackgroundColor = Document.Color.Transparent; break;
-            case CssPropertyNames.FontSize: style.FontSize = 16f; break;
+            case CssPropertyNames.FontSize: style.FontSize = DefaultFontSize; break;
             case CssPropertyNames.FontFamily: style.FontFamilies = ["sans-serif"]; break;
-            case CssPropertyNames.FontWeight: style.FontWeight = 400; break;
+            case CssPropertyNames.FontWeight: style.FontWeight = DefaultFontWeight; break;
             case CssPropertyNames.FontStyle: style.FontStyle = FontStyleType.Normal; break;
             case CssPropertyNames.TextAlign: style.TextAlign = TextAlign.Left; break;
-            case CssPropertyNames.LineHeight: style.LineHeight = 1.2f; break;
+            case CssPropertyNames.LineHeight: style.LineHeight = DefaultLineHeight; break;
             case CssPropertyNames.WhiteSpace: style.WhiteSpace = WhiteSpaceType.Normal; break;
             case CssPropertyNames.Position: style.Position = PositionType.Static; break;
             case CssPropertyNames.Top: style.Top = float.NaN; break;

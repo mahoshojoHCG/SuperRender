@@ -27,13 +27,13 @@ public static class WeakMapConstructor
                         var entry = arr.GetIndex(i);
                         if (entry is not JsArray pair)
                         {
-                            throw new Errors.JsTypeError("Iterator value is not an entry object");
+                            throw new Errors.JsTypeError("Iterator value is not an entry object", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                         }
 
                         var key = pair.GetIndex(0);
                         if (key is not JsObject keyObj)
                         {
-                            throw new Errors.JsTypeError("Invalid value used as weak map key");
+                            throw new Errors.JsTypeError("Invalid value used as weak map key", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                         }
 
                         weakMap.WeakMapSet(keyObj, pair.GetIndex(1));
@@ -44,7 +44,7 @@ public static class WeakMapConstructor
             },
             CallTarget = (_, _) =>
             {
-                throw new Errors.JsTypeError("Constructor WeakMap requires 'new'");
+                throw new Errors.JsTypeError("Constructor WeakMap requires 'new'", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
         };
 
@@ -68,7 +68,7 @@ public static class WeakMapConstructor
             var key = BuiltinHelper.Arg(args, 0);
             if (key is not JsObject keyObj)
             {
-                throw new Errors.JsTypeError("Invalid value used as weak map key");
+                throw new Errors.JsTypeError("Invalid value used as weak map key", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             weakMap.WeakMapSet(keyObj, BuiltinHelper.Arg(args, 1));
@@ -113,7 +113,7 @@ public static class WeakMapConstructor
             return weakMap;
         }
 
-        throw new Errors.JsTypeError("Method requires that 'this' be a WeakMap");
+        throw new Errors.JsTypeError("Method requires that 'this' be a WeakMap", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 }
 

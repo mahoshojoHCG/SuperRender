@@ -8,6 +8,16 @@ namespace SuperRender.Renderer.Image;
 /// </summary>
 public static class JpegDecoder
 {
+    /// <summary>
+    /// Optional GPU-accelerated YCbCr→RGBA converter.
+    /// Set by the GPU layer at startup for hardware acceleration.
+    /// Signature: (yPlane, cbPlane, crPlane, width, height) → RGBA byte[].
+    /// When null, the CPU fallback path is used.
+    /// </summary>
+#pragma warning disable CA2211 // Set by GPU layer at startup
+    public static Func<int[], int[], int[], int, int, byte[]?>? GpuYCbCrConverter;
+#pragma warning restore CA2211
+
     public static bool IsJpeg(ReadOnlySpan<byte> data)
         => data.Length >= 2 && data[0] == 0xFF && data[1] == 0xD8;
 
@@ -605,41 +615,107 @@ public static class JpegDecoder
 
     #region Block Assembly
 
-    private static void AssembleGrayscale(int[] blocks, int width, int height,
+    private static unsafe void AssembleGrayscale(int[] blocks, int width, int height,
         int blocksPerRow, byte[] pixels)
     {
-        for (int blockY = 0; blockY < (height + 7) / 8; blockY++)
+        fixed (byte* pPixels = pixels)
         {
-            for (int blockX = 0; blockX < blocksPerRow; blockX++)
+            for (int blockY = 0; blockY < (height + 7) / 8; blockY++)
             {
-                int blockOffset = (blockY * blocksPerRow + blockX) * 64;
-                if (blockOffset + 64 > blocks.Length) continue;
-
-                for (int py = 0; py < 8; py++)
+                for (int blockX = 0; blockX < blocksPerRow; blockX++)
                 {
-                    int imgY = blockY * 8 + py;
-                    if (imgY >= height) break;
+                    int blockOffset = (blockY * blocksPerRow + blockX) * 64;
+                    if (blockOffset + 64 > blocks.Length) continue;
 
-                    for (int px = 0; px < 8; px++)
+                    for (int py = 0; py < 8; py++)
                     {
-                        int imgX = blockX * 8 + px;
-                        if (imgX >= width) break;
+                        int imgY = blockY * 8 + py;
+                        if (imgY >= height) break;
 
-                        int value = blocks[blockOffset + py * 8 + px];
-                        int offset = (imgY * width + imgX) * 4;
-                        pixels[offset] = (byte)value;
-                        pixels[offset + 1] = (byte)value;
-                        pixels[offset + 2] = (byte)value;
-                        pixels[offset + 3] = 255;
+                        for (int px = 0; px < 8; px++)
+                        {
+                            int imgX = blockX * 8 + px;
+                            if (imgX >= width) break;
+
+                            int value = blocks[blockOffset + py * 8 + px];
+                            byte* p = pPixels + (imgY * width + imgX) * 4;
+                            p[0] = (byte)value;
+                            p[1] = (byte)value;
+                            p[2] = (byte)value;
+                            p[3] = 255;
+                        }
                     }
                 }
             }
         }
     }
 
-    private static void AssembleYCbCr(int[][] blockData, FrameComponent[] components,
+    private static unsafe void AssembleYCbCr(int[][] blockData, FrameComponent[] components,
         int maxH, int maxV, int mcuCols, int mcuRows, int width, int height, byte[] pixels)
     {
+        // Try GPU-accelerated path
+        if (GpuYCbCrConverter is not null)
+        {
+            var (yFlat, cbFlat, crFlat) = FlattenYCbCrPlanes(
+                blockData, components, maxH, maxV, mcuCols, mcuRows, width, height);
+            var gpuResult = GpuYCbCrConverter(yFlat, cbFlat, crFlat, width, height);
+            if (gpuResult is not null && gpuResult.Length == pixels.Length)
+            {
+                Buffer.BlockCopy(gpuResult, 0, pixels, 0, gpuResult.Length);
+                return;
+            }
+        }
+
+        // CPU fallback
+        fixed (byte* pPixels = pixels)
+        {
+            for (int mcuRow = 0; mcuRow < mcuRows; mcuRow++)
+            {
+                for (int mcuCol = 0; mcuCol < mcuCols; mcuCol++)
+                {
+                    int mcuPixelX = mcuCol * maxH * 8;
+                    int mcuPixelY = mcuRow * maxV * 8;
+
+                    for (int py = 0; py < maxV * 8; py++)
+                    {
+                        int imgY = mcuPixelY + py;
+                        if (imgY >= height) break;
+
+                        for (int px = 0; px < maxH * 8; px++)
+                        {
+                            int imgX = mcuPixelX + px;
+                            if (imgX >= width) break;
+
+                            int yVal = SampleComponent(blockData[0], components[0], mcuCol, mcuRow,
+                                mcuCols, maxH, maxV, px, py);
+                            int cbVal = SampleComponent(blockData[1], components[1], mcuCol, mcuRow,
+                                mcuCols, maxH, maxV, px, py);
+                            int crVal = SampleComponent(blockData[2], components[2], mcuCol, mcuRow,
+                                mcuCols, maxH, maxV, px, py);
+
+                            var (r, g, b) = YCbCrToRgb(yVal, cbVal, crVal);
+                            byte* p = pPixels + (imgY * width + imgX) * 4;
+                            p[0] = r; p[1] = g; p[2] = b; p[3] = 255;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Extracts per-pixel Y, Cb, Cr values from block-based data into flat arrays
+    /// for GPU processing. Handles chroma subsampling via SampleComponent.
+    /// </summary>
+    private static (int[] Y, int[] Cb, int[] Cr) FlattenYCbCrPlanes(
+        int[][] blockData, FrameComponent[] components,
+        int maxH, int maxV, int mcuCols, int mcuRows, int width, int height)
+    {
+        int pixelCount = width * height;
+        var yPlane = new int[pixelCount];
+        var cbPlane = new int[pixelCount];
+        var crPlane = new int[pixelCount];
+
         for (int mcuRow = 0; mcuRow < mcuRows; mcuRow++)
         {
             for (int mcuCol = 0; mcuCol < mcuCols; mcuCol++)
@@ -657,23 +733,19 @@ public static class JpegDecoder
                         int imgX = mcuPixelX + px;
                         if (imgX >= width) break;
 
-                        int yVal = SampleComponent(blockData[0], components[0], mcuCol, mcuRow,
+                        int idx = imgY * width + imgX;
+                        yPlane[idx] = SampleComponent(blockData[0], components[0], mcuCol, mcuRow,
                             mcuCols, maxH, maxV, px, py);
-                        int cbVal = SampleComponent(blockData[1], components[1], mcuCol, mcuRow,
+                        cbPlane[idx] = SampleComponent(blockData[1], components[1], mcuCol, mcuRow,
                             mcuCols, maxH, maxV, px, py);
-                        int crVal = SampleComponent(blockData[2], components[2], mcuCol, mcuRow,
+                        crPlane[idx] = SampleComponent(blockData[2], components[2], mcuCol, mcuRow,
                             mcuCols, maxH, maxV, px, py);
-
-                        var (r, g, b) = YCbCrToRgb(yVal, cbVal, crVal);
-                        int offset = (imgY * width + imgX) * 4;
-                        pixels[offset] = r;
-                        pixels[offset + 1] = g;
-                        pixels[offset + 2] = b;
-                        pixels[offset + 3] = 255;
                     }
                 }
             }
         }
+
+        return (yPlane, cbPlane, crPlane);
     }
 
     private static int SampleComponent(int[] blocks, FrameComponent component,

@@ -1,3 +1,4 @@
+using SuperRender.Document.Dom;
 using SuperRender.Renderer.Rendering.Style;
 
 namespace SuperRender.Renderer.Rendering.Layout;
@@ -26,7 +27,29 @@ internal static class FlexLayout
         float availableMain = isRow ? dims.Width : (!float.IsNaN(resolvedContainerHeight) ? resolvedContainerHeight : float.PositiveInfinity);
         float containerCrossSize = isRow ? resolvedContainerHeight : dims.Width;
 
-        // Collect flex items (skip absolutely positioned children)
+        // Phase 1: Collect items and compute hypothetical sizes
+        var flexItems = CollectFlexItems(flexBox);
+        var hypotheticalMainSizes = new float[flexItems.Count];
+        var hypotheticalCrossSizes = new float[flexItems.Count];
+        ComputeHypotheticalSizes(flexItems, hypotheticalMainSizes, hypotheticalCrossSizes,
+            isRow, dims, availableMain, measurer);
+
+        // Phase 2: Wrap items into lines
+        var lines = WrapIntoLines(flexItems, hypotheticalMainSizes, isRow, isWrap,
+            availableMain, mainGap);
+
+        // Phase 3: Resolve sizes, position items, and lay out children
+        float crossCursor = isRow ? dims.Y : dims.X;
+        PositionAllLines(lines, flexItems, hypotheticalMainSizes, hypotheticalCrossSizes,
+            style, dims, isRow, isReverse, isWrap, availableMain, containerCrossSize,
+            mainGap, crossGap, ref crossCursor, measurer);
+
+        // Calculate flex container height
+        CalculateFlexContainerHeight(flexBox, lines, crossGap, isRow);
+    }
+
+    private static List<LayoutBox> CollectFlexItems(LayoutBox flexBox)
+    {
         var flexItems = new List<LayoutBox>();
         foreach (var child in flexBox.Children)
         {
@@ -34,11 +57,13 @@ internal static class FlexLayout
                 continue;
             flexItems.Add(child);
         }
+        return flexItems;
+    }
 
-        // Compute hypothetical main sizes and lay out children to get intrinsic sizes
-        var hypotheticalMainSizes = new float[flexItems.Count];
-        var hypotheticalCrossSizes = new float[flexItems.Count];
-
+    private static void ComputeHypotheticalSizes(
+        List<LayoutBox> flexItems, float[] hypotheticalMainSizes, float[] hypotheticalCrossSizes,
+        bool isRow, BoxDimensions dims, float availableMain, ITextMeasurer measurer)
+    {
         for (int i = 0; i < flexItems.Count; i++)
         {
             var item = flexItems[i];
@@ -47,7 +72,6 @@ internal static class FlexLayout
 
             if (float.IsNaN(basis))
             {
-                // flex-basis: auto -- use width/height if set, otherwise intrinsic size
                 basis = isRow
                     ? LayoutHelper.ResolveWidth(itemStyle, dims.Width)
                     : LayoutHelper.ResolveHeight(itemStyle, availableMain);
@@ -55,12 +79,10 @@ internal static class FlexLayout
 
             if (float.IsNaN(basis))
             {
-                // Need intrinsic size -- lay out the item in a temporary container
                 float tempWidth = isRow ? dims.Width : dims.Width;
                 var intrinsicSize = ComputeIntrinsicSize(item, tempWidth, dims.Height, measurer);
                 basis = isRow ? intrinsicSize.Width : intrinsicSize.Height;
 
-                // For the cross dimension, prefer explicit CSS height/width over intrinsic
                 float crossSize = isRow
                     ? LayoutHelper.ResolveHeight(itemStyle, 0)
                     : LayoutHelper.ResolveWidth(itemStyle, dims.Width);
@@ -70,7 +92,6 @@ internal static class FlexLayout
             }
             else
             {
-                // Have a basis, still need cross size
                 if (isRow)
                 {
                     float crossSize = itemStyle.Height;
@@ -95,8 +116,12 @@ internal static class FlexLayout
 
             hypotheticalMainSizes[i] = basis;
         }
+    }
 
-        // Wrap items into lines
+    private static List<FlexLine> WrapIntoLines(
+        List<LayoutBox> flexItems, float[] hypotheticalMainSizes,
+        bool isRow, bool isWrap, float availableMain, float mainGap)
+    {
         var lines = new List<FlexLine>();
         if (isWrap && flexItems.Count > 0 && !float.IsPositiveInfinity(availableMain))
         {
@@ -130,214 +155,231 @@ internal static class FlexLayout
                 singleLine.Items.Add(i);
             lines.Add(singleLine);
         }
+        return lines;
+    }
 
-        // Process each flex line
-        float crossCursor = isRow ? dims.Y : dims.X;
-
+    private static void PositionAllLines(
+        List<FlexLine> lines, List<LayoutBox> flexItems,
+        float[] hypotheticalMainSizes, float[] hypotheticalCrossSizes,
+        ComputedStyle style, BoxDimensions dims,
+        bool isRow, bool isReverse, bool isWrap,
+        float availableMain, float containerCrossSize,
+        float mainGap, float crossGap,
+        ref float crossCursor, ITextMeasurer measurer)
+    {
         for (int lineIdx = 0; lineIdx < lines.Count; lineIdx++)
         {
             var line = lines[lineIdx];
             if (line.Items.Count == 0) continue;
 
-            // Calculate total hypothetical main size for this line
-            float totalHypothetical = 0;
-            float totalMainMargin = 0;
-            for (int j = 0; j < line.Items.Count; j++)
-            {
-                int idx = line.Items[j];
-                totalHypothetical += hypotheticalMainSizes[idx];
-                totalMainMargin += GetItemMainMargin(flexItems[idx], isRow);
-            }
-
-            float totalGaps = mainGap * Math.Max(0, line.Items.Count - 1);
-            float remainingSpace = availableMain - totalHypothetical - totalMainMargin - totalGaps;
-
-            // Resolve final main sizes via flex-grow / flex-shrink
-            var finalMainSizes = new float[flexItems.Count];
-            for (int j = 0; j < line.Items.Count; j++)
-            {
-                int idx = line.Items[j];
-                finalMainSizes[idx] = hypotheticalMainSizes[idx];
-            }
-
-            if (remainingSpace > 0)
-            {
-                // Distribute positive free space via flex-grow
-                float totalGrow = 0;
-                foreach (int idx in line.Items)
-                    totalGrow += flexItems[idx].Style.FlexGrow;
-
-                if (totalGrow > 0)
-                {
-                    foreach (int idx in line.Items)
-                    {
-                        float grow = flexItems[idx].Style.FlexGrow;
-                        finalMainSizes[idx] += remainingSpace * (grow / totalGrow);
-                    }
-                }
-            }
-            else if (remainingSpace < 0)
-            {
-                // Distribute negative free space via flex-shrink
-                float totalShrink = 0;
-                foreach (int idx in line.Items)
-                    totalShrink += flexItems[idx].Style.FlexShrink * hypotheticalMainSizes[idx];
-
-                if (totalShrink > 0)
-                {
-                    foreach (int idx in line.Items)
-                    {
-                        float shrink = flexItems[idx].Style.FlexShrink * hypotheticalMainSizes[idx];
-                        float reduction = (-remainingSpace) * (shrink / totalShrink);
-                        finalMainSizes[idx] = Math.Max(0, finalMainSizes[idx] - reduction);
-                    }
-                }
-            }
+            // Resolve final main sizes via flex-grow/shrink
+            var finalMainSizes = ResolveFlexLineSizes(line, flexItems,
+                hypotheticalMainSizes, isRow, availableMain, mainGap);
 
             // Determine cross size for this line
-            float lineCrossSize = 0;
-            foreach (int idx in line.Items)
-            {
-                float itemCross = hypotheticalCrossSizes[idx] + GetItemCrossMargin(flexItems[idx], isRow);
-                lineCrossSize = Math.Max(lineCrossSize, itemCross);
-            }
+            float lineCrossSize = ComputeLineCrossSize(line, flexItems,
+                hypotheticalCrossSizes, isRow);
 
-            // For single-line flex containers with an explicit cross-size, use the container cross-size
             if (!isWrap && lines.Count == 1 && !float.IsNaN(containerCrossSize))
-            {
                 lineCrossSize = Math.Max(lineCrossSize, containerCrossSize);
-            }
 
-            // Apply align-items: stretch for items without explicit cross size
-            foreach (int idx in line.Items)
-            {
-                var itemStyle = flexItems[idx].Style;
-                var effectiveAlign = itemStyle.AlignSelf != AlignSelfType.Auto
-                    ? MapAlignSelf(itemStyle.AlignSelf)
-                    : style.AlignItems;
+            // Apply align-items: stretch
+            ApplyStretchAlignment(line, flexItems, hypotheticalCrossSizes,
+                style, isRow, lineCrossSize);
 
-                if (effectiveAlign == AlignItemsType.Stretch)
-                {
-                    float explicitCross = isRow ? itemStyle.Height : itemStyle.Width;
-                    if (float.IsNaN(explicitCross))
-                    {
-                        float crossMargin = GetItemCrossMargin(flexItems[idx], isRow);
-                        hypotheticalCrossSizes[idx] = lineCrossSize - crossMargin;
-                    }
-                }
-            }
-
-            // Now lay out each item with its final size
+            // Lay out each item with final size
             foreach (int idx in line.Items)
             {
                 var item = flexItems[idx];
                 float mainSize = finalMainSizes[idx];
                 float crossSize = hypotheticalCrossSizes[idx];
-
                 float itemWidth = isRow ? mainSize : crossSize;
                 float itemHeight = isRow ? crossSize : mainSize;
-
                 LayoutFlexItem(item, itemWidth, itemHeight, measurer);
             }
 
-            // Position items along main axis (justify-content)
-            float usedMain = 0;
-            foreach (int idx in line.Items)
-                usedMain += GetItemMainOuterSize(flexItems[idx], isRow);
-            usedMain += totalGaps;
-
-            float freeSpace = Math.Max(0,
-                (float.IsPositiveInfinity(availableMain) ? usedMain : availableMain) - usedMain);
-            int itemCount = line.Items.Count;
-
-            float mainStart = isRow ? dims.X : dims.Y;
-            float mainCursor;
-            float mainSpacing;
-            float startPad = 0;
-
-            ComputeJustifyPositions(style.JustifyContent, isReverse, freeSpace, itemCount,
-                mainStart, availableMain, out mainCursor, out mainSpacing, out startPad);
-
-            mainCursor += startPad;
-
-            var orderedItems = new List<int>(line.Items);
-            if (isReverse)
-                orderedItems.Reverse();
-
-            for (int j = 0; j < orderedItems.Count; j++)
-            {
-                int idx = orderedItems[j];
-                var item = flexItems[idx];
-                var itemDims = item.Dimensions;
-
-                float itemMainMarginBefore = isRow ? itemDims.Margin.Left : itemDims.Margin.Top;
-                float itemMainMarginAfter = isRow ? itemDims.Margin.Right : itemDims.Margin.Bottom;
-
-                mainCursor += itemMainMarginBefore;
-
-                // Position on main axis
-                if (isRow)
-                {
-                    itemDims.X = mainCursor + itemDims.Border.Left + itemDims.Padding.Left;
-                }
-                else
-                {
-                    itemDims.Y = mainCursor + itemDims.Border.Top + itemDims.Padding.Top;
-                }
-
-                // Position on cross axis (align-items / align-self)
-                var itemStyle = item.Style;
-                var effectiveAlign = itemStyle.AlignSelf != AlignSelfType.Auto
-                    ? MapAlignSelf(itemStyle.AlignSelf)
-                    : style.AlignItems;
-
-                float itemCrossOuter = isRow
-                    ? itemDims.Height + itemDims.Margin.Top + itemDims.Margin.Bottom
-                      + itemDims.Border.Top + itemDims.Border.Bottom
-                      + itemDims.Padding.Top + itemDims.Padding.Bottom
-                    : itemDims.Width + itemDims.Margin.Left + itemDims.Margin.Right
-                      + itemDims.Border.Left + itemDims.Border.Right
-                      + itemDims.Padding.Left + itemDims.Padding.Right;
-
-                float crossStart = isRow ? crossCursor : crossCursor;
-                float crossOffset = ComputeCrossOffset(effectiveAlign, lineCrossSize, itemCrossOuter);
-
-                if (isRow)
-                {
-                    itemDims.Y = crossStart + crossOffset
-                                 + itemDims.Margin.Top + itemDims.Border.Top + itemDims.Padding.Top;
-                }
-                else
-                {
-                    itemDims.X = crossStart + crossOffset
-                                 + itemDims.Margin.Left + itemDims.Border.Left + itemDims.Padding.Left;
-                }
-
-                item.Dimensions = itemDims;
-
-                // Re-layout the item's children at the final position
-                RelayoutFlexItemChildren(item, measurer);
-
-                float itemMainSize = isRow
-                    ? itemDims.Width + itemDims.Border.Left + itemDims.Border.Right
-                      + itemDims.Padding.Left + itemDims.Padding.Right
-                    : itemDims.Height + itemDims.Border.Top + itemDims.Border.Bottom
-                      + itemDims.Padding.Top + itemDims.Padding.Bottom;
-
-                mainCursor += itemMainSize + itemMainMarginAfter;
-
-                if (j < orderedItems.Count - 1)
-                    mainCursor += mainGap + mainSpacing;
-            }
+            // Position items along main and cross axes
+            PositionLineItems(line, flexItems, style, dims, isRow, isReverse,
+                availableMain, mainGap, lineCrossSize, crossCursor, measurer);
 
             line.CrossSize = lineCrossSize;
             crossCursor += lineCrossSize;
             if (lineIdx < lines.Count - 1)
                 crossCursor += crossGap;
         }
+    }
 
-        // Calculate flex container height
-        CalculateFlexContainerHeight(flexBox, lines, crossGap, isRow);
+    private static float[] ResolveFlexLineSizes(
+        FlexLine line, List<LayoutBox> flexItems,
+        float[] hypotheticalMainSizes, bool isRow,
+        float availableMain, float mainGap)
+    {
+        float totalHypothetical = 0;
+        float totalMainMargin = 0;
+        for (int j = 0; j < line.Items.Count; j++)
+        {
+            int idx = line.Items[j];
+            totalHypothetical += hypotheticalMainSizes[idx];
+            totalMainMargin += GetItemMainMargin(flexItems[idx], isRow);
+        }
+
+        float totalGaps = mainGap * Math.Max(0, line.Items.Count - 1);
+        float remainingSpace = availableMain - totalHypothetical - totalMainMargin - totalGaps;
+
+        var finalMainSizes = new float[hypotheticalMainSizes.Length];
+        for (int j = 0; j < line.Items.Count; j++)
+        {
+            int idx = line.Items[j];
+            finalMainSizes[idx] = hypotheticalMainSizes[idx];
+        }
+
+        if (remainingSpace > 0)
+        {
+            float totalGrow = 0;
+            foreach (int idx in line.Items)
+                totalGrow += flexItems[idx].Style.FlexGrow;
+
+            if (totalGrow > 0)
+            {
+                foreach (int idx in line.Items)
+                {
+                    float grow = flexItems[idx].Style.FlexGrow;
+                    finalMainSizes[idx] += remainingSpace * (grow / totalGrow);
+                }
+            }
+        }
+        else if (remainingSpace < 0)
+        {
+            float totalShrink = 0;
+            foreach (int idx in line.Items)
+                totalShrink += flexItems[idx].Style.FlexShrink * hypotheticalMainSizes[idx];
+
+            if (totalShrink > 0)
+            {
+                foreach (int idx in line.Items)
+                {
+                    float shrink = flexItems[idx].Style.FlexShrink * hypotheticalMainSizes[idx];
+                    float reduction = (-remainingSpace) * (shrink / totalShrink);
+                    finalMainSizes[idx] = Math.Max(0, finalMainSizes[idx] - reduction);
+                }
+            }
+        }
+
+        return finalMainSizes;
+    }
+
+    private static float ComputeLineCrossSize(
+        FlexLine line, List<LayoutBox> flexItems,
+        float[] hypotheticalCrossSizes, bool isRow)
+    {
+        float lineCrossSize = 0;
+        foreach (int idx in line.Items)
+        {
+            float itemCross = hypotheticalCrossSizes[idx] + GetItemCrossMargin(flexItems[idx], isRow);
+            lineCrossSize = Math.Max(lineCrossSize, itemCross);
+        }
+        return lineCrossSize;
+    }
+
+    private static void ApplyStretchAlignment(
+        FlexLine line, List<LayoutBox> flexItems,
+        float[] hypotheticalCrossSizes, ComputedStyle style,
+        bool isRow, float lineCrossSize)
+    {
+        foreach (int idx in line.Items)
+        {
+            var itemStyle = flexItems[idx].Style;
+            var effectiveAlign = itemStyle.AlignSelf != AlignSelfType.Auto
+                ? MapAlignSelf(itemStyle.AlignSelf)
+                : style.AlignItems;
+
+            if (effectiveAlign == AlignItemsType.Stretch)
+            {
+                float explicitCross = isRow ? itemStyle.Height : itemStyle.Width;
+                if (float.IsNaN(explicitCross))
+                {
+                    float crossMargin = GetItemCrossMargin(flexItems[idx], isRow);
+                    hypotheticalCrossSizes[idx] = lineCrossSize - crossMargin;
+                }
+            }
+        }
+    }
+
+    private static void PositionLineItems(
+        FlexLine line, List<LayoutBox> flexItems,
+        ComputedStyle style, BoxDimensions dims,
+        bool isRow, bool isReverse,
+        float availableMain, float mainGap,
+        float lineCrossSize, float crossCursor,
+        ITextMeasurer measurer)
+    {
+        float totalGaps = mainGap * Math.Max(0, line.Items.Count - 1);
+        float usedMain = 0;
+        foreach (int idx in line.Items)
+            usedMain += GetItemMainOuterSize(flexItems[idx], isRow);
+        usedMain += totalGaps;
+
+        float freeSpace = Math.Max(0,
+            (float.IsPositiveInfinity(availableMain) ? usedMain : availableMain) - usedMain);
+        int itemCount = line.Items.Count;
+
+        float mainStart = isRow ? dims.X : dims.Y;
+        ComputeJustifyPositions(style.JustifyContent, isReverse, freeSpace, itemCount,
+            mainStart, availableMain, out float mainCursor, out float mainSpacing, out float startPad);
+
+        mainCursor += startPad;
+
+        var orderedItems = new List<int>(line.Items);
+        if (isReverse)
+            orderedItems.Reverse();
+
+        for (int j = 0; j < orderedItems.Count; j++)
+        {
+            int idx = orderedItems[j];
+            var item = flexItems[idx];
+            var itemDims = item.Dimensions;
+
+            float itemMainMarginBefore = isRow ? itemDims.Margin.Left : itemDims.Margin.Top;
+            float itemMainMarginAfter = isRow ? itemDims.Margin.Right : itemDims.Margin.Bottom;
+
+            mainCursor += itemMainMarginBefore;
+
+            if (isRow)
+                itemDims.X = mainCursor + itemDims.Border.Left + itemDims.Padding.Left;
+            else
+                itemDims.Y = mainCursor + itemDims.Border.Top + itemDims.Padding.Top;
+
+            // Cross axis alignment
+            var itemStyle = item.Style;
+            var effectiveAlign = itemStyle.AlignSelf != AlignSelfType.Auto
+                ? MapAlignSelf(itemStyle.AlignSelf)
+                : style.AlignItems;
+
+            float itemCrossOuter = isRow
+                ? itemDims.Height + itemDims.VerticalEdge
+                : itemDims.Width + itemDims.HorizontalEdge;
+
+            float crossOffset = ComputeCrossOffset(effectiveAlign, lineCrossSize, itemCrossOuter);
+
+            if (isRow)
+                itemDims.Y = crossCursor + crossOffset + itemDims.TopEdge;
+            else
+                itemDims.X = crossCursor + crossOffset + itemDims.LeftEdge;
+
+            item.Dimensions = itemDims;
+            RelayoutFlexItemChildren(item, measurer);
+
+            float itemMainSize = isRow
+                ? itemDims.Width + itemDims.Border.Left + itemDims.Border.Right
+                  + itemDims.Padding.Left + itemDims.Padding.Right
+                : itemDims.Height + itemDims.Border.Top + itemDims.Border.Bottom
+                  + itemDims.Padding.Top + itemDims.Padding.Bottom;
+
+            mainCursor += itemMainSize + itemMainMarginAfter;
+
+            if (j < orderedItems.Count - 1)
+                mainCursor += mainGap + mainSpacing;
+        }
     }
 
     private static void ComputeJustifyPositions(
@@ -512,11 +554,11 @@ internal static class FlexLayout
     {
         // For replaced elements (e.g. <img>) with intrinsic dimensions from
         // HTML attributes or decoded image data, use those directly.
-        if (item.DomNode is Document.Dom.Element imgEl && imgEl.TagName == "img")
+        if (item.DomNode is Document.Dom.Element imgEl && imgEl.TagName == HtmlTagNames.Img)
         {
             float imgW = 0, imgH = 0;
-            var widthAttr = imgEl.GetAttribute("width") ?? imgEl.GetAttribute("data-natural-width");
-            var heightAttr = imgEl.GetAttribute("height") ?? imgEl.GetAttribute("data-natural-height");
+            var widthAttr = imgEl.GetAttribute(HtmlAttributeNames.Width) ?? imgEl.GetAttribute(HtmlAttributeNames.DataNaturalWidth);
+            var heightAttr = imgEl.GetAttribute(HtmlAttributeNames.Height) ?? imgEl.GetAttribute(HtmlAttributeNames.DataNaturalHeight);
             if (widthAttr != null)
                 float.TryParse(widthAttr, System.Globalization.CultureInfo.InvariantCulture, out imgW);
             if (heightAttr != null)
@@ -524,8 +566,8 @@ internal static class FlexLayout
             if (imgW > 0 || imgH > 0)
             {
                 // Preserve aspect ratio if only one dimension specified
-                var naturalW = imgEl.GetAttribute("data-natural-width");
-                var naturalH = imgEl.GetAttribute("data-natural-height");
+                var naturalW = imgEl.GetAttribute(HtmlAttributeNames.DataNaturalWidth);
+                var naturalH = imgEl.GetAttribute(HtmlAttributeNames.DataNaturalHeight);
                 if (imgW > 0 && imgH == 0 && naturalW != null && naturalH != null
                     && float.TryParse(naturalW, System.Globalization.CultureInfo.InvariantCulture, out float nw)
                     && float.TryParse(naturalH, System.Globalization.CultureInfo.InvariantCulture, out float nh)

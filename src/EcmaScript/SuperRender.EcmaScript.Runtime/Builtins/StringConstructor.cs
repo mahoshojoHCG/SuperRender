@@ -52,7 +52,7 @@ public static class StringConstructor
                 var cp = (int)arg.ToNumber();
                 if (cp < 0 || cp > 0x10FFFF || cp != arg.ToNumber())
                 {
-                    throw new Errors.JsRangeError("Invalid code point " + arg.ToJsString());
+                    throw new Errors.JsRangeError("Invalid code point " + arg.ToJsString(), ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                 }
 
                 sb.Append(char.ConvertFromUtf32(cp));
@@ -230,7 +230,7 @@ public static class StringConstructor
             var count = args.Length > 0 ? (int)args[0].ToNumber() : 0;
             if (count < 0 || count == int.MaxValue)
             {
-                throw new Errors.JsRangeError("Invalid count value");
+                throw new Errors.JsRangeError("Invalid count value", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             if (count == 0 || str.Length == 0) return JsString.Empty;
@@ -286,7 +286,7 @@ public static class StringConstructor
             {
                 if (!regex.Global)
                 {
-                    throw new Errors.JsTypeError("String.prototype.replaceAll called with a non-global RegExp argument");
+                    throw new Errors.JsTypeError("String.prototype.replaceAll called with a non-global RegExp argument", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                 }
 
                 return RegExpReplace(str, regex, replaceValue);

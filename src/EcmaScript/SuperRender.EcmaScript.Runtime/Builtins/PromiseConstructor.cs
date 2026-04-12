@@ -20,7 +20,7 @@ public static class PromiseConstructor
                 var executor = BuiltinHelper.Arg(args, 0);
                 if (executor is not JsFunction executorFn)
                 {
-                    throw new Errors.JsTypeError("Promise resolver is not a function");
+                    throw new Errors.JsTypeError("Promise resolver is not a function", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                 }
 
                 var promise = new JsPromiseObject { Prototype = realm.PromisePrototype };
@@ -52,7 +52,7 @@ public static class PromiseConstructor
             },
             CallTarget = (_, _) =>
             {
-                throw new Errors.JsTypeError("Constructor Promise requires 'new'");
+                throw new Errors.JsTypeError("Constructor Promise requires 'new'", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
         };
 
@@ -133,7 +133,7 @@ public static class PromiseConstructor
             var iterable = BuiltinHelper.Arg(args, 0);
             if (iterable is not JsArray arr)
             {
-                throw new Errors.JsTypeError("Promise.all requires an iterable");
+                throw new Errors.JsTypeError("Promise.all requires an iterable", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             var resultPromise = new JsPromiseObject { Prototype = realm.PromisePrototype };
@@ -191,7 +191,7 @@ public static class PromiseConstructor
             var iterable = BuiltinHelper.Arg(args, 0);
             if (iterable is not JsArray arr)
             {
-                throw new Errors.JsTypeError("Promise.race requires an iterable");
+                throw new Errors.JsTypeError("Promise.race requires an iterable", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             var resultPromise = new JsPromiseObject { Prototype = realm.PromisePrototype };
@@ -229,7 +229,7 @@ public static class PromiseConstructor
             var iterable = BuiltinHelper.Arg(args, 0);
             if (iterable is not JsArray arr)
             {
-                throw new Errors.JsTypeError("Promise.allSettled requires an iterable");
+                throw new Errors.JsTypeError("Promise.allSettled requires an iterable", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             var resultPromise = new JsPromiseObject { Prototype = realm.PromisePrototype };
@@ -302,7 +302,7 @@ public static class PromiseConstructor
             var iterable = BuiltinHelper.Arg(args, 0);
             if (iterable is not JsArray arr)
             {
-                throw new Errors.JsTypeError("Promise.any requires an iterable");
+                throw new Errors.JsTypeError("Promise.any requires an iterable", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             var resultPromise = new JsPromiseObject { Prototype = realm.PromisePrototype };
@@ -472,7 +472,7 @@ public static class PromiseConstructor
             return promise;
         }
 
-        throw new Errors.JsTypeError("Method requires that 'this' be a Promise");
+        throw new Errors.JsTypeError("Method requires that 'this' be a Promise", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 
     internal sealed record PromiseReaction(

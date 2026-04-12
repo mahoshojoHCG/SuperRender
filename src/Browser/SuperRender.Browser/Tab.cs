@@ -163,7 +163,7 @@ public sealed class Tab : IDisposable
             });
 
             // Extract title
-            var titleElement = FindElement(Document!, "title");
+            var titleElement = FindElement(Document!, HtmlTagNames.Title);
             if (titleElement is not null && !string.IsNullOrWhiteSpace(titleElement.InnerText))
                 Title = titleElement.InnerText.Trim();
 
@@ -206,11 +206,11 @@ public sealed class Tab : IDisposable
     {
         if (Document is null) return;
 
-        var linkElements = FindElements(Document, "link");
+        var linkElements = FindElements(Document, HtmlTagNames.Link);
         foreach (var link in linkElements)
         {
-            var rel = link.GetAttribute("rel");
-            var href = link.GetAttribute("href");
+            var rel = link.GetAttribute(HtmlAttributeNames.Rel);
+            var href = link.GetAttribute(HtmlAttributeNames.Href);
             if (rel is not null && rel.Equals("stylesheet", StringComparison.OrdinalIgnoreCase)
                 && !string.IsNullOrWhiteSpace(href))
             {
@@ -230,10 +230,10 @@ public sealed class Tab : IDisposable
     {
         if (Document is null || ImageCache is null) return;
 
-        var imgElements = FindElements(Document, "img");
+        var imgElements = FindElements(Document, HtmlTagNames.Img);
         foreach (var img in imgElements)
         {
-            var src = img.GetAttribute("src");
+            var src = img.GetAttribute(HtmlAttributeNames.Src);
             if (string.IsNullOrWhiteSpace(src)) continue;
 
             // Use the original src attribute as the cache key so it matches
@@ -265,9 +265,9 @@ public sealed class Tab : IDisposable
     {
         if (imageData is null) return;
 
-        img.SetAttribute("data-natural-width",
+        img.SetAttribute(HtmlAttributeNames.DataNaturalWidth,
             imageData.Width.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        img.SetAttribute("data-natural-height",
+        img.SetAttribute(HtmlAttributeNames.DataNaturalHeight,
             imageData.Height.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 
@@ -275,10 +275,10 @@ public sealed class Tab : IDisposable
     {
         if (Document is null || _jsEngine is null) return;
 
-        var scriptElements = FindElements(Document, "script");
+        var scriptElements = FindElements(Document, HtmlTagNames.Script);
         foreach (var script in scriptElements)
         {
-            var src = script.GetAttribute("src");
+            var src = script.GetAttribute(HtmlAttributeNames.Src);
             if (!string.IsNullOrWhiteSpace(src))
             {
                 var jsUri = UrlResolver.Resolve(src, baseUri);
@@ -299,10 +299,10 @@ public sealed class Tab : IDisposable
     {
         if (Document is null || _jsEngine is null) return;
 
-        var scriptElements = FindElements(Document, "script");
+        var scriptElements = FindElements(Document, HtmlTagNames.Script);
         foreach (var script in scriptElements)
         {
-            var src = script.GetAttribute("src");
+            var src = script.GetAttribute(HtmlAttributeNames.Src);
             if (string.IsNullOrWhiteSpace(src) && !string.IsNullOrWhiteSpace(script.InnerText))
             {
                 try { _jsEngine.Execute(script.InnerText); }
@@ -505,7 +505,14 @@ public sealed class Tab : IDisposable
         }
 
         var lineInfo = line > 0 ? $" (line {line}, col {col})" : "";
-        _logger?.LogError(ex, "[{Tag}] {Context}{LineInfo}", tag, context, lineInfo);
+
+        // JS errors: log clean message without C# stack trace
+        // Internal errors: keep full exception for debugging
+        if (ex is JsErrorBase)
+            _logger?.LogError("[{Tag}] {Context}: {Message}{LineInfo}", tag, context, ex.Message, lineInfo);
+        else
+            _logger?.LogError(ex, "[{Tag}] {Context}", tag, context);
+
         ConsoleLog.Add(new ConsoleMessage
         {
             Level = ConsoleMessageLevel.Error,

@@ -13,7 +13,7 @@ public static class FunctionConstructor
         {
             if (thisArg is not JsFunction fn)
             {
-                throw new Errors.JsTypeError("Function.prototype.call called on non-function");
+                throw new Errors.JsTypeError("Function.prototype.call called on non-function", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             var callThisArg = BuiltinHelper.Arg(args, 0);
@@ -26,7 +26,7 @@ public static class FunctionConstructor
         {
             if (thisArg is not JsFunction fn)
             {
-                throw new Errors.JsTypeError("Function.prototype.apply called on non-function");
+                throw new Errors.JsTypeError("Function.prototype.apply called on non-function", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             var callThisArg = BuiltinHelper.Arg(args, 0);
@@ -56,7 +56,7 @@ public static class FunctionConstructor
             }
             else
             {
-                throw new Errors.JsTypeError("CreateListFromArrayLike called on non-object");
+                throw new Errors.JsTypeError("CreateListFromArrayLike called on non-object", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             return fn.Call(callThisArg, callArgs);
@@ -67,7 +67,7 @@ public static class FunctionConstructor
         {
             if (thisArg is not JsFunction fn)
             {
-                throw new Errors.JsTypeError("Function.prototype.bind called on non-function");
+                throw new Errors.JsTypeError("Function.prototype.bind called on non-function", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             var boundThis = BuiltinHelper.Arg(args, 0);
@@ -110,7 +110,7 @@ public static class FunctionConstructor
                 return new JsString("function " + fn.Name + "() { [native code] }");
             }
 
-            throw new Errors.JsTypeError("Function.prototype.toString requires that 'this' be a Function");
+            throw new Errors.JsTypeError("Function.prototype.toString requires that 'this' be a Function", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
         }, 0);
 
         // Function.prototype[Symbol.hasInstance]
@@ -151,7 +151,7 @@ public static class FunctionConstructor
         // Install a non-constructable Function as a global (just for typeof checks and .prototype access)
         var fnCtor = JsFunction.CreateNative("Function", (_, _) =>
         {
-            throw new Errors.JsTypeError("Dynamic code evaluation is not supported");
+            throw new Errors.JsTypeError("Dynamic code evaluation is not supported", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
         }, 1);
         fnCtor.Prototype = realm.FunctionPrototype;
         fnCtor.PrototypeObject = proto;

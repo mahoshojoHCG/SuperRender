@@ -16,7 +16,7 @@ public static class ErrorConstructor
         {
             if (thisArg is not JsObject obj)
             {
-                throw new Errors.JsTypeError("Error.prototype.toString called on non-object");
+                throw new Errors.JsTypeError("Error.prototype.toString called on non-object", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             var name = obj.Get("name");

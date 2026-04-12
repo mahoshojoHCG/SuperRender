@@ -74,7 +74,7 @@ public static class ReflectObject
             var target = BuiltinHelper.Arg(args, 0);
             if (target is not JsFunction fn)
             {
-                throw new Errors.JsTypeError("Reflect.apply requires a function");
+                throw new Errors.JsTypeError("Reflect.apply requires a function", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             var thisArg = BuiltinHelper.Arg(args, 1);
@@ -95,7 +95,7 @@ public static class ReflectObject
             }
             else
             {
-                throw new Errors.JsTypeError("CreateListFromArrayLike called on non-object");
+                throw new Errors.JsTypeError("CreateListFromArrayLike called on non-object", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             return fn.Call(thisArg, callArgs);
@@ -106,7 +106,7 @@ public static class ReflectObject
             var target = BuiltinHelper.Arg(args, 0);
             if (target is not JsFunction fn)
             {
-                throw new Errors.JsTypeError("Reflect.construct requires a constructor");
+                throw new Errors.JsTypeError("Reflect.construct requires a constructor", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             var argsList = BuiltinHelper.Arg(args, 1);
@@ -126,7 +126,7 @@ public static class ReflectObject
             }
             else
             {
-                throw new Errors.JsTypeError("CreateListFromArrayLike called on non-object");
+                throw new Errors.JsTypeError("CreateListFromArrayLike called on non-object", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             return fn.Construct(constructArgs);
@@ -153,7 +153,7 @@ public static class ReflectObject
             }
             else
             {
-                throw new Errors.JsTypeError("Object prototype may only be an Object or null");
+                throw new Errors.JsTypeError("Object prototype may only be an Object or null", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             return JsValue.True;
@@ -213,7 +213,7 @@ public static class ReflectObject
             return obj;
         }
 
-        throw new Errors.JsTypeError("Reflect method requires an object as the first argument");
+        throw new Errors.JsTypeError("Reflect method requires an object as the first argument", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 
     private static PropertyDescriptor ToPropertyDescriptor(JsObject desc)
@@ -225,7 +225,7 @@ public static class ReflectObject
 
         if ((hasGet || hasSet) && (hasValue || hasWritable))
         {
-            throw new Errors.JsTypeError("Invalid property descriptor");
+            throw new Errors.JsTypeError("Invalid property descriptor", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
         }
 
         if (hasGet || hasSet)

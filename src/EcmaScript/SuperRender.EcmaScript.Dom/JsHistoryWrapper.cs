@@ -33,7 +33,7 @@ internal sealed class JsHistoryWrapper : JsObject
         _goForward = goForward;
         _updateAddressBar = updateAddressBar;
         Prototype = realm.ObjectPrototype;
-        InstallProperties(realm);
+        InstallProperties();
 
         // Initialize with the current URI
         var current = getCurrentUri();
@@ -44,147 +44,120 @@ internal sealed class JsHistoryWrapper : JsObject
         }
     }
 
-    private void InstallProperties(Realm realm)
+    private void InstallProperties()
     {
-        DefineOwnProperty("length", PropertyDescriptor.Accessor(
-            JsFunction.CreateNative("get length", (_, _) =>
-                JsNumber.Create(_entries.Count), 0),
-            null, enumerable: true, configurable: true));
+        this.DefineGetter("length", () => JsNumber.Create(_entries.Count));
 
-        DefineOwnProperty("state", PropertyDescriptor.Accessor(
-            JsFunction.CreateNative("get state", (_, _) =>
+        this.DefineGetter("state", () =>
+        {
+            if (_currentIndex >= 0 && _currentIndex < _entries.Count)
+                return _entries[_currentIndex].State;
+            return Null;
+        });
+
+        this.DefineMethod("pushState", 3, args =>
+        {
+            var state = args.Length > 0 ? args[0] : Null;
+            var url = args.Length > 2 && args[2] is not JsUndefined && args[2] is not JsNull
+                ? args[2].ToJsString()
+                : null;
+
+            var newUri = ResolveHistoryUrl(url);
+
+            // Truncate forward entries
+            if (_currentIndex < _entries.Count - 1)
+                _entries.RemoveRange(_currentIndex + 1, _entries.Count - _currentIndex - 1);
+
+            _entries.Add(new HistoryEntry { Url = newUri, State = state });
+            _currentIndex = _entries.Count - 1;
+            _updateAddressBar(newUri);
+            return Undefined;
+        });
+
+        this.DefineMethod("replaceState", 3, args =>
+        {
+            var state = args.Length > 0 ? args[0] : Null;
+            var url = args.Length > 2 && args[2] is not JsUndefined && args[2] is not JsNull
+                ? args[2].ToJsString()
+                : null;
+
+            var newUri = ResolveHistoryUrl(url);
+
+            if (_currentIndex >= 0 && _currentIndex < _entries.Count)
             {
-                if (_currentIndex >= 0 && _currentIndex < _entries.Count)
-                    return _entries[_currentIndex].State;
-                return Null;
-            }, 0),
-            null, enumerable: true, configurable: true));
-
-        DefineOwnProperty("pushState", PropertyDescriptor.Data(
-            JsFunction.CreateNative("pushState", (_, args) =>
+                _entries[_currentIndex] = new HistoryEntry { Url = newUri, State = state };
+            }
+            else
             {
-                var state = args.Length > 0 ? args[0] : Null;
-                // title (args[1]) is ignored per spec
-                var url = args.Length > 2 && args[2] is not JsUndefined && args[2] is not JsNull
-                    ? args[2].ToJsString()
-                    : null;
-
-                Uri newUri;
-                if (url is not null)
-                {
-                    var baseUri = _getCurrentUri();
-                    if (Uri.TryCreate(baseUri, url, out var resolved))
-                        newUri = resolved;
-                    else
-                        newUri = baseUri ?? new Uri("about:blank");
-                }
-                else
-                {
-                    newUri = _getCurrentUri() ?? new Uri("about:blank");
-                }
-
-                // Truncate forward entries
-                if (_currentIndex < _entries.Count - 1)
-                    _entries.RemoveRange(_currentIndex + 1, _entries.Count - _currentIndex - 1);
-
                 _entries.Add(new HistoryEntry { Url = newUri, State = state });
                 _currentIndex = _entries.Count - 1;
+            }
 
-                _updateAddressBar(newUri);
+            _updateAddressBar(newUri);
+            return Undefined;
+        });
 
-                return Undefined;
-            }, 3)));
-
-        DefineOwnProperty("replaceState", PropertyDescriptor.Data(
-            JsFunction.CreateNative("replaceState", (_, args) =>
+        this.DefineMethod("back", 0, _ =>
+        {
+            if (_currentIndex > 0)
             {
-                var state = args.Length > 0 ? args[0] : Null;
-                var url = args.Length > 2 && args[2] is not JsUndefined && args[2] is not JsNull
-                    ? args[2].ToJsString()
-                    : null;
-
-                Uri newUri;
-                if (url is not null)
-                {
-                    var baseUri = _getCurrentUri();
-                    if (Uri.TryCreate(baseUri, url, out var resolved))
-                        newUri = resolved;
-                    else
-                        newUri = baseUri ?? new Uri("about:blank");
-                }
-                else
-                {
-                    newUri = _getCurrentUri() ?? new Uri("about:blank");
-                }
-
-                if (_currentIndex >= 0 && _currentIndex < _entries.Count)
-                {
-                    _entries[_currentIndex] = new HistoryEntry { Url = newUri, State = state };
-                }
-                else
-                {
-                    _entries.Add(new HistoryEntry { Url = newUri, State = state });
-                    _currentIndex = _entries.Count - 1;
-                }
-
-                _updateAddressBar(newUri);
-
-                return Undefined;
-            }, 3)));
-
-        DefineOwnProperty("back", PropertyDescriptor.Data(
-            JsFunction.CreateNative("back", (_, _) =>
+                _currentIndex--;
+                _updateAddressBar(_entries[_currentIndex].Url);
+            }
+            else
             {
-                if (_currentIndex > 0)
-                {
-                    _currentIndex--;
-                    _updateAddressBar(_entries[_currentIndex].Url);
-                }
-                else
-                {
-                    _goBack();
-                }
-                return Undefined;
-            }, 0)));
+                _goBack();
+            }
+            return Undefined;
+        });
 
-        DefineOwnProperty("forward", PropertyDescriptor.Data(
-            JsFunction.CreateNative("forward", (_, _) =>
+        this.DefineMethod("forward", 0, _ =>
+        {
+            if (_currentIndex < _entries.Count - 1)
             {
-                if (_currentIndex < _entries.Count - 1)
-                {
-                    _currentIndex++;
-                    _updateAddressBar(_entries[_currentIndex].Url);
-                }
-                else
-                {
-                    _goForward();
-                }
-                return Undefined;
-            }, 0)));
-
-        DefineOwnProperty("go", PropertyDescriptor.Data(
-            JsFunction.CreateNative("go", (_, args) =>
+                _currentIndex++;
+                _updateAddressBar(_entries[_currentIndex].Url);
+            }
+            else
             {
-                var delta = args.Length > 0 ? (int)args[0].ToNumber() : 0;
-                if (delta == 0)
-                    return Undefined;
+                _goForward();
+            }
+            return Undefined;
+        });
 
-                int newIndex = _currentIndex + delta;
-                if (newIndex >= 0 && newIndex < _entries.Count)
-                {
-                    _currentIndex = newIndex;
-                    _updateAddressBar(_entries[_currentIndex].Url);
-                }
-                else if (delta < 0)
-                {
-                    _goBack();
-                }
-                else
-                {
-                    _goForward();
-                }
-                return Undefined;
-            }, 1)));
+        this.DefineMethod("go", 1, args =>
+        {
+            var delta = args.Length > 0 ? (int)args[0].ToNumber() : 0;
+            if (delta == 0) return Undefined;
+
+            int newIndex = _currentIndex + delta;
+            if (newIndex >= 0 && newIndex < _entries.Count)
+            {
+                _currentIndex = newIndex;
+                _updateAddressBar(_entries[_currentIndex].Url);
+            }
+            else if (delta < 0)
+            {
+                _goBack();
+            }
+            else
+            {
+                _goForward();
+            }
+            return Undefined;
+        });
+    }
+
+    private Uri ResolveHistoryUrl(string? url)
+    {
+        if (url is not null)
+        {
+            var baseUri = _getCurrentUri();
+            if (Uri.TryCreate(baseUri, url, out var resolved))
+                return resolved;
+            return baseUri ?? new Uri("about:blank");
+        }
+        return _getCurrentUri() ?? new Uri("about:blank");
     }
 
     private sealed class HistoryEntry

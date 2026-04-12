@@ -160,7 +160,7 @@ public static class ObjectConstructor
             }
             else if (protoArg is not JsNull)
             {
-                throw new Errors.JsTypeError("Object prototype may only be an Object or null");
+                throw new Errors.JsTypeError("Object prototype may only be an Object or null", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             var obj = new JsObject { Prototype = protoObj };
@@ -229,7 +229,7 @@ public static class ObjectConstructor
             }
             else
             {
-                throw new Errors.JsTypeError("Object prototype may only be an Object or null");
+                throw new Errors.JsTypeError("Object prototype may only be an Object or null", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             return obj;
@@ -344,7 +344,7 @@ public static class ObjectConstructor
             return obj;
         }
 
-        throw new Errors.JsTypeError("Cannot convert " + value.TypeOf + " to object");
+        throw new Errors.JsTypeError("Cannot convert " + value.TypeOf + " to object", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 
     private static bool SameValue(JsValue x, JsValue y)
@@ -378,7 +378,7 @@ public static class ObjectConstructor
 
         if ((hasGet || hasSet) && (hasValue || hasWritable))
         {
-            throw new Errors.JsTypeError("Invalid property descriptor. Cannot both specify accessors and a value or writable attribute");
+            throw new Errors.JsTypeError("Invalid property descriptor. Cannot both specify accessors and a value or writable attribute", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
         }
 
         if (hasGet || hasSet)

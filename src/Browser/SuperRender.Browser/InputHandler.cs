@@ -464,11 +464,11 @@ public sealed class InputHandler
                     var anchor = LayoutBoxHitTester.FindAnchorAncestor(hitBox);
                     if (anchor is not null)
                     {
-                        var href = anchor.GetAttribute("href");
+                        var href = anchor.GetAttribute(HtmlAttributeNames.Href);
                         if (!string.IsNullOrWhiteSpace(href))
                         {
                             var resolvedUri = UrlResolver.Resolve(href, tab.CurrentUri);
-                            var target = anchor.GetAttribute("target");
+                            var target = anchor.GetAttribute(HtmlAttributeNames.Target);
                             if (target is not null && target.Equals("_blank", StringComparison.OrdinalIgnoreCase))
                             {
                                 _tabs.CreateTab();

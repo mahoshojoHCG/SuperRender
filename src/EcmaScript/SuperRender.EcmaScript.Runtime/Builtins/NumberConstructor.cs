@@ -147,7 +147,7 @@ public static class NumberConstructor
 
             if (digits < 0 || digits > 100)
             {
-                throw new Errors.JsRangeError("toFixed() digits argument must be between 0 and 100");
+                throw new Errors.JsRangeError("toFixed() digits argument must be between 0 and 100", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             if (!double.IsFinite(val))
@@ -169,7 +169,7 @@ public static class NumberConstructor
             var precision = (int)args[0].ToNumber();
             if (precision < 1 || precision > 100)
             {
-                throw new Errors.JsRangeError("toPrecision() argument must be between 1 and 100");
+                throw new Errors.JsRangeError("toPrecision() argument must be between 1 and 100", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             if (!double.IsFinite(val))
@@ -188,7 +188,7 @@ public static class NumberConstructor
 
             if (radix < 2 || radix > 36)
             {
-                throw new Errors.JsRangeError("toString() radix must be between 2 and 36");
+                throw new Errors.JsRangeError("toString() radix must be between 2 and 36", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             if (radix == 10)
@@ -236,7 +236,7 @@ public static class NumberConstructor
             }
         }
 
-        throw new Errors.JsTypeError("Number.prototype.valueOf requires that 'this' be a Number");
+        throw new Errors.JsTypeError("Number.prototype.valueOf requires that 'this' be a Number", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 
     private static JsValue ParseInt(string str, int radix)

@@ -82,7 +82,7 @@ public abstract class JsValue : IDynamicMetaObjectProvider
         double d => JsNumber.Create(d),
         string s => new JsString(s),
         JsValue js => js,
-        _ => throw new Errors.JsTypeError($"Cannot convert {value.GetType().Name} to JsValue")
+        _ => throw new Errors.JsTypeError($"Cannot convert {value.GetType().Name} to JsValue", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn)
     };
 }
 

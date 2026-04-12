@@ -56,97 +56,82 @@ internal sealed class JsWindowWrapper : JsObject
     {
         DefineOwnProperty("document", PropertyDescriptor.Data(_documentWrapper, writable: false));
 
-        DefineOwnProperty("innerWidth", PropertyDescriptor.Accessor(
-            JsFunction.CreateNative("get innerWidth", (_, _) => JsNumber.Create(_innerWidth), 0),
-            null, enumerable: true, configurable: true));
-
-        DefineOwnProperty("innerHeight", PropertyDescriptor.Accessor(
-            JsFunction.CreateNative("get innerHeight", (_, _) => JsNumber.Create(_innerHeight), 0),
-            null, enumerable: true, configurable: true));
-
-        DefineOwnProperty("devicePixelRatio", PropertyDescriptor.Accessor(
-            JsFunction.CreateNative("get devicePixelRatio", (_, _) => JsNumber.Create(_devicePixelRatio), 0),
-            null, enumerable: true, configurable: true));
+        this.DefineGetter("innerWidth", () => JsNumber.Create(_innerWidth));
+        this.DefineGetter("innerHeight", () => JsNumber.Create(_innerHeight));
+        this.DefineGetter("devicePixelRatio", () => JsNumber.Create(_devicePixelRatio));
 
         // setTimeout with real delay via TimerQueue
-        DefineOwnProperty("setTimeout", PropertyDescriptor.Data(
-            JsFunction.CreateNative("setTimeout", (_, args) =>
+        this.DefineMethod("setTimeout", 2, args =>
+        {
+            if (args.Length > 0 && args[0] is JsFunction callback)
             {
-                if (args.Length > 0 && args[0] is JsFunction callback)
-                {
-                    var delay = args.Length > 1 ? args[1].ToNumber() : 0;
-                    var id = _timerQueue.SetTimeout(() => callback.Call(Undefined, []), delay);
-                    return JsNumber.Create(id);
-                }
-                return JsNumber.Create(0);
-            }, 2)));
+                var delay = args.Length > 1 ? args[1].ToNumber() : 0;
+                var id = _timerQueue.SetTimeout(() => callback.Call(Undefined, []), delay);
+                return JsNumber.Create(id);
+            }
+            return JsNumber.Create(0);
+        });
 
-        DefineOwnProperty("clearTimeout", PropertyDescriptor.Data(
-            JsFunction.CreateNative("clearTimeout", (_, args) =>
+        this.DefineMethod("clearTimeout", 1, args =>
+        {
+            if (args.Length > 0)
             {
-                if (args.Length > 0)
-                {
-                    var id = (int)args[0].ToNumber();
-                    _timerQueue.Cancel(id);
-                }
-                return Undefined;
-            }, 1)));
+                var id = (int)args[0].ToNumber();
+                _timerQueue.Cancel(id);
+            }
+            return Undefined;
+        });
 
         // setInterval with real repeating via TimerQueue
-        DefineOwnProperty("setInterval", PropertyDescriptor.Data(
-            JsFunction.CreateNative("setInterval", (_, args) =>
+        this.DefineMethod("setInterval", 2, args =>
+        {
+            if (args.Length > 0 && args[0] is JsFunction callback)
             {
-                if (args.Length > 0 && args[0] is JsFunction callback)
-                {
-                    var interval = args.Length > 1 ? args[1].ToNumber() : 0;
-                    var id = _timerQueue.SetInterval(() => callback.Call(Undefined, []), interval);
-                    return JsNumber.Create(id);
-                }
-                return JsNumber.Create(0);
-            }, 2)));
+                var interval = args.Length > 1 ? args[1].ToNumber() : 0;
+                var id = _timerQueue.SetInterval(() => callback.Call(Undefined, []), interval);
+                return JsNumber.Create(id);
+            }
+            return JsNumber.Create(0);
+        });
 
-        DefineOwnProperty("clearInterval", PropertyDescriptor.Data(
-            JsFunction.CreateNative("clearInterval", (_, args) =>
+        this.DefineMethod("clearInterval", 1, args =>
+        {
+            if (args.Length > 0)
             {
-                if (args.Length > 0)
-                {
-                    var id = (int)args[0].ToNumber();
-                    _timerQueue.Cancel(id);
-                }
-                return Undefined;
-            }, 1)));
+                var id = (int)args[0].ToNumber();
+                _timerQueue.Cancel(id);
+            }
+            return Undefined;
+        });
 
         // requestAnimationFrame tied to render loop
-        DefineOwnProperty("requestAnimationFrame", PropertyDescriptor.Data(
-            JsFunction.CreateNative("requestAnimationFrame", (_, args) =>
+        this.DefineMethod("requestAnimationFrame", 1, args =>
+        {
+            if (args.Length > 0 && args[0] is JsFunction callback)
             {
-                if (args.Length > 0 && args[0] is JsFunction callback)
-                {
-                    var id = _timerQueue.RequestAnimationFrame(
-                        () => callback.Call(Undefined, [JsNumber.Create(_timerQueue.NowMs)]));
-                    return JsNumber.Create(id);
-                }
-                return JsNumber.Create(0);
-            }, 1)));
+                var id = _timerQueue.RequestAnimationFrame(
+                    () => callback.Call(Undefined, [JsNumber.Create(_timerQueue.NowMs)]));
+                return JsNumber.Create(id);
+            }
+            return JsNumber.Create(0);
+        });
 
-        DefineOwnProperty("cancelAnimationFrame", PropertyDescriptor.Data(
-            JsFunction.CreateNative("cancelAnimationFrame", (_, args) =>
+        this.DefineMethod("cancelAnimationFrame", 1, args =>
+        {
+            if (args.Length > 0)
             {
-                if (args.Length > 0)
-                {
-                    var id = (int)args[0].ToNumber();
-                    _timerQueue.Cancel(id);
-                }
-                return Undefined;
-            }, 1)));
+                var id = (int)args[0].ToNumber();
+                _timerQueue.Cancel(id);
+            }
+            return Undefined;
+        });
 
-        DefineOwnProperty("alert", PropertyDescriptor.Data(
-            JsFunction.CreateNative("alert", (_, args) =>
-            {
-                var msg = args.Length > 0 ? args[0].ToJsString() : "";
-                Console.WriteLine($"[alert] {msg}");
-                return Undefined;
-            }, 1)));
+        this.DefineMethod("alert", 1, args =>
+        {
+            var msg = args.Length > 0 ? args[0].ToJsString() : "";
+            Console.WriteLine($"[alert] {msg}");
+            return Undefined;
+        });
 
         // Re-export console from the realm
         if (realm.GlobalObject.HasProperty("console"))

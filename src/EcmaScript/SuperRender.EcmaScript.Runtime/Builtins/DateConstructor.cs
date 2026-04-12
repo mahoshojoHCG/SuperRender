@@ -177,7 +177,7 @@ public static class DateConstructor
             var ms = GetDateMs(thisArg);
             if (double.IsNaN(ms))
             {
-                throw new Errors.JsRangeError("Invalid time value");
+                throw new Errors.JsRangeError("Invalid time value", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             var dto = ToDateTimeOffset(ms);
@@ -253,7 +253,7 @@ public static class DateConstructor
             }
         }
 
-        throw new Errors.JsTypeError("this is not a Date object");
+        throw new Errors.JsTypeError("this is not a Date object", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 
     private static DateTimeOffset ToDateTimeOffset(double ms)

@@ -25,124 +25,101 @@ internal sealed class JsDocumentWrapper : JsElementWrapper
     /// </summary>
     public void InstallCookie(Func<string> getCookies, Action<string> setCookie)
     {
-        DefineOwnProperty("cookie", PropertyDescriptor.Accessor(
-            Getter(() => new JsString(getCookies())),
-            Setter(v => setCookie(v.ToJsString())),
-            enumerable: true, configurable: true));
+        this.DefineGetterSetter("cookie",
+            () => new JsString(getCookies()),
+            v => setCookie(v.ToJsString()));
     }
 
     private void InstallDocumentProperties()
     {
-        DefineOwnProperty("nodeType", PropertyDescriptor.Accessor(
-            Getter(() => JsNumber.Create(9)),
-            null, enumerable: true, configurable: true));
+        this.DefineGetter("nodeType", () => JsNumber.Create(9));
+        this.DefineGetter("nodeName", () => new JsString("#document"));
+        this.DefineGetter("documentElement", () => Cache.WrapNullable(_document.DocumentElement));
+        this.DefineGetter("body", () => Cache.WrapNullable(_document.Body));
+        this.DefineGetter("head", () => Cache.WrapNullable(_document.Head));
 
-        DefineOwnProperty("nodeName", PropertyDescriptor.Accessor(
-            Getter(() => new JsString("#document")),
-            null, enumerable: true, configurable: true));
-
-        DefineOwnProperty("documentElement", PropertyDescriptor.Accessor(
-            Getter(() => Cache.WrapNullable(_document.DocumentElement)),
-            null, enumerable: true, configurable: true));
-
-        DefineOwnProperty("body", PropertyDescriptor.Accessor(
-            Getter(() => Cache.WrapNullable(_document.Body)),
-            null, enumerable: true, configurable: true));
-
-        DefineOwnProperty("head", PropertyDescriptor.Accessor(
-            Getter(() => Cache.WrapNullable(_document.Head)),
-            null, enumerable: true, configurable: true));
-
-        DefineOwnProperty("title", PropertyDescriptor.Accessor(
-            Getter(() =>
+        this.DefineGetterSetter("title",
+            () =>
             {
-                var titleElement = FindElement(_document, "title");
+                var titleElement = FindElement(_document, HtmlTagNames.Title);
                 return new JsString(titleElement?.InnerText ?? "");
-            }),
-            Setter(v =>
+            },
+            v =>
             {
-                var titleElement = FindElement(_document, "title");
+                var titleElement = FindElement(_document, HtmlTagNames.Title);
                 if (titleElement is not null)
                     titleElement.InnerText = v.ToJsString();
-            }),
-            enumerable: true, configurable: true));
+            });
 
-        DefineOwnProperty("createElement", PropertyDescriptor.Data(
-            JsFunction.CreateNative("createElement", (_, args) =>
+        this.DefineMethod("createElement", 1, args =>
+        {
+            if (args.Length > 0)
             {
-                if (args.Length > 0)
-                {
-                    var el = _document.CreateElement(args[0].ToJsString());
-                    return Cache.GetOrCreate(el);
-                }
-                return Undefined;
-            }, 1)));
+                var el = _document.CreateElement(args[0].ToJsString());
+                return Cache.GetOrCreate(el);
+            }
+            return Undefined;
+        });
 
-        DefineOwnProperty("createTextNode", PropertyDescriptor.Data(
-            JsFunction.CreateNative("createTextNode", (_, args) =>
-            {
-                var data = args.Length > 0 ? args[0].ToJsString() : "";
-                var textNode = _document.CreateTextNode(data);
-                return Cache.GetOrCreate(textNode);
-            }, 1)));
+        this.DefineMethod("createTextNode", 1, args =>
+        {
+            var data = args.Length > 0 ? args[0].ToJsString() : "";
+            var textNode = _document.CreateTextNode(data);
+            return Cache.GetOrCreate(textNode);
+        });
 
-        DefineOwnProperty("getElementById", PropertyDescriptor.Data(
-            JsFunction.CreateNative("getElementById", (_, args) =>
+        this.DefineMethod("getElementById", 1, args =>
+        {
+            if (args.Length > 0)
             {
-                if (args.Length > 0)
-                {
-                    var id = args[0].ToJsString();
-                    var element = FindElementById(_document, id);
-                    return element is not null ? Cache.GetOrCreate(element) : Null;
-                }
-                return Null;
-            }, 1)));
+                var id = args[0].ToJsString();
+                var element = FindElementById(_document, id);
+                return element is not null ? Cache.GetOrCreate(element) : Null;
+            }
+            return Null;
+        });
 
-        DefineOwnProperty("getElementsByTagName", PropertyDescriptor.Data(
-            JsFunction.CreateNative("getElementsByTagName", (_, args) =>
+        this.DefineMethod("getElementsByTagName", 1, args =>
+        {
+            if (args.Length > 0)
             {
-                if (args.Length > 0)
-                {
-                    var tagName = args[0].ToJsString().ToLowerInvariant();
-                    var results = FindElementsByTagName(_document, tagName);
-                    return new JsNodeListWrapper(results.Cast<Node>().ToList(), Cache);
-                }
-                return new JsNodeListWrapper([], Cache);
-            }, 1)));
+                var tagName = args[0].ToJsString().ToLowerInvariant();
+                var results = FindElementsByTagName(_document, tagName);
+                return new JsNodeListWrapper(results.Cast<Node>().ToList(), Cache);
+            }
+            return new JsNodeListWrapper([], Cache);
+        });
 
-        DefineOwnProperty("getElementsByClassName", PropertyDescriptor.Data(
-            JsFunction.CreateNative("getElementsByClassName", (_, args) =>
+        this.DefineMethod("getElementsByClassName", 1, args =>
+        {
+            if (args.Length > 0)
             {
-                if (args.Length > 0)
-                {
-                    var className = args[0].ToJsString();
-                    var results = FindElementsByClassName(_document, className);
-                    return new JsNodeListWrapper(results.Cast<Node>().ToList(), Cache);
-                }
-                return new JsNodeListWrapper([], Cache);
-            }, 1)));
+                var className = args[0].ToJsString();
+                var results = FindElementsByClassName(_document, className);
+                return new JsNodeListWrapper(results.Cast<Node>().ToList(), Cache);
+            }
+            return new JsNodeListWrapper([], Cache);
+        });
 
-        DefineOwnProperty("querySelector", PropertyDescriptor.Data(
-            JsFunction.CreateNative("querySelector", (_, args) =>
+        this.DefineMethod("querySelector", 1, args =>
+        {
+            if (args.Length > 0)
             {
-                if (args.Length > 0)
-                {
-                    var result = DomMutationApi.QuerySelector(_document, args[0].ToJsString());
-                    return result is not null ? Cache.GetOrCreate(result) : Null;
-                }
-                return Null;
-            }, 1)));
+                var result = DomMutationApi.QuerySelector(_document, args[0].ToJsString());
+                return result is not null ? Cache.GetOrCreate(result) : Null;
+            }
+            return Null;
+        });
 
-        DefineOwnProperty("querySelectorAll", PropertyDescriptor.Data(
-            JsFunction.CreateNative("querySelectorAll", (_, args) =>
+        this.DefineMethod("querySelectorAll", 1, args =>
+        {
+            if (args.Length > 0)
             {
-                if (args.Length > 0)
-                {
-                    var results = DomMutationApi.QuerySelectorAll(_document, args[0].ToJsString()).ToList();
-                    return new JsNodeListWrapper(results.Cast<Node>().ToList(), Cache);
-                }
-                return new JsNodeListWrapper([], Cache);
-            }, 1)));
+                var results = DomMutationApi.QuerySelectorAll(_document, args[0].ToJsString()).ToList();
+                return new JsNodeListWrapper(results.Cast<Node>().ToList(), Cache);
+            }
+            return new JsNodeListWrapper([], Cache);
+        });
     }
 
     private static Element? FindElement(Node root, string tagName)

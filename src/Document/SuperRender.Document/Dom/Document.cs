@@ -9,10 +9,10 @@ public sealed class Document : Node
     public Element? DocumentElement => Children.OfType<Element>().FirstOrDefault();
 
     public Element? Body => DocumentElement?.Children.OfType<Element>()
-        .FirstOrDefault(e => e.TagName == "body");
+        .FirstOrDefault(e => e.TagName == HtmlTagNames.Body);
 
     public Element? Head => DocumentElement?.Children.OfType<Element>()
-        .FirstOrDefault(e => e.TagName == "head");
+        .FirstOrDefault(e => e.TagName == HtmlTagNames.Head);
 
     public List<Stylesheet> Stylesheets { get; } = [];
 

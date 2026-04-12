@@ -406,10 +406,10 @@ public sealed class Painter
 
     private static void PaintListMarker(LayoutBox box, PaintList list, float opacity = 1f)
     {
-        if (box.DomNode is not Element el || el.TagName != "li") return;
+        if (box.DomNode is not Element el || el.TagName != HtmlTagNames.Li) return;
 
         var parent = el.Parent as Element;
-        bool ordered = parent?.TagName == "ol";
+        bool ordered = parent?.TagName == HtmlTagNames.Ol;
 
         var dims = box.Dimensions;
         float fontSize = box.Style.FontSize;
@@ -426,7 +426,7 @@ public sealed class Painter
                 foreach (var sibling in parent.Children)
                 {
                     if (sibling == el) break;
-                    if (sibling is Element sibEl && sibEl.TagName == "li") index++;
+                    if (sibling is Element sibEl && sibEl.TagName == HtmlTagNames.Li) index++;
                 }
             }
 
@@ -550,9 +550,9 @@ public sealed class Painter
 
     private static void PaintImage(LayoutBox box, PaintList list, float opacity = 1f)
     {
-        if (box.DomNode is not Element el || el.TagName != "img") return;
+        if (box.DomNode is not Element el || el.TagName != HtmlTagNames.Img) return;
 
-        var src = el.GetAttribute("src");
+        var src = el.GetAttribute(HtmlAttributeNames.Src);
         var contentRect = box.Dimensions.ContentRect;
 
         if (!string.IsNullOrWhiteSpace(src) && contentRect.Width > 0 && contentRect.Height > 0)
@@ -567,7 +567,7 @@ public sealed class Painter
         else
         {
             // Alt text fallback when no image loaded
-            var alt = el.GetAttribute("alt");
+            var alt = el.GetAttribute(HtmlAttributeNames.Alt);
             if (!string.IsNullOrWhiteSpace(alt) && contentRect.Width > 0 && contentRect.Height > 0)
             {
                 // Light gray placeholder box

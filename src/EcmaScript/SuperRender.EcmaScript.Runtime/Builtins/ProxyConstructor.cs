@@ -19,19 +19,19 @@ public static class ProxyConstructor
 
                 if (target is not JsObject targetObj)
                 {
-                    throw new Errors.JsTypeError("Cannot create proxy with a non-object as target");
+                    throw new Errors.JsTypeError("Cannot create proxy with a non-object as target", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                 }
 
                 if (handler is not JsObject handlerObj)
                 {
-                    throw new Errors.JsTypeError("Cannot create proxy with a non-object as handler");
+                    throw new Errors.JsTypeError("Cannot create proxy with a non-object as handler", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                 }
 
                 return new JsProxyObject(targetObj, handlerObj);
             },
             CallTarget = (_, _) =>
             {
-                throw new Errors.JsTypeError("Constructor Proxy requires 'new'");
+                throw new Errors.JsTypeError("Constructor Proxy requires 'new'", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
         };
 
@@ -43,12 +43,12 @@ public static class ProxyConstructor
 
             if (target is not JsObject targetObj)
             {
-                throw new Errors.JsTypeError("Cannot create proxy with a non-object as target");
+                throw new Errors.JsTypeError("Cannot create proxy with a non-object as target", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             if (handler is not JsObject handlerObj)
             {
-                throw new Errors.JsTypeError("Cannot create proxy with a non-object as handler");
+                throw new Errors.JsTypeError("Cannot create proxy with a non-object as handler", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             var proxy = new JsProxyObject(targetObj, handlerObj);
@@ -89,7 +89,7 @@ internal sealed class JsProxyObject : JsObject
     {
         if (_target is null || _handler is null)
         {
-            throw new Errors.JsTypeError("Cannot perform operation on a revoked proxy");
+            throw new Errors.JsTypeError("Cannot perform operation on a revoked proxy", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
         }
     }
 
@@ -114,7 +114,7 @@ internal sealed class JsProxyObject : JsObject
             var result = fn.Call(_handler, [_target!, new JsString(name), value, this]);
             if (!result.ToBoolean())
             {
-                throw new Errors.JsTypeError("'set' on proxy: trap returned falsish for property '" + name + "'");
+                throw new Errors.JsTypeError("'set' on proxy: trap returned falsish for property '" + name + "'", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             return;

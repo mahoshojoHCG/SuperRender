@@ -42,6 +42,7 @@ public static class BmpDecoder
         if (dataOffset + rowStride * absHeight > data.Length) return null;
 
         var pixels = new byte[width * absHeight * 4];
+        Span<byte> dest = pixels;
 
         for (int y = 0; y < absHeight; y++)
         {
@@ -59,10 +60,10 @@ public static class BmpDecoder
                 byte r = data[si + 2];
                 byte a = bytesPerPixel == 4 ? data[si + 3] : (byte)255;
 
-                pixels[di] = r;
-                pixels[di + 1] = g;
-                pixels[di + 2] = b;
-                pixels[di + 3] = a;
+                dest[di] = r;
+                dest[di + 1] = g;
+                dest[di + 2] = b;
+                dest[di + 3] = a;
             }
         }
 

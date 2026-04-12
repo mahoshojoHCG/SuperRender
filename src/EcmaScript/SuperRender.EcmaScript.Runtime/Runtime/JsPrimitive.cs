@@ -172,10 +172,10 @@ public sealed class JsSymbol : JsValue
     public override bool ToBoolean() => true;
 
     public override double ToNumber() =>
-        throw new Errors.JsTypeError("Cannot convert a Symbol value to a number");
+        throw new Errors.JsTypeError("Cannot convert a Symbol value to a number", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
 
     public override string ToJsString() =>
-        throw new Errors.JsTypeError("Cannot convert a Symbol value to a string");
+        throw new Errors.JsTypeError("Cannot convert a Symbol value to a string", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
 
     public override string ToString() =>
         Description is not null ? $"Symbol({Description})" : "Symbol()";

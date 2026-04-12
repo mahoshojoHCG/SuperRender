@@ -34,7 +34,7 @@ public static class SetConstructor
             },
             CallTarget = (_, _) =>
             {
-                throw new Errors.JsTypeError("Constructor Set requires 'new'");
+                throw new Errors.JsTypeError("Constructor Set requires 'new'", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
         };
 
@@ -78,7 +78,7 @@ public static class SetConstructor
             var set = RequireSet(thisArg);
             var callback = args.Length > 0 && args[0] is JsFunction fn
                 ? fn
-                : throw new Errors.JsTypeError("forEach callback must be a function");
+                : throw new Errors.JsTypeError("forEach callback must be a function", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             var thisArgCb = BuiltinHelper.Arg(args, 1);
 
             foreach (var value in set.SetValues())
@@ -135,7 +135,7 @@ public static class SetConstructor
             return set;
         }
 
-        throw new Errors.JsTypeError("Method requires that 'this' be a Set");
+        throw new Errors.JsTypeError("Method requires that 'this' be a Set", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 }
 

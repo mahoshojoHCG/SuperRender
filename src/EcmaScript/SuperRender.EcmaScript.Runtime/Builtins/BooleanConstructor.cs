@@ -63,6 +63,6 @@ public static class BooleanConstructor
             }
         }
 
-        throw new Errors.JsTypeError("Boolean.prototype.valueOf requires that 'this' be a Boolean");
+        throw new Errors.JsTypeError("Boolean.prototype.valueOf requires that 'this' be a Boolean", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 }

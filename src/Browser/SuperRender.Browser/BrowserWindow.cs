@@ -6,6 +6,7 @@ using Silk.NET.Windowing;
 using SuperRender.Browser.Networking;
 using SuperRender.Browser.Storage;
 using SuperRender.Document;
+using SuperRender.Renderer.Image;
 using SuperRender.Renderer.Rendering.Layout;
 using SuperRender.Renderer.Rendering.Painting;
 using SuperRender.Renderer.Gpu;
@@ -31,6 +32,7 @@ public sealed class BrowserWindow : IDisposable
     private PaintList? _lastCombinedPaintList;
     private ContextMenu? _contextMenu;
     private ITextMeasurer _measurer = null!;
+    private YCbCrCompute? _ycbcrCompute;
     private float _contentScale = 1.0f;
     private readonly ConcurrentQueue<Action> _mainThreadQueue = new();
 
@@ -51,6 +53,21 @@ public sealed class BrowserWindow : IDisposable
             _contentScale = (float)fbSize.X / logicalSize.X;
 
         _renderer = new VulkanRenderer(_window, _contentScale, _loggerFactory.CreateLogger<VulkanRenderer>());
+
+        // Wire up GPU-accelerated YCbCr→RGBA conversion for JPEG decoding
+        try
+        {
+            _ycbcrCompute = new YCbCrCompute(_renderer.VulkanContext);
+            if (_ycbcrCompute.IsAvailable)
+            {
+                JpegDecoder.GpuYCbCrConverter = (y, cb, cr, w, h) =>
+                    _ycbcrCompute.ConvertYCbCrToRgba(y, cb, cr, w * h);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GPU YCbCr compute pipeline unavailable, using CPU fallback");
+        }
 
         var measurer = new BitmapFontTextMeasurer(_renderer.FontAtlasData);
         _measurer = measurer;
@@ -290,6 +307,8 @@ public sealed class BrowserWindow : IDisposable
 
     public void Dispose()
     {
+        JpegDecoder.GpuYCbCrConverter = null;
+        _ycbcrCompute?.Dispose();
         _tabManager?.Dispose();
         _httpCache?.Dispose();
         _storageDb?.Dispose();

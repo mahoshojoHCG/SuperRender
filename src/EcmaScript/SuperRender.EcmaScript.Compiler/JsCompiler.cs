@@ -78,6 +78,15 @@ public sealed class JsCompiler
                     continue;
                 }
 
+                // Emit location tracking
+                if (stmt.Location is not null)
+                {
+                    bodyExprs.Add(Expr.Call(
+                        typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.SetLocation))!,
+                        Expr.Constant(stmt.Location.Line),
+                        Expr.Constant(stmt.Location.Column)));
+                }
+
                 bodyExprs.Add(CompileNode(stmt));
             }
 
@@ -184,6 +193,15 @@ public sealed class JsCompiler
                 if (stmt is FunctionDeclaration)
                 {
                     continue;
+                }
+
+                // Emit location tracking
+                if (stmt.Location is not null)
+                {
+                    exprs.Add(Expr.Call(
+                        typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.SetLocation))!,
+                        Expr.Constant(stmt.Location.Line),
+                        Expr.Constant(stmt.Location.Column)));
                 }
 
                 exprs.Add(CompileNode(stmt));
@@ -2063,6 +2081,15 @@ public sealed class JsCompiler
                         continue;
                     }
 
+                    // Emit location tracking
+                    if (stmt.Location is not null)
+                    {
+                        bodyExprs.Add(Expr.Call(
+                            typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.SetLocation))!,
+                            Expr.Constant(stmt.Location.Line),
+                            Expr.Constant(stmt.Location.Column)));
+                    }
+
                     bodyExprs.Add(CompileNode(stmt));
                 }
             }
@@ -2543,6 +2570,15 @@ public static class RuntimeHelpers
     public static Realm? CurrentRealm;
 #pragma warning restore CS0649, CA2211
 
+    // ───────────────────────── Source location tracking ─────────────────────────
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    public static void SetLocation(int line, int column)
+    {
+        Runtime.ExecutionContext.CurrentLine = line;
+        Runtime.ExecutionContext.CurrentColumn = column;
+    }
+
     // ───────────────────────── Arithmetic ─────────────────────────
 
     public static JsValue Add(JsValue left, JsValue right)
@@ -2694,7 +2730,7 @@ public static class RuntimeHelpers
     {
         if (ctor is not JsFunction ctorFn)
         {
-            throw new JsTypeError("Right-hand side of instanceof is not callable");
+            throw new JsTypeError("Right-hand side of instanceof is not callable", Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
         }
 
         var proto = ctorFn.PrototypeObject;
@@ -2727,7 +2763,7 @@ public static class RuntimeHelpers
         if (obj is not JsObject jsObj)
         {
             throw new JsTypeError("Cannot use 'in' operator to search for '" +
-                key.ToJsString() + "' in " + obj.ToJsString());
+                key.ToJsString() + "' in " + obj.ToJsString(), Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
         }
 
         return jsObj.HasProperty(key.ToJsString()) ? JsValue.True : JsValue.False;
@@ -2739,7 +2775,7 @@ public static class RuntimeHelpers
     {
         if (obj is JsNull or JsUndefined)
         {
-            throw new JsTypeError($"Cannot read properties of {obj.TypeOf} (reading '{name}')");
+            throw new JsTypeError($"Cannot read properties of {obj.TypeOf} (reading '{name}')", Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
         }
 
         if (obj is JsObject jsObj)
@@ -2796,7 +2832,7 @@ public static class RuntimeHelpers
     {
         if (obj is JsNull or JsUndefined)
         {
-            throw new JsTypeError($"Cannot set properties of {obj.TypeOf} (setting '{name}')");
+            throw new JsTypeError($"Cannot set properties of {obj.TypeOf} (setting '{name}')", Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
         }
 
         if (obj is JsObject jsObj)
@@ -2819,7 +2855,7 @@ public static class RuntimeHelpers
     {
         if (callee is not JsFunction fn)
         {
-            throw new JsTypeError($"{callee.ToJsString()} is not a function");
+            throw new JsTypeError($"{callee.ToJsString()} is not a function", Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
         }
 
         return fn.Call(thisArg, args);
@@ -2829,7 +2865,7 @@ public static class RuntimeHelpers
     {
         if (callee is not JsFunction fn)
         {
-            throw new JsTypeError($"{callee.ToJsString()} is not a constructor");
+            throw new JsTypeError($"{callee.ToJsString()} is not a constructor", Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
         }
 
         return fn.Construct(args);
@@ -3126,7 +3162,7 @@ public static class RuntimeHelpers
     {
         if (superClass is not JsFunction superFn)
         {
-            throw new JsTypeError("Super expression must be a function");
+            throw new JsTypeError("Super expression must be a function", Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
         }
 
         proto.Prototype = superFn.PrototypeObject;
@@ -3165,16 +3201,16 @@ public static class RuntimeHelpers
     {
         if (value is JsString str)
         {
-            return new JsTypeError(str.Value);
+            return new JsTypeError(str.Value, Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
         }
 
         if (value is JsObject obj)
         {
             var msg = obj.Get("message");
-            return new JsTypeError(msg is JsString s ? s.Value : value.ToJsString());
+            return new JsTypeError(msg is JsString s ? s.Value : value.ToJsString(), Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
         }
 
-        return new JsTypeError(value.ToJsString());
+        return new JsTypeError(value.ToJsString(), Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
     }
 
     public static JsValue ExceptionToJsValue(Exception ex)
@@ -3374,7 +3410,7 @@ public static class RuntimeHelpers
     {
         if (obj is JsNull or JsUndefined)
         {
-            throw new JsTypeError($"Cannot read properties of {obj.TypeOf}");
+            throw new JsTypeError($"Cannot read properties of {obj.TypeOf}", Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
         }
 
         // Check for Symbol.iterator on JsObject (includes arrays, generators, etc.)
@@ -3388,7 +3424,7 @@ public static class RuntimeHelpers
                 return iterator;
             }
 
-            throw new JsTypeError("Result of the Symbol.iterator method is not an object");
+            throw new JsTypeError("Result of the Symbol.iterator method is not an object", Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
         }
 
         // Autoboxing for primitives: check prototype for Symbol.iterator
@@ -3409,7 +3445,7 @@ public static class RuntimeHelpers
             }
         }
 
-        throw new JsTypeError(obj.TypeOf + " is not iterable");
+        throw new JsTypeError(obj.TypeOf + " is not iterable", Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
     }
 
     public static JsValue IteratorNext(JsValue iterator)

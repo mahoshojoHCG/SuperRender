@@ -20,54 +20,46 @@ internal sealed class JsStorageWrapper : JsObject
     {
         Prototype = realm.ObjectPrototype;
 
-        DefineOwnProperty("getItem", PropertyDescriptor.Data(
-            JsFunction.CreateNative("getItem", (_, args) =>
+        this.DefineMethod("getItem", 1, args =>
+        {
+            if (args.Length > 0)
             {
-                if (args.Length > 0)
-                {
-                    var result = getItem(args[0].ToJsString());
-                    return result is not null ? new JsString(result) : Null;
-                }
-                return Null;
-            }, 1)));
+                var result = getItem(args[0].ToJsString());
+                return result is not null ? new JsString(result) : Null;
+            }
+            return Null;
+        });
 
-        DefineOwnProperty("setItem", PropertyDescriptor.Data(
-            JsFunction.CreateNative("setItem", (_, args) =>
+        this.DefineMethod("setItem", 2, args =>
+        {
+            if (args.Length >= 2)
+                setItem(args[0].ToJsString(), args[1].ToJsString());
+            return Undefined;
+        });
+
+        this.DefineMethod("removeItem", 1, args =>
+        {
+            if (args.Length > 0) removeItem(args[0].ToJsString());
+            return Undefined;
+        });
+
+        this.DefineMethod("clear", 0, _ =>
+        {
+            clear();
+            return Undefined;
+        });
+
+        this.DefineMethod("key", 1, args =>
+        {
+            if (args.Length > 0)
             {
-                if (args.Length >= 2)
-                    setItem(args[0].ToJsString(), args[1].ToJsString());
-                return Undefined;
-            }, 2)));
+                var idx = (int)args[0].ToNumber();
+                var result = key(idx);
+                return result is not null ? new JsString(result) : Null;
+            }
+            return Null;
+        });
 
-        DefineOwnProperty("removeItem", PropertyDescriptor.Data(
-            JsFunction.CreateNative("removeItem", (_, args) =>
-            {
-                if (args.Length > 0)
-                    removeItem(args[0].ToJsString());
-                return Undefined;
-            }, 1)));
-
-        DefineOwnProperty("clear", PropertyDescriptor.Data(
-            JsFunction.CreateNative("clear", (_, _) =>
-            {
-                clear();
-                return Undefined;
-            }, 0)));
-
-        DefineOwnProperty("key", PropertyDescriptor.Data(
-            JsFunction.CreateNative("key", (_, args) =>
-            {
-                if (args.Length > 0)
-                {
-                    var idx = (int)args[0].ToNumber();
-                    var result = key(idx);
-                    return result is not null ? new JsString(result) : Null;
-                }
-                return Null;
-            }, 1)));
-
-        DefineOwnProperty("length", PropertyDescriptor.Accessor(
-            JsFunction.CreateNative("get length", (_, _) => JsNumber.Create(getLength()), 0),
-            null, enumerable: true, configurable: true));
+        this.DefineGetter("length", () => JsNumber.Create(getLength()));
     }
 }

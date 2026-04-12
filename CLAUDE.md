@@ -45,7 +45,7 @@ dotnet run --project src/EcmaScript/SuperRender.EcmaScript.Repl  # Launch the JS
 - `HtmlParser` — state-machine tokenizer + tree builder with auto-closing rules and adoption agency algorithm
 - `CssParser` — tokenizer + parser with shorthand expansion (margin/padding/border/flex/flex-flow/border-radius)
 - `StyleResolver` — cascade, specificity, `!important`, global keywords (`initial`/`inherit`/`unset`/`revert`), inherited properties (color, font-size, font-family, font-weight, font-style, text-align, line-height, white-space, visibility, text-transform, letter-spacing, word-spacing, cursor, word-break, overflow-wrap, list-style-type), `hidden` attribute, box-sizing, min/max constraints, overflow, z-index, opacity, CSS font-family list parsing, `calc()`/`min()`/`max()`/`clamp()` evaluation, viewport units (vw/vh/vmin/vmax)
-- `LayoutEngine` — block layout, inline layout with word-wrap, anonymous block wrapping, inline-block layout, flexbox layout (`FlexLayout` with direction/wrap/justify/align/grow/shrink/basis/gap), position:relative/absolute, white-space modes, replaced element sizing for `<img>` with intrinsic dimensions and aspect ratio preservation
+- `LayoutEngine` — block layout, inline layout with word-wrap, anonymous block wrapping, inline-block layout, flexbox layout (`FlexLayout` with direction/wrap/justify/align/grow/shrink/basis/gap, decomposed into phases: collect items, wrap into lines, resolve sizes, position items), position:relative/absolute, white-space modes, replaced element sizing for `<img>` with intrinsic dimensions and aspect ratio preservation. `BoxDimensions` provides `HorizontalEdge`/`VerticalEdge`/`LeftEdge`/`TopEdge` helpers for margin+border+padding calculations.
 - `Painter` — generates FillRect/DrawText/DrawImage/PushClip/PopClip commands from layout tree, per-run inline background painting, text-decoration rendering, z-index ordering, overflow:hidden clipping, list markers, opacity compositing, visibility:hidden support, `<img>` alt text fallback
 - `SelectorMatcher` — CSS Selectors Level 4: descendant/child/adjacent-sibling/general-sibling combinators, attribute selectors, structural pseudo-classes (`:first-child`/`:last-child`/`:nth-child(An+B)`/`:only-child`/`:first-of-type`/etc.), functional pseudo-classes (`:not()`/`:is()`/`:where()`), dynamic pseudo-classes (`:hover`/`:focus`/`:active`/`:link`/`:visited`), pseudo-elements (`::before`/`::after`), `:root`/`:empty`
 - `SelectionPainter` — generates highlight FillRect commands for text selection ranges, font-aware width measurement
@@ -68,7 +68,7 @@ Pure C# image decoders in `SuperRender.Renderer.Image` (zero external dependenci
 - `BmpDecoder` — BMP (24-bit/32-bit uncompressed, bottom-up/top-down row order)
 - `JpegDecoder` — Baseline JPEG (SOF0, Huffman decode, IDCT, YCbCr→RGB, 4:4:4/4:2:0 subsampling)
 
-**Pipeline:** `ImageDecoder.Decode(byte[])` → auto-detects format → returns `ImageData { Width, Height, byte[] Pixels }` (RGBA, 4 bytes/pixel, row-major)
+**Pipeline:** `ImageDecoder.Decode(byte[])` → auto-detects format → returns `ImageData { Width, Height, byte[] Pixels }` (RGBA, 4 bytes/pixel, row-major). Hot decode paths use `Span<byte>`/`ReadOnlySpan<byte>` and `unsafe` fixed pointers for bounds-check elimination. `JpegDecoder.GpuYCbCrConverter` static callback enables optional GPU-accelerated YCbCr→RGBA conversion.
 
 **Integration:** `Tab.LoadImagesAsync()` fetches image bytes via `ResourceLoader.FetchImageBytesAsync()` (supports HTTP/file/data: URIs), decodes with `ImageDecoder`, stores in `ImageCache`, sets `data-natural-width`/`data-natural-height` attributes on `<img>` elements for layout sizing.
 
@@ -88,13 +88,15 @@ Pure C# image decoders in `SuperRender.Renderer.Image` (zero external dependenci
 - `JsGeneratorObject` — JS generator with next/return/throw, iterator protocol via Symbol.iterator
 - `JsEngine` — public API entry point, sandboxed .NET interop via `RegisterType<T>()`/`SetValue()`
 
-**Deferred features** tracked in `src/EcmaScript/SuperRender.EcmaScript.Compiler/es-2025-todos.md`: BigInt, WeakRef, SharedArrayBuffer, Intl, Temporal, decorators.
+**Deferred features** tracked in `docs/es-2025-todos.md`: BigInt, WeakRef, SharedArrayBuffer, Intl, Temporal, decorators.
 
-**Deferred CSS features** tracked in `src/Document/SuperRender.Document/css-todos.md`: grid, custom properties, transforms, transitions, animations, media queries, container queries, CSS nesting, and more.
+**Deferred CSS features** tracked in `docs/css-todos.md`: grid, custom properties, transforms, transitions, animations, media queries, container queries, CSS nesting, and more.
 
-**Deferred HTML features** tracked in `src/Document/SuperRender.Document/html-todos.md`: full WHATWG tokenizer states, forms, tables, embedded content, Shadow DOM, MutationObserver, and more.
+**Deferred HTML features** tracked in `docs/html-todos.md`: full WHATWG tokenizer states, forms, tables, embedded content, Shadow DOM, MutationObserver, and more.
 
-**Deferred browser features** tracked in `src/Browser/SuperRender.Browser/browser-todos.md`: page zoom, find-in-page, bookmarks, downloads, and more.
+**Deferred browser features** tracked in `docs/browser-todos.md`: page zoom, find-in-page, bookmarks, downloads, and more.
+
+**Deferred DOM binding features** tracked in `docs/es-2025-dom-todos.md`: full Web API coverage, typed arrays, workers, and more.
 
 ## EcmaScript Console
 
@@ -135,10 +137,15 @@ Node.js-style interactive REPL powered by the EcmaScript engine.
 - The `Document` class requires a `DomDocument` using alias in files under `SuperRender.Document.*` or `SuperRender.Renderer.*` namespaces due to namespace collision with the `SuperRender.Document` namespace segment
 - Embedded resource names are derived via reflection (`typeof(T).Assembly.GetName().Name`), never hardcoded — keeps resource lookup stable across project renames
 - CSS property name strings are centralized in `CssPropertyNames` (Style/ directory) — use constants, not string literals
+- HTML tag name strings are centralized in `HtmlTagNames` (Dom/ directory) — use constants, not string literals
+- HTML attribute name strings are centralized in `HtmlAttributeNames` (Dom/ directory) — use constants, not string literals
+- Style default values (font size, viewport dimensions) are centralized in `PropertyDefaults` — use constants, not magic numbers
+- DOM wrapper boilerplate uses `JsWrapperExtensions` helpers (`DefineMethod`, `DefineGetter`, `DefineGetterSetter`) — prefer these over raw `DefineOwnProperty` calls
 - Browser and Gpu projects use `Microsoft.Extensions.Logging` (ILogger); zero-dep projects keep Console.WriteLine
 - Inline HTML pages (welcome, error) are embedded resources in `Resources/` — not inline strings
 - DevTools is per-tab: each Tab owns its own DevToolsWindow; closing a tab closes its DevTools
 - JS errors surface line/column from `JsErrorBase` in ConsoleMessage and DevTools output
+- `RuntimeHelpers.SetLocation()` emits source line/column at statement boundaries in compiled JS code; `ExecutionContext.CurrentLine`/`CurrentColumn` (thread-static) provide location context for runtime error throws
 
 ### GPU-First Rendering
 
@@ -155,7 +162,10 @@ Prefer GPU rendering and compute over CPU wherever feasible:
 
 - `ComputePipelineManager` — creates Vulkan compute pipelines with SSBO descriptors and push constants
 - `IdctCompute` — orchestrates GPU-accelerated JPEG 8x8 IDCT: uploads DCT coefficients → dispatches compute shader → reads back pixel values. Falls back gracefully when compute pipeline is unavailable.
+- `YCbCrComputePipeline` — Vulkan compute pipeline with 4 SSBOs for YCbCr→RGBA color conversion
+- `YCbCrCompute` — orchestrates GPU-accelerated YCbCr→RGBA conversion: uploads per-pixel Y/Cb/Cr planes → dispatches compute shader → reads back RGBA pixels. `JpegDecoder.GpuYCbCrConverter` static callback enables GPU path while keeping Renderer.Image dependency-free.
 - `Shaders/idct.comp.glsl` — compute shader: 64 threads per workgroup process one 8x8 DCT block in parallel
+- `Shaders/ycbcr_to_rgba.comp.glsl` — compute shader: 256 threads per workgroup, each thread converts one pixel from YCbCr to RGBA
 - `ShaderCompiler` supports `"comp"` stage (shaderc kind 5) via `LoadOrCompileComputeShader()`
 
 ## Browser
@@ -229,6 +239,7 @@ Bridges C# DOM objects to the JS runtime with correct Web API naming conventions
 - `JsStorageWrapper` — wraps `localStorage`/`sessionStorage`
 - `TimerScheduler` — monotonic timer queue: setTimeout/setInterval/requestAnimationFrame with real delays, drained per frame
 - `NodeWrapperCache` — ConditionalWeakTable for 1:1 C# node ↔ JS wrapper identity, event handler mapping for removeEventListener
+- `JsWrapperExtensions` — extension methods (`DefineMethod`/`DefineGetter`/`DefineGetterSetter`) that reduce boilerplate in all wrapper classes
 
 ## Gpu Rendering Infrastructure
 

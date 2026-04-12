@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Runtime.InteropServices;
 using Silk.NET.Vulkan;
 using Buffer = Silk.NET.Vulkan.Buffer;
@@ -208,20 +209,23 @@ public sealed unsafe class BufferManager : IDisposable
         foreach (var r in regions)
             totalBytes += r.Width * r.Height;
 
-        // Build staging data: pack dirty region pixels contiguously
-        var stagingData = new byte[totalBytes];
-        long offset = 0;
-        foreach (var r in regions)
+        // Build staging data: pack dirty region pixels contiguously using pooled buffer
+        var stagingData = ArrayPool<byte>.Shared.Rent((int)totalBytes);
+        try
         {
-            for (int row = 0; row < r.Height; row++)
+            long offset = 0;
+            ReadOnlySpan<byte> srcPixels = pixels;
+            foreach (var r in regions)
             {
-                int srcStart = (r.Y + row) * atlasWidth + r.X;
-                Array.Copy(pixels, srcStart, stagingData, offset, r.Width);
-                offset += r.Width;
+                for (int row = 0; row < r.Height; row++)
+                {
+                    int srcStart = (r.Y + row) * atlasWidth + r.X;
+                    srcPixels.Slice(srcStart, r.Width).CopyTo(stagingData.AsSpan((int)offset, r.Width));
+                    offset += r.Width;
+                }
             }
-        }
 
-        var (stagingBuffer, stagingMemory) = CreateStagingBuffer(stagingData.AsSpan());
+            var (stagingBuffer, stagingMemory) = CreateStagingBuffer(stagingData.AsSpan(0, (int)totalBytes));
 
         var cmdPool = CreateTransientCommandPool();
         var cmd = BeginSingleTimeCommands(cmdPool);
@@ -292,6 +296,11 @@ public sealed unsafe class BufferManager : IDisposable
         // Cleanup staging
         _ctx.Vk.DestroyBuffer(_ctx.Device, stagingBuffer, null);
         _ctx.Vk.FreeMemory(_ctx.Device, stagingMemory, null);
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(stagingData);
+        }
     }
 
     #endregion
