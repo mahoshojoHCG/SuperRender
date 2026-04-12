@@ -154,6 +154,7 @@ public sealed partial class Parser
             TokenType.QuestionQuestionAssign => PrecAssignment,
 
             TokenType.QuestionMark => PrecConditional,
+            TokenType.Pipeline => PrecConditional,
             TokenType.QuestionQuestion => PrecNullishCoalescing,
             TokenType.PipePipe => PrecLogicalOr,
             TokenType.AmpersandAmpersand => PrecLogicalAnd,

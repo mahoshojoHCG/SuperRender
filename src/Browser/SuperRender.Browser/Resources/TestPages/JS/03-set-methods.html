@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head><title>Set Methods Tests</title></head>
+<body>
+<h1>Set Methods Manual Tests</h1>
+<pre id="output"></pre>
+<script>
+const out = document.getElementById('output');
+function test(id, desc, fn) {
+    try {
+        const result = fn();
+        out.textContent += `${id}: ${desc} => ${result}\n`;
+    } catch (e) {
+        out.textContent += `${id}: ${desc} => ERROR: ${e.message}\n`;
+    }
+}
+
+const a = new Set([1, 2, 3]);
+const b = new Set([3, 4, 5]);
+
+test('3a', 'union size', () => a.union(b).size);
+test('3b', 'intersection', () => [...a.intersection(b)].join(','));
+test('3c', 'difference', () => [...a.difference(b)].join(','));
+test('3d', 'symmetricDifference', () => [...a.symmetricDifference(b)].join(','));
+test('3e', 'isSubsetOf', () => new Set([1,2]).isSubsetOf(a));
+test('3f', 'isSupersetOf', () => a.isSupersetOf(new Set([1,2])));
+test('3g', 'isDisjointFrom', () => new Set([10,20]).isDisjointFrom(a));
+</script>
+</body>
+</html>

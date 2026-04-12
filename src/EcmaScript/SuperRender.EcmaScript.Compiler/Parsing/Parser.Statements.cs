@@ -28,6 +28,7 @@ public sealed partial class Parser
             TokenType.Continue => ParseContinueStatement(),
             TokenType.Semicolon => ParseEmptyStatement(),
             TokenType.Debugger => ParseDebuggerStatement(),
+            TokenType.With => ParseWithStatement(),
             _ => ParseExpressionOrLabeledStatement()
         };
     }
@@ -62,6 +63,17 @@ public sealed partial class Parser
             Expression = new Identifier { Name = "debugger", Location = loc },
             Location = loc
         };
+    }
+
+    private WithStatement ParseWithStatement()
+    {
+        var loc = Loc();
+        Advance(); // skip 'with'
+        Expect(TokenType.LeftParen);
+        var obj = ParseExpression();
+        Expect(TokenType.RightParen);
+        var body = ParseStatement();
+        return new WithStatement { Object = obj, Body = body, Location = loc };
     }
 
     private IfStatement ParseIfStatement()

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head><title>Temporal Tests</title></head>
+<body>
+<h1>Temporal API Manual Tests</h1>
+<pre id="output"></pre>
+<script>
+const out = document.getElementById('output');
+function test(id, desc, fn) {
+    try {
+        out.textContent += `${id}: ${desc} => ${fn()}\n`;
+    } catch (e) {
+        out.textContent += `${id}: ${desc} => ERROR: ${e.message}\n`;
+    }
+}
+
+test('13a', 'PlainDate.from', () => {
+    const d = Temporal.PlainDate.from("2024-01-15");
+    return `${d.year}-${d.month}-${d.day}`;
+});
+
+test('13b', 'PlainDate.add', () => {
+    const d = Temporal.PlainDate.from("2024-01-15");
+    const d2 = d.add({ days: 10 });
+    return d2.toString();
+});
+
+test('13c', 'Now.plainDateISO', () => {
+    const d = Temporal.Now.plainDateISO();
+    return typeof d.year + ' ' + typeof d.month;
+});
+
+test('13d', 'Instant.fromEpochMilliseconds', () => {
+    const i = Temporal.Instant.fromEpochMilliseconds(0);
+    return i.toString();
+});
+</script>
+</body>
+</html>

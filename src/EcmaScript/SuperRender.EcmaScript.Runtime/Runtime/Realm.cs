@@ -22,6 +22,23 @@ public sealed class Realm
     public JsObject PromisePrototype { get; private set; } = null!;
     public JsObject IteratorPrototype { get; private set; } = null!;
     public JsObject GeneratorPrototype { get; private set; } = null!;
+    public JsObject BigIntPrototype { get; private set; } = null!;
+    public JsObject WeakRefPrototype { get; private set; } = null!;
+    public JsObject FinalizationRegistryPrototype { get; private set; } = null!;
+    public JsObject ArrayBufferPrototype { get; private set; } = null!;
+    public JsObject SharedArrayBufferPrototype { get; private set; } = null!;
+
+    /// <summary>
+    /// Factory for dynamic Function() construction. Set by JsEngine.
+    /// Accepts (paramNames[], bodySource) and returns a JsFunction.
+    /// </summary>
+    public Func<string[], string, JsFunction>? FunctionFactory { get; set; }
+
+    /// <summary>
+    /// Factory for eval(). Set by JsEngine.
+    /// Accepts source code and the target realm, returns the evaluation result.
+    /// </summary>
+    public Func<string, Realm, JsValue>? EvalFactory { get; set; }
 
     public Realm()
     {
@@ -48,6 +65,11 @@ public sealed class Realm
         PromisePrototype = new JsObject { Prototype = ObjectPrototype };
         IteratorPrototype = new JsObject { Prototype = ObjectPrototype };
         GeneratorPrototype = new JsObject { Prototype = IteratorPrototype };
+        BigIntPrototype = new JsObject { Prototype = ObjectPrototype };
+        WeakRefPrototype = new JsObject { Prototype = ObjectPrototype };
+        FinalizationRegistryPrototype = new JsObject { Prototype = ObjectPrototype };
+        ArrayBufferPrototype = new JsObject { Prototype = ObjectPrototype };
+        SharedArrayBufferPrototype = new JsObject { Prototype = ObjectPrototype };
 
         // Generator prototype methods: next, return, throw
         GeneratorPrototype.DefineOwnProperty("next", PropertyDescriptor.Data(

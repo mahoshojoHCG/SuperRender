@@ -73,6 +73,46 @@ public static class ArrayConstructor
             return result;
         }, 0);
 
+        BuiltinHelper.DefineMethod(ctor, "fromAsync", (_, args) =>
+        {
+            var items = BuiltinHelper.Arg(args, 0);
+            var mapFn = BuiltinHelper.Arg(args, 1) as JsFunction;
+
+            // Return a promise that resolves to the array
+            var promise = new JsPromiseObject { Prototype = realm.PromisePrototype };
+
+            try
+            {
+                var result = new JsArray { Prototype = realm.ArrayPrototype };
+
+                if (items is JsArray srcArr)
+                {
+                    for (var i = 0; i < srcArr.DenseLength; i++)
+                    {
+                        var val = srcArr.GetIndex(i);
+                        result.Push(mapFn is not null ? mapFn.Call(JsValue.Undefined, [val, JsNumber.Create(i)]) : val);
+                    }
+                }
+                else if (items is JsObject obj)
+                {
+                    var len = BuiltinHelper.GetLength(obj);
+                    for (var i = 0; i < len; i++)
+                    {
+                        var val = obj.Get(i.ToString(CultureInfo.InvariantCulture));
+                        result.Push(mapFn is not null ? mapFn.Call(JsValue.Undefined, [val, JsNumber.Create(i)]) : val);
+                    }
+                }
+
+                PromiseConstructor.ResolvePromise(promise, result, realm);
+            }
+            catch (Exception ex) when (ex is Errors.JsErrorBase jsErr)
+            {
+                PromiseConstructor.RejectPromise(promise, new JsString(jsErr.Message));
+            }
+
+            return promise;
+        }, 1);
+
         // --- Prototype methods ---
 
         BuiltinHelper.DefineProperty(proto, "constructor", ctor);

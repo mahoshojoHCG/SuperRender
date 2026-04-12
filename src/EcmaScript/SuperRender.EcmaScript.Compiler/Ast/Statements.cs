@@ -104,3 +104,9 @@ public sealed class LabeledStatement : SyntaxNode
     public required string Label { get; init; }
     public required SyntaxNode Body { get; init; }
 }
+
+public sealed class WithStatement : SyntaxNode
+{
+    public required SyntaxNode Object { get; init; }
+    public required SyntaxNode Body { get; init; }
+}

@@ -6,6 +6,7 @@
 #pragma warning disable CA1859, CA1822
 
 using System.Globalization;
+using System.Numerics;
 using SuperRender.EcmaScript.Compiler.Ast;
 using SuperRender.EcmaScript.Runtime.Errors;
 using SuperRender.EcmaScript.Runtime;
@@ -37,6 +38,9 @@ public sealed partial class JsCompiler
             long l => Expr.Call(
                 typeof(JsNumber).GetMethod(nameof(JsNumber.Create), [typeof(double)])!,
                 Expr.Constant((double)l)),
+            BigInteger bi => Expr.Call(
+                typeof(JsBigInt).GetMethod(nameof(JsBigInt.Create), [typeof(BigInteger)])!,
+                Expr.Constant(bi, typeof(BigInteger))),
             string s => Expr.Convert(
                 Expr.New(
                     typeof(JsString).GetConstructor([typeof(string)])!,
@@ -48,8 +52,21 @@ public sealed partial class JsCompiler
 
     private Expr CompileBinary(BinaryExpression node)
     {
-        var left = CompileNode(node.Left);
-        var right = CompileNode(node.Right);
+        // Pipeline operator: left |> right  =>  right(left)
+        if (node.Operator == "|>")
+        {
+            var left = CompileNode(node.Left);
+            var right = CompileNode(node.Right);
+            var argsArray = Expr.NewArrayInit(typeof(JsValue), EnsureJsValue(left));
+            return Expr.Call(
+                typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CallFunction))!,
+                EnsureJsValue(right),
+                Expr.Constant(JsValue.Undefined, typeof(JsValue)),
+                argsArray);
+        }
+
+        var leftExpr = CompileNode(node.Left);
+        var rightExpr = CompileNode(node.Right);
 
         string methodName = node.Operator switch
         {
@@ -80,8 +97,8 @@ public sealed partial class JsCompiler
 
         return Expr.Call(
             typeof(RuntimeHelpers).GetMethod(methodName, [typeof(JsValue), typeof(JsValue)])!,
-            EnsureJsValue(left),
-            EnsureJsValue(right));
+            EnsureJsValue(leftExpr),
+            EnsureJsValue(rightExpr));
     }
 
     private Expr CompileLogical(LogicalExpression node)

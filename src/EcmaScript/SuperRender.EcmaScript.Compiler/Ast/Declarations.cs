@@ -90,6 +90,7 @@ public sealed class ImportDeclaration : SyntaxNode
 {
     public required IReadOnlyList<SyntaxNode> Specifiers { get; init; }
     public required Literal Source { get; init; }
+    public Dictionary<string, string>? Assertions { get; init; }
 }
 
 public sealed class ImportSpecifier : SyntaxNode

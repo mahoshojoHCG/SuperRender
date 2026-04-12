@@ -145,6 +145,37 @@ public static class MapConstructor
             return BuiltinHelper.CreateListIterator(items, realm);
         }, 0);
 
+        // Static methods
+        BuiltinHelper.DefineMethod(ctor, "groupBy", (_, args) =>
+        {
+            var iterable = BuiltinHelper.Arg(args, 0);
+            var callback = BuiltinHelper.Arg(args, 1);
+            if (callback is not JsFunction callbackFn)
+            {
+                throw new Errors.JsTypeError("callback must be a function", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
+            }
+
+            var map = new JsMapObject { Prototype = realm.MapPrototype };
+            if (iterable is JsArray arr)
+            {
+                for (var i = 0; i < arr.DenseLength; i++)
+                {
+                    var value = arr.GetIndex(i);
+                    var key = callbackFn.Call(JsValue.Undefined, [value, JsNumber.Create(i)]);
+                    var group = map.MapGet(key);
+                    if (group is JsUndefined)
+                    {
+                        group = new JsArray { Prototype = realm.ArrayPrototype };
+                        map.MapSet(key, group);
+                    }
+
+                    ((JsArray)group).Push(value);
+                }
+            }
+
+            return map;
+        }, 2);
+
         // Symbol.iterator => entries
         var entriesMethod = proto.Get("entries");
         proto.DefineSymbolProperty(JsSymbol.Iterator,

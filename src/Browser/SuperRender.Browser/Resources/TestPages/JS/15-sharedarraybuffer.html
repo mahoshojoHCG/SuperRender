@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head><title>SharedArrayBuffer / Atomics Tests</title></head>
+<body>
+<h1>SharedArrayBuffer / Atomics Manual Tests</h1>
+<pre id="output"></pre>
+<script>
+const out = document.getElementById('output');
+function test(id, desc, fn) {
+    try {
+        out.textContent += `${id}: ${desc} => ${fn()}\n`;
+    } catch (e) {
+        out.textContent += `${id}: ${desc} => ERROR: ${e.message}\n`;
+    }
+}
+
+test('15a', 'SharedArrayBuffer(16)', () => {
+    const sab = new SharedArrayBuffer(16);
+    return 'byteLength=' + sab.byteLength;
+});
+
+test('15b', 'Atomics store/load', () => {
+    const sab = new SharedArrayBuffer(16);
+    const view = new Int32Array(sab);
+    Atomics.store(view, 0, 42);
+    return Atomics.load(view, 0);
+});
+
+test('15c', 'Atomics.compareExchange', () => {
+    const sab = new SharedArrayBuffer(16);
+    const view = new Int32Array(sab);
+    Atomics.store(view, 0, 10);
+    const old = Atomics.compareExchange(view, 0, 10, 20);
+    return 'old=' + old + ', new=' + Atomics.load(view, 0);
+});
+</script>
+</body>
+</html>

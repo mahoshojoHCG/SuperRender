@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head><title>Decorator Tests</title></head>
+<body>
+<h1>Decorator Manual Tests</h1>
+<pre id="output"></pre>
+<script>
+const out = document.getElementById('output');
+function log(msg) { out.textContent += msg + '\n'; }
+
+log('Note: Decorators are Stage 3 and may not be supported yet.');
+log('If decorators are implemented, the following tests should work:');
+log('');
+log('11a: @logged class decorator');
+log('11b: @bound method decorator');
+log('11c: Multiple decorators applied bottom-up');
+</script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head><title>BigInt Tests</title></head>
+<body>
+<h1>BigInt Manual Tests</h1>
+<pre id="output"></pre>
+<script>
+const out = document.getElementById('output');
+function test(id, desc, fn) {
+    try {
+        const result = fn();
+        out.textContent += `${id}: ${desc} => ${result}\n`;
+    } catch (e) {
+        out.textContent += `${id}: ${desc} => ERROR: ${e.message}\n`;
+    }
+}
+
+test('1a', 'typeof 123n', () => typeof 123n);
+test('1b', '123n + 456n', () => 123n + 456n);
+test('1c', '2n ** 64n', () => 2n ** 64n);
+test('1d', '123n + 1 (TypeError)', () => { try { return 123n + 1; } catch(e) { return 'TypeError: ' + e.message; } });
+test('1e', '123n === 123n', () => 123n === 123n);
+test('1f', '123n == 123', () => 123n == 123);
+test('1g', 'BigInt("999")', () => BigInt("999"));
+test('1h', '0x1An (hex)', () => 0x1An);
+</script>
+</body>
+</html>

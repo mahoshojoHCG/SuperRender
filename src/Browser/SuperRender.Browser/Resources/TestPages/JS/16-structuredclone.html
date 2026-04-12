@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head><title>structuredClone Tests</title></head>
+<body>
+<h1>structuredClone Manual Tests</h1>
+<pre id="output"></pre>
+<script>
+const out = document.getElementById('output');
+function test(id, desc, fn) {
+    try {
+        out.textContent += `${id}: ${desc} => ${fn()}\n`;
+    } catch (e) {
+        out.textContent += `${id}: ${desc} => ERROR: ${e.message}\n`;
+    }
+}
+
+test('16a', 'Deep clone object', () => {
+    const o = { a: 1, b: { c: 2 } };
+    const c = structuredClone(o);
+    c.b.c = 99;
+    return 'original.b.c=' + o.b.c + ', clone.b.c=' + c.b.c;
+});
+
+test('16b', 'Clone array with objects', () => {
+    const o = [{ x: 1 }, { x: 2 }];
+    const c = structuredClone(o);
+    return 'independent: ' + (c[0] !== o[0]);
+});
+
+test('16c', 'Circular reference', () => {
+    const o = { a: 1 };
+    o.self = o;
+    const c = structuredClone(o);
+    return 'circular preserved: ' + (c.self === c) + ', independent: ' + (c !== o);
+});
+
+test('16d', 'Function throws', () => {
+    try { structuredClone(() => {}); return 'no error'; }
+    catch (e) { return 'TypeError: ' + e.message; }
+});
+
+test('16e', 'Clone Set', () => {
+    const s = new Set([1, 2, 3]);
+    const c = structuredClone(s);
+    return 'size=' + c.size + ', independent=' + (c !== s);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head><title>Iterator Helpers Tests</title></head>
+<body>
+<h1>Iterator Helpers Manual Tests</h1>
+<pre id="output"></pre>
+<script>
+const out = document.getElementById('output');
+function test(id, desc, fn) {
+    try {
+        const result = fn();
+        out.textContent += `${id}: ${desc} => ${JSON.stringify(result)}\n`;
+    } catch (e) {
+        out.textContent += `${id}: ${desc} => ERROR: ${e.message}\n`;
+    }
+}
+
+test('2a', 'map x*2', () => Iterator.from([1,2,3]).map(x => x*2).toArray());
+test('2b', 'filter > 2', () => Iterator.from([1,2,3,4,5]).filter(x => x > 2).toArray());
+test('2c', 'take 3', () => Iterator.from([1,2,3,4,5]).take(3).toArray());
+test('2d', 'drop 2', () => Iterator.from([1,2,3,4,5]).drop(2).toArray());
+test('2e', 'chain filter.map.take', () =>
+    Iterator.from([1,2,3,4,5,6,7,8,9,10])
+        .filter(x => x % 2 === 0)
+        .map(x => x * 10)
+        .take(3)
+        .toArray());
+test('2f', 'reduce sum', () => Iterator.from([1,2,3,4,5]).reduce((a,b) => a+b, 0));
+
+function* infinite() { let i = 0; while(true) yield i++; }
+test('2g', 'infinite gen take 10', () => Iterator.from(infinite()).take(10).toArray());
+</script>
+</body>
+</html>

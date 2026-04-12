@@ -6,6 +6,7 @@
 #pragma warning disable CA1859, CA1822
 
 using System.Globalization;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using SuperRender.EcmaScript.Compiler.Ast;
 using SuperRender.EcmaScript.Runtime.Builtins;
@@ -134,6 +135,7 @@ public sealed partial class JsCompiler
         BreakStatement bs => CompileBreak(bs),
         ContinueStatement cs => CompileContinue(cs),
         LabeledStatement ls => CompileLabeledStatement(ls),
+        WithStatement => throw new Runtime.Errors.JsSyntaxError("'with' statement is not allowed in strict mode", node.Location?.Line ?? 0, node.Location?.Column ?? 0),
         VariableDeclaration vd => CompileVariableDeclaration(vd),
         FunctionDeclaration fd => CompileFunctionDecl(fd),
         ClassDeclaration cd => CompileClassDecl(cd),
@@ -197,6 +199,23 @@ public static class RuntimeHelpers
         var l = left.ToPrimitive();
         var r = right.ToPrimitive();
 
+        if (l is JsBigInt lb && r is JsBigInt rb)
+        {
+            return JsBigInt.Create(lb.Value + rb.Value);
+        }
+
+        if (l is JsBigInt || r is JsBigInt)
+        {
+            // BigInt + String => concatenation
+            if (l is JsString || r is JsString)
+            {
+                return new JsString(l.ToJsString() + r.ToJsString());
+            }
+
+            throw new JsTypeError("Cannot mix BigInt and other types, use explicit conversions",
+                Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
+        }
+
         if (l is JsString || r is JsString)
         {
             return new JsString(l.ToJsString() + r.ToJsString());
@@ -205,20 +224,70 @@ public static class RuntimeHelpers
         return JsNumber.Create(l.ToNumber() + r.ToNumber());
     }
 
-    public static JsValue Sub(JsValue left, JsValue right) =>
-        JsNumber.Create(left.ToNumber() - right.ToNumber());
+    public static JsValue Sub(JsValue left, JsValue right)
+    {
+        if (left is JsBigInt lb && right is JsBigInt rb)
+            return JsBigInt.Create(lb.Value - rb.Value);
+        if (left is JsBigInt || right is JsBigInt)
+            throw new JsTypeError("Cannot mix BigInt and other types, use explicit conversions",
+                Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
+        return JsNumber.Create(left.ToNumber() - right.ToNumber());
+    }
 
-    public static JsValue Mul(JsValue left, JsValue right) =>
-        JsNumber.Create(left.ToNumber() * right.ToNumber());
+    public static JsValue Mul(JsValue left, JsValue right)
+    {
+        if (left is JsBigInt lb && right is JsBigInt rb)
+            return JsBigInt.Create(lb.Value * rb.Value);
+        if (left is JsBigInt || right is JsBigInt)
+            throw new JsTypeError("Cannot mix BigInt and other types, use explicit conversions",
+                Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
+        return JsNumber.Create(left.ToNumber() * right.ToNumber());
+    }
 
-    public static JsValue Div(JsValue left, JsValue right) =>
-        JsNumber.Create(left.ToNumber() / right.ToNumber());
+    public static JsValue Div(JsValue left, JsValue right)
+    {
+        if (left is JsBigInt lb && right is JsBigInt rb)
+        {
+            if (rb.Value.IsZero)
+                throw new JsRangeError("Division by zero",
+                    Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
+            return JsBigInt.Create(BigInteger.Divide(lb.Value, rb.Value));
+        }
+        if (left is JsBigInt || right is JsBigInt)
+            throw new JsTypeError("Cannot mix BigInt and other types, use explicit conversions",
+                Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
+        return JsNumber.Create(left.ToNumber() / right.ToNumber());
+    }
 
-    public static JsValue Mod(JsValue left, JsValue right) =>
-        JsNumber.Create(left.ToNumber() % right.ToNumber());
+    public static JsValue Mod(JsValue left, JsValue right)
+    {
+        if (left is JsBigInt lb && right is JsBigInt rb)
+        {
+            if (rb.Value.IsZero)
+                throw new JsRangeError("Division by zero",
+                    Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
+            return JsBigInt.Create(BigInteger.Remainder(lb.Value, rb.Value));
+        }
+        if (left is JsBigInt || right is JsBigInt)
+            throw new JsTypeError("Cannot mix BigInt and other types, use explicit conversions",
+                Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
+        return JsNumber.Create(left.ToNumber() % right.ToNumber());
+    }
 
-    public static JsValue Power(JsValue left, JsValue right) =>
-        JsNumber.Create(Math.Pow(left.ToNumber(), right.ToNumber()));
+    public static JsValue Power(JsValue left, JsValue right)
+    {
+        if (left is JsBigInt lb && right is JsBigInt rb)
+        {
+            if (rb.Value < 0)
+                throw new JsRangeError("Exponent must be positive",
+                    Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
+            return JsBigInt.Create(BigInteger.Pow(lb.Value, (int)rb.Value));
+        }
+        if (left is JsBigInt || right is JsBigInt)
+            throw new JsTypeError("Cannot mix BigInt and other types, use explicit conversions",
+                Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
+        return JsNumber.Create(Math.Pow(left.ToNumber(), right.ToNumber()));
+    }
 
     // ───────────────────────── Comparison ─────────────────────────
 
@@ -242,6 +311,20 @@ public static class RuntimeHelpers
         var l = left.ToPrimitive("number");
         var r = right.ToPrimitive("number");
 
+        // BigInt comparisons
+        if (l is JsBigInt lb && r is JsBigInt rb)
+            return lb.Value < rb.Value ? JsValue.True : JsValue.False;
+        if (l is JsBigInt lbi && r is JsNumber rn2)
+        {
+            if (double.IsNaN(rn2.Value)) return JsValue.Undefined;
+            return (double)lbi.Value < rn2.Value ? JsValue.True : JsValue.False;
+        }
+        if (l is JsNumber ln2 && r is JsBigInt rbi)
+        {
+            if (double.IsNaN(ln2.Value)) return JsValue.Undefined;
+            return ln2.Value < (double)rbi.Value ? JsValue.True : JsValue.False;
+        }
+
         if (l is JsString ls && r is JsString rs)
         {
             return string.Compare(ls.Value, rs.Value, StringComparison.Ordinal) < 0
@@ -259,6 +342,20 @@ public static class RuntimeHelpers
     {
         var l = left.ToPrimitive("number");
         var r = right.ToPrimitive("number");
+
+        // BigInt comparisons
+        if (l is JsBigInt lb && r is JsBigInt rb)
+            return lb.Value > rb.Value ? JsValue.True : JsValue.False;
+        if (l is JsBigInt lbi && r is JsNumber rn2)
+        {
+            if (double.IsNaN(rn2.Value)) return JsValue.Undefined;
+            return (double)lbi.Value > rn2.Value ? JsValue.True : JsValue.False;
+        }
+        if (l is JsNumber ln2 && r is JsBigInt rbi)
+        {
+            if (double.IsNaN(ln2.Value)) return JsValue.Undefined;
+            return ln2.Value > (double)rbi.Value ? JsValue.True : JsValue.False;
+        }
 
         if (l is JsString ls && r is JsString rs)
         {
@@ -289,23 +386,63 @@ public static class RuntimeHelpers
 
     // ───────────────────────── Bitwise ─────────────────────────
 
-    public static JsValue BitwiseAnd(JsValue left, JsValue right) =>
-        JsNumber.Create(ToInt32(left) & ToInt32(right));
+    public static JsValue BitwiseAnd(JsValue left, JsValue right)
+    {
+        if (left is JsBigInt lb && right is JsBigInt rb)
+            return JsBigInt.Create(lb.Value & rb.Value);
+        if (left is JsBigInt || right is JsBigInt)
+            throw new JsTypeError("Cannot mix BigInt and other types, use explicit conversions",
+                Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
+        return JsNumber.Create(ToInt32(left) & ToInt32(right));
+    }
 
-    public static JsValue BitwiseOr(JsValue left, JsValue right) =>
-        JsNumber.Create(ToInt32(left) | ToInt32(right));
+    public static JsValue BitwiseOr(JsValue left, JsValue right)
+    {
+        if (left is JsBigInt lb && right is JsBigInt rb)
+            return JsBigInt.Create(lb.Value | rb.Value);
+        if (left is JsBigInt || right is JsBigInt)
+            throw new JsTypeError("Cannot mix BigInt and other types, use explicit conversions",
+                Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
+        return JsNumber.Create(ToInt32(left) | ToInt32(right));
+    }
 
-    public static JsValue BitwiseXor(JsValue left, JsValue right) =>
-        JsNumber.Create(ToInt32(left) ^ ToInt32(right));
+    public static JsValue BitwiseXor(JsValue left, JsValue right)
+    {
+        if (left is JsBigInt lb && right is JsBigInt rb)
+            return JsBigInt.Create(lb.Value ^ rb.Value);
+        if (left is JsBigInt || right is JsBigInt)
+            throw new JsTypeError("Cannot mix BigInt and other types, use explicit conversions",
+                Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
+        return JsNumber.Create(ToInt32(left) ^ ToInt32(right));
+    }
 
-    public static JsValue LeftShift(JsValue left, JsValue right) =>
-        JsNumber.Create(ToInt32(left) << (ToInt32(right) & 0x1F));
+    public static JsValue LeftShift(JsValue left, JsValue right)
+    {
+        if (left is JsBigInt lb && right is JsBigInt rb)
+            return JsBigInt.Create(lb.Value << (int)rb.Value);
+        if (left is JsBigInt || right is JsBigInt)
+            throw new JsTypeError("Cannot mix BigInt and other types, use explicit conversions",
+                Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
+        return JsNumber.Create(ToInt32(left) << (ToInt32(right) & 0x1F));
+    }
 
-    public static JsValue RightShift(JsValue left, JsValue right) =>
-        JsNumber.Create(ToInt32(left) >> (ToInt32(right) & 0x1F));
+    public static JsValue RightShift(JsValue left, JsValue right)
+    {
+        if (left is JsBigInt lb && right is JsBigInt rb)
+            return JsBigInt.Create(lb.Value >> (int)rb.Value);
+        if (left is JsBigInt || right is JsBigInt)
+            throw new JsTypeError("Cannot mix BigInt and other types, use explicit conversions",
+                Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
+        return JsNumber.Create(ToInt32(left) >> (ToInt32(right) & 0x1F));
+    }
 
-    public static JsValue UnsignedRightShift(JsValue left, JsValue right) =>
-        JsNumber.Create((double)(ToUint32(left) >> (ToInt32(right) & 0x1F)));
+    public static JsValue UnsignedRightShift(JsValue left, JsValue right)
+    {
+        if (left is JsBigInt || right is JsBigInt)
+            throw new JsTypeError("Cannot use unsigned right shift on BigInt",
+                Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
+        return JsNumber.Create((double)(ToUint32(left) >> (ToInt32(right) & 0x1F)));
+    }
 
     // ───────────────────────── Unary ─────────────────────────
 
@@ -324,14 +461,27 @@ public static class RuntimeHelpers
     public static JsValue Not(JsValue value) =>
         value.ToBoolean() ? JsValue.False : JsValue.True;
 
-    public static JsValue Negate(JsValue value) =>
-        JsNumber.Create(-value.ToNumber());
+    public static JsValue Negate(JsValue value)
+    {
+        if (value is JsBigInt bi)
+            return JsBigInt.Create(-bi.Value);
+        return JsNumber.Create(-value.ToNumber());
+    }
 
-    public static JsValue Plus(JsValue value) =>
-        JsNumber.Create(value.ToNumber());
+    public static JsValue Plus(JsValue value)
+    {
+        if (value is JsBigInt)
+            throw new JsTypeError("Cannot convert a BigInt value to a number",
+                Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
+        return JsNumber.Create(value.ToNumber());
+    }
 
-    public static JsValue BitwiseNot(JsValue value) =>
-        JsNumber.Create(~ToInt32(value));
+    public static JsValue BitwiseNot(JsValue value)
+    {
+        if (value is JsBigInt bi)
+            return JsBigInt.Create(~bi.Value);
+        return JsNumber.Create(~ToInt32(value));
+    }
 
     public static JsValue Void(JsValue _) => JsValue.Undefined;
 
@@ -426,6 +576,16 @@ public static class RuntimeHelpers
             if (CurrentRealm?.BooleanPrototype is { } boolProto)
             {
                 var method = boolProto.Get(name);
+                if (method is not JsUndefined) return method;
+            }
+        }
+
+        // Primitive autoboxing for BigInts
+        if (obj is JsBigInt)
+        {
+            if (CurrentRealm?.BigIntPrototype is { } bigintProto)
+            {
+                var method = bigintProto.Get(name);
                 if (method is not JsUndefined) return method;
             }
         }

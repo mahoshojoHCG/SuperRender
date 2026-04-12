@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head><title>Object.groupBy / Map.groupBy Tests</title></head>
+<body>
+<h1>groupBy Manual Tests</h1>
+<pre id="output"></pre>
+<script>
+const out = document.getElementById('output');
+function test(id, desc, fn) {
+    try {
+        const result = fn();
+        out.textContent += `${id}: ${desc} => ${JSON.stringify(result)}\n`;
+    } catch (e) {
+        out.textContent += `${id}: ${desc} => ERROR: ${e.message}\n`;
+    }
+}
+
+test('5a', 'Object.groupBy odd/even', () => {
+    const g = Object.groupBy([1,2,3,4,5], x => x % 2 ? 'odd' : 'even');
+    return { odd: g.odd, even: g.even };
+});
+
+test('5b', 'Map.groupBy with object keys', () => {
+    const k1 = { type: 'a' };
+    const k2 = { type: 'b' };
+    const m = Map.groupBy([1,2,3], v => v <= 2 ? k1 : k2);
+    return { aSize: m.get(k1).length, bSize: m.get(k2).length };
+});
+
+test('5c', 'Empty array', () => Object.groupBy([], x => x));
+</script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head><title>RegExp Features Tests</title></head>
+<body>
+<h1>RegExp Features Manual Tests</h1>
+<pre id="output"></pre>
+<script>
+const out = document.getElementById('output');
+function test(id, desc, fn) {
+    try {
+        out.textContent += `${id}: ${desc} => ${JSON.stringify(fn())}\n`;
+    } catch (e) {
+        out.textContent += `${id}: ${desc} => ERROR: ${e.message}\n`;
+    }
+}
+
+test('7a', 'Named group year', () => {
+    const m = /(?<year>\d{4})-(?<month>\d{2})/.exec('2024-01');
+    return { year: m.groups.year, month: m.groups.month };
+});
+
+test('7b', '/d flag indices', () => {
+    const m = /(\w+)/d.exec('hello world');
+    return m.indices[1];
+});
+
+test('7c', 'Lookbehind', () => /(?<=\$)\d+/.exec('Price: $42').toString());
+test('7d', 'Unicode property', () => /\p{Lu}+/u.exec('Hello').toString());
+</script>
+</body>
+</html>

@@ -128,6 +128,31 @@ public static class PromiseConstructor
             return promise;
         }, 1);
 
+        BuiltinHelper.DefineMethod(ctor, "withResolvers", (_, _) =>
+        {
+            var promise = new JsPromiseObject { Prototype = realm.PromisePrototype };
+
+            var resolveFn = JsFunction.CreateNative("resolve", (_, resolveArgs) =>
+            {
+                var value = BuiltinHelper.Arg(resolveArgs, 0);
+                ResolvePromise(promise, value, realm);
+                return JsValue.Undefined;
+            }, 1);
+
+            var rejectFn = JsFunction.CreateNative("reject", (_, rejectArgs) =>
+            {
+                var reason = BuiltinHelper.Arg(rejectArgs, 0);
+                RejectPromise(promise, reason);
+                return JsValue.Undefined;
+            }, 1);
+
+            var result = new JsObject { Prototype = realm.ObjectPrototype };
+            result.Set("promise", promise);
+            result.Set("resolve", resolveFn);
+            result.Set("reject", rejectFn);
+            return result;
+        }, 0);
+
         BuiltinHelper.DefineMethod(ctor, "all", (_, args) =>
         {
             var iterable = BuiltinHelper.Arg(args, 0);

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head><title>Promise.withResolvers Tests</title></head>
+<body>
+<h1>Promise.withResolvers Manual Tests</h1>
+<pre id="output"></pre>
+<script>
+const out = document.getElementById('output');
+function log(msg) { out.textContent += msg + '\n'; }
+
+// 4a: Returns object with promise/resolve/reject
+const { promise, resolve, reject } = Promise.withResolvers();
+log('4a: Has promise: ' + (promise instanceof Promise));
+log('4a: Has resolve: ' + (typeof resolve === 'function'));
+log('4a: Has reject: ' + (typeof reject === 'function'));
+
+// 4b: Resolve settles promise
+const r1 = Promise.withResolvers();
+r1.promise.then(v => log('4b: Resolved with: ' + v));
+r1.resolve(42);
+
+// 4c: Reject settles promise
+const r2 = Promise.withResolvers();
+r2.promise.catch(e => log('4c: Rejected with: ' + e));
+r2.reject('error');
+
+// 4d: Multiple resolves
+const r3 = Promise.withResolvers();
+r3.promise.then(v => log('4d: First resolve wins: ' + v));
+r3.resolve(1);
+r3.resolve(2);
+</script>
+</body>
+</html>

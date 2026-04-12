@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head><title>Integration Tests</title></head>
+<body>
+<h1>ES2025 Integration Manual Tests</h1>
+<pre id="output"></pre>
+<script>
+const out = document.getElementById('output');
+function test(id, desc, fn) {
+    try {
+        out.textContent += `${id}: ${desc} => ${JSON.stringify(fn())}\n`;
+    } catch (e) {
+        out.textContent += `${id}: ${desc} => ERROR: ${e.message}\n`;
+    }
+}
+
+// 18a: BigInt in Set methods
+test('18a', 'BigInt in Sets', () => {
+    const a = new Set([1n, 2n, 3n]);
+    const b = new Set([3n, 4n, 5n]);
+    return a.union(b).size;
+});
+
+// 18b: Iterator helpers on Map entries
+test('18b', 'Iterator on Map', () => {
+    const m = new Map([['a', 1], ['b', 2], ['c', 3]]);
+    return Iterator.from(m).map(([k, v]) => k + '=' + v).toArray();
+});
+
+// 18c: Promise.withResolvers + groupBy
+test('18c', 'groupBy + withResolvers', () => {
+    const { promise, resolve } = Promise.withResolvers();
+    const grouped = Object.groupBy([1,2,3,4], x => x % 2 ? 'odd' : 'even');
+    resolve(grouped);
+    return { oddCount: grouped.odd.length, evenCount: grouped.even.length };
+});
+
+// 18d: String wellformed + iterator helpers
+test('18d', 'String wellformed check', () => {
+    const strings = ['hello', '\uD800', 'world', '\uDC00'];
+    return strings.filter(s => s.isWellFormed());
+});
+</script>
+</body>
+</html>

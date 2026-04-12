@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head><title>Async Iteration Tests</title></head>
+<body>
+<h1>Async Iteration Manual Tests</h1>
+<pre id="output"></pre>
+<script>
+const out = document.getElementById('output');
+function log(msg) { out.textContent += msg + '\n'; }
+
+// 8a: for-await-of
+async function test8a() {
+    async function* asyncGen() {
+        yield 1;
+        yield 2;
+        yield 3;
+    }
+    const results = [];
+    for await (const x of asyncGen()) {
+        results.push(x);
+    }
+    log('8a: for-await-of => ' + JSON.stringify(results));
+}
+test8a();
+
+// 8b: Array.fromAsync
+async function test8b() {
+    const arr = await Array.fromAsync([
+        Promise.resolve(1),
+        Promise.resolve(2),
+        Promise.resolve(3)
+    ]);
+    log('8b: Array.fromAsync => ' + JSON.stringify(arr));
+}
+test8b();
+</script>
+</body>
+</html>

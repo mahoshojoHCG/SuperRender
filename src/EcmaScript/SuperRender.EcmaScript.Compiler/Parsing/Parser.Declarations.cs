@@ -380,8 +380,9 @@ public sealed partial class Parser
         if (Current.Type == TokenType.StringLiteral)
         {
             var source = ParseStringLiteral();
+            var assertions = TryParseImportAssertions();
             ExpectSemicolon();
-            return new ImportDeclaration { Specifiers = [], Source = source, Location = loc };
+            return new ImportDeclaration { Specifiers = [], Source = source, Assertions = assertions, Location = loc };
         }
 
         var specifiers = new List<SyntaxNode>();
@@ -413,8 +414,9 @@ public sealed partial class Parser
 
         ExpectKeyword("from");
         var sourceLiteral = ParseStringLiteral();
+        var importAssertions = TryParseImportAssertions();
         ExpectSemicolon();
-        return new ImportDeclaration { Specifiers = specifiers, Source = sourceLiteral, Location = loc };
+        return new ImportDeclaration { Specifiers = specifiers, Source = sourceLiteral, Assertions = importAssertions, Location = loc };
     }
 
     private void ParseNamedImports(List<SyntaxNode> specifiers)
@@ -559,5 +561,45 @@ public sealed partial class Parser
             return;
         }
         throw new JsSyntaxError($"Expected '{keyword}'", Current.Line, Current.Column);
+    }
+
+    private Dictionary<string, string>? TryParseImportAssertions()
+    {
+        // import ... with { key: 'value' }
+        // 'with' is parsed as an identifier since TokenType.With is a keyword
+        if (Current.Type != TokenType.With && !(IsIdentifier(Current) && Current.Value == "with") &&
+            !(Current.Type == TokenType.Identifier && Current.Value == "assert"))
+        {
+            return null;
+        }
+
+        Advance(); // skip 'with' or 'assert'
+        Expect(TokenType.LeftBrace);
+
+        var assertions = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        while (!IsAtEnd && Current.Type != TokenType.RightBrace)
+        {
+            string key;
+            if (Current.Type == TokenType.StringLiteral)
+            {
+                key = Advance().Value;
+            }
+            else
+            {
+                key = ExpectIdentifierName();
+            }
+
+            Expect(TokenType.Colon);
+
+            var value = Expect(TokenType.StringLiteral).Value;
+            assertions[key] = value;
+
+            if (Current.Type != TokenType.RightBrace)
+                Match(TokenType.Comma);
+        }
+
+        Expect(TokenType.RightBrace);
+        return assertions;
     }
 }

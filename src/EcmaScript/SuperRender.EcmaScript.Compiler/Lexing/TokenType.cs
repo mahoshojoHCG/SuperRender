@@ -4,6 +4,7 @@ public enum TokenType
 {
     // Literals
     NumericLiteral,
+    BigIntLiteral,
     StringLiteral,
     TemplateLiteral,
     TemplateHead,
@@ -135,4 +136,7 @@ public enum TokenType
 
     // Special
     EndOfFile,
+
+    // Pipeline operator
+    Pipeline,
 }

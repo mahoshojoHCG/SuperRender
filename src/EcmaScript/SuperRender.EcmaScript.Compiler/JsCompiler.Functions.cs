@@ -19,6 +19,12 @@ public sealed partial class JsCompiler
 {
     // ───────────────────────── Functions ─────────────────────────
 
+    // TODO: Tail Call Optimization (TCO) — When the last statement of a function body is a
+    // ReturnStatement containing a CallExpression to the function itself, convert to a loop.
+    // This requires detecting self-recursive tail calls during compilation and emitting a
+    // goto-based loop instead of the recursive call. Deferred due to complexity: requires
+    // tracking function identity through closures and handling all argument rebinding cases.
+
     private Expr CompileFunctionBody(
         string name,
         IReadOnlyList<SyntaxNode> parameters,

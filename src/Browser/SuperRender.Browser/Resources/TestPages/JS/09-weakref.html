@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head><title>WeakRef / FinalizationRegistry Tests</title></head>
+<body>
+<h1>WeakRef / FinalizationRegistry Manual Tests</h1>
+<pre id="output"></pre>
+<script>
+const out = document.getElementById('output');
+function log(msg) { out.textContent += msg + '\n'; }
+
+// 9a: WeakRef deref returns target
+const target = { value: 42 };
+const wr = new WeakRef(target);
+log('9a: deref returns target: ' + (wr.deref() === target));
+log('9a: deref.value: ' + wr.deref().value);
+
+// 9b: GC collection (timing dependent)
+log('9b: GC-dependent test - deref after collection returns undefined');
+log('    (Cannot force GC in browser - this is a manual observation test)');
+
+// 9c: FinalizationRegistry registration
+const registry = new FinalizationRegistry(heldValue => {
+    log('9c: Cleanup callback fired with: ' + heldValue);
+});
+let obj = { data: 'test' };
+registry.register(obj, 'cleanup-token');
+log('9c: Registered object in FinalizationRegistry');
+
+// 9d: Unregister
+const token = {};
+let obj2 = { data: 'test2' };
+registry.register(obj2, 'held2', token);
+const removed = registry.unregister(token);
+log('9d: Unregistered: ' + removed);
+</script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head><title>eval / Function Tests</title></head>
+<body>
+<h1>eval() / Function() Manual Tests</h1>
+<pre id="output"></pre>
+<script>
+const out = document.getElementById('output');
+function test(id, desc, fn) {
+    try {
+        out.textContent += `${id}: ${desc} => ${fn()}\n`;
+    } catch (e) {
+        out.textContent += `${id}: ${desc} => ERROR: ${e.message}\n`;
+    }
+}
+
+test('10a', 'eval("1 + 2")', () => eval("1 + 2"));
+test('10b', 'eval var declaration', () => { eval("var evalVar = 42"); return evalVar; });
+test('10c', 'new Function("a","b","return a+b")(1,2)', () => new Function("a", "b", "return a + b")(1, 2));
+test('10d', 'eval syntax error', () => {
+    try { eval("{{{"); return "no error"; }
+    catch (e) { return "SyntaxError caught"; }
+});
+</script>
+</body>
+</html>

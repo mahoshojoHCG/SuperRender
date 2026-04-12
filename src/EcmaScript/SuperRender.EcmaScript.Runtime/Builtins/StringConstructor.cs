@@ -402,6 +402,58 @@ public static class StringConstructor
             return new JsString(GetStringValue(thisArg));
         }, 0);
 
+        BuiltinHelper.DefineMethod(proto, "isWellFormed", (thisArg, _) =>
+        {
+            var str = GetStringValue(thisArg);
+            for (var i = 0; i < str.Length; i++)
+            {
+                if (char.IsHighSurrogate(str[i]))
+                {
+                    if (i + 1 >= str.Length || !char.IsLowSurrogate(str[i + 1]))
+                        return JsValue.False;
+                    i++; // skip low surrogate
+                }
+                else if (char.IsLowSurrogate(str[i]))
+                {
+                    return JsValue.False;
+                }
+            }
+
+            return JsValue.True;
+        }, 0);
+
+        BuiltinHelper.DefineMethod(proto, "toWellFormed", (thisArg, _) =>
+        {
+            var str = GetStringValue(thisArg);
+            var sb = new StringBuilder(str.Length);
+            for (var i = 0; i < str.Length; i++)
+            {
+                if (char.IsHighSurrogate(str[i]))
+                {
+                    if (i + 1 < str.Length && char.IsLowSurrogate(str[i + 1]))
+                    {
+                        sb.Append(str[i]);
+                        sb.Append(str[i + 1]);
+                        i++; // skip low surrogate
+                    }
+                    else
+                    {
+                        sb.Append('\uFFFD');
+                    }
+                }
+                else if (char.IsLowSurrogate(str[i]))
+                {
+                    sb.Append('\uFFFD');
+                }
+                else
+                {
+                    sb.Append(str[i]);
+                }
+            }
+
+            return new JsString(sb.ToString());
+        }, 0);
+
         // String.prototype[Symbol.iterator]
         proto.DefineSymbolProperty(JsSymbol.Iterator,
             PropertyDescriptor.Data(JsFunction.CreateNative("[Symbol.iterator]", (thisArg, _) =>

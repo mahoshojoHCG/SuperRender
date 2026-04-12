@@ -1,3 +1,4 @@
+using System.Numerics;
 using SuperRender.EcmaScript.Compiler.Ast;
 using SuperRender.EcmaScript.Runtime.Errors;
 using SuperRender.EcmaScript.Compiler.Lexing;
@@ -61,6 +62,10 @@ public sealed partial class Parser
             case TokenType.NumericLiteral:
                 Advance();
                 return new Literal { Value = token.NumericValue, Raw = token.Value, Location = loc };
+
+            case TokenType.BigIntLiteral:
+                Advance();
+                return new Literal { Value = ParseBigIntLiteral(token.Value), Raw = token.Value, Location = loc };
 
             case TokenType.StringLiteral:
                 Advance();
@@ -223,6 +228,14 @@ public sealed partial class Parser
             var op = Advance().Value;
             var right = ParseExpression(PrecAssignment - 1); // right-associative
             return new AssignmentExpression { Left = ToAssignmentTarget(left), Operator = op, Right = right, Location = loc };
+        }
+
+        // Pipeline operator: |>
+        if (token.Type == TokenType.Pipeline)
+        {
+            Advance();
+            var right = ParseExpression(prec);
+            return new BinaryExpression { Left = left, Operator = "|>", Right = right, Location = loc };
         }
 
         // Conditional ternary
@@ -900,7 +913,7 @@ public sealed partial class Parser
             };
         }
 
-        var callee = ParseExpression(PrecMember);
+        var callee = ParseExpression(PrecCall);
 
         // Parse arguments if present
         List<SyntaxNode> args = [];
@@ -993,5 +1006,43 @@ public sealed partial class Parser
 
         Expect(TokenType.RightParen);
         return args;
+    }
+
+    // ═══════════════════════════════════════════
+    //  BigInt literal parsing
+    // ═══════════════════════════════════════════
+
+    private static BigInteger ParseBigIntLiteral(string raw)
+    {
+        // Strip the trailing 'n' suffix
+        string text = raw.EndsWith('n') ? raw[..^1] : raw;
+        text = text.Replace("_", "", StringComparison.Ordinal);
+
+        if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            return BigInteger.Parse("0" + text[2..], System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        if (text.StartsWith("0o", StringComparison.OrdinalIgnoreCase))
+        {
+            BigInteger result = BigInteger.Zero;
+            foreach (char c in text[2..])
+            {
+                result = result * 8 + (c - '0');
+            }
+            return result;
+        }
+
+        if (text.StartsWith("0b", StringComparison.OrdinalIgnoreCase))
+        {
+            BigInteger result = BigInteger.Zero;
+            foreach (char c in text[2..])
+            {
+                result = result * 2 + (c - '0');
+            }
+            return result;
+        }
+
+        return BigInteger.Parse(text, System.Globalization.CultureInfo.InvariantCulture);
     }
 }

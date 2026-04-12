@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head><title>Pipeline Operator Tests</title></head>
+<body>
+<h1>Pipeline Operator |> Manual Tests</h1>
+<pre id="output"></pre>
+<script>
+const out = document.getElementById('output');
+function test(id, desc, fn) {
+    try {
+        out.textContent += `${id}: ${desc} => ${fn()}\n`;
+    } catch (e) {
+        out.textContent += `${id}: ${desc} => ERROR: ${e.message}\n`;
+    }
+}
+
+const double = x => x * 2;
+const add1 = x => x + 1;
+const toUpper = s => s.toUpperCase();
+
+test('12a', '5 |> double', () => 5 |> double);
+test('12b', '5 |> double |> add1', () => 5 |> double |> add1);
+test('12c', '"hello" |> toUpper', () => "hello" |> toUpper);
+</script>
+</body>
+</html>

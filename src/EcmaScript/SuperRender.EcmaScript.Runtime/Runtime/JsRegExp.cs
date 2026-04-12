@@ -100,7 +100,7 @@ public sealed class JsRegExp : JsObject
         base.Set(name, value);
     }
 
-    private static JsArray BuildMatchArray(Match match, string input)
+    private JsArray BuildMatchArray(Match match, string input)
     {
         var array = new JsArray();
         array.Push(new JsString(match.Value));
@@ -114,7 +114,90 @@ public sealed class JsRegExp : JsObject
         array.DefineOwnProperty("index", PropertyDescriptor.Data(JsNumber.Create(match.Index), writable: false, enumerable: true, configurable: false));
         array.DefineOwnProperty("input", PropertyDescriptor.Data(new JsString(input), writable: false, enumerable: true, configurable: false));
 
+        // Named capture groups: populate result.groups
+        var groupsObj = BuildNamedGroups(match);
+        array.DefineOwnProperty("groups", PropertyDescriptor.Data(
+            groupsObj ?? (JsValue)Undefined,
+            writable: false, enumerable: true, configurable: false));
+
+        // /d flag (hasIndices): populate result.indices
+        if (HasIndices)
+        {
+            var indices = BuildIndices(match);
+            array.DefineOwnProperty("indices", PropertyDescriptor.Data(
+                indices, writable: false, enumerable: true, configurable: false));
+        }
+
         return array;
+    }
+
+    private static JsObject? BuildNamedGroups(Match match)
+    {
+        JsObject? groupsObj = null;
+
+        foreach (Group group in match.Groups)
+        {
+            // Skip the overall match (index 0) and numeric-only group names
+            if (int.TryParse(group.Name, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _))
+            {
+                continue;
+            }
+
+            groupsObj ??= new JsObject { Prototype = null };
+            groupsObj.DefineOwnProperty(group.Name, PropertyDescriptor.Data(
+                group.Success ? new JsString(group.Value) : Undefined,
+                writable: true, enumerable: true, configurable: true));
+        }
+
+        return groupsObj;
+    }
+
+    private static JsArray BuildIndices(Match match)
+    {
+        var indices = new JsArray();
+        JsObject? namedIndices = null;
+
+        for (int i = 0; i < match.Groups.Count; i++)
+        {
+            var group = match.Groups[i];
+            if (group.Success)
+            {
+                var pair = new JsArray();
+                pair.Push(JsNumber.Create(group.Index));
+                pair.Push(JsNumber.Create(group.Index + group.Length));
+                indices.Push(pair);
+            }
+            else
+            {
+                indices.Push(Undefined);
+            }
+
+            // Also collect named group indices
+            var name = group.Name;
+            if (!int.TryParse(name, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _))
+            {
+                namedIndices ??= new JsObject { Prototype = null };
+                if (group.Success)
+                {
+                    var pair = new JsArray();
+                    pair.Push(JsNumber.Create(group.Index));
+                    pair.Push(JsNumber.Create(group.Index + group.Length));
+                    namedIndices.DefineOwnProperty(name, PropertyDescriptor.Data(
+                        pair, writable: true, enumerable: true, configurable: true));
+                }
+                else
+                {
+                    namedIndices.DefineOwnProperty(name, PropertyDescriptor.Data(
+                        Undefined, writable: true, enumerable: true, configurable: true));
+                }
+            }
+        }
+
+        indices.DefineOwnProperty("groups", PropertyDescriptor.Data(
+            namedIndices ?? (JsValue)Undefined,
+            writable: false, enumerable: true, configurable: false));
+
+        return indices;
     }
 
     private static RegexOptions TranslateFlags(string flags)

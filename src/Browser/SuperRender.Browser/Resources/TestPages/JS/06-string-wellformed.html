@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head><title>String Well-Formed Tests</title></head>
+<body>
+<h1>String.isWellFormed / toWellFormed Tests</h1>
+<pre id="output"></pre>
+<script>
+const out = document.getElementById('output');
+function test(id, desc, fn) {
+    try {
+        out.textContent += `${id}: ${desc} => ${fn()}\n`;
+    } catch (e) {
+        out.textContent += `${id}: ${desc} => ERROR: ${e.message}\n`;
+    }
+}
+
+test('6a', '"hello".isWellFormed()', () => "hello".isWellFormed());
+test('6b', 'lone surrogate isWellFormed', () => "\uD800".isWellFormed());
+test('6c', 'lone surrogate toWellFormed', () => "\uD800".toWellFormed() === "\uFFFD");
+</script>
+</body>
+</html>

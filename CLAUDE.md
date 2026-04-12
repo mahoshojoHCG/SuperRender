@@ -12,7 +12,7 @@ A complete HTML+CSS rendering engine built with C# (.NET 10), using Silk.NET + V
   - `SuperRender.Renderer.Image/` — Pure C# image decoders: PNG, BMP, baseline JPEG (zero external deps)
 - `src/EcmaScript/`
   - `SuperRender.EcmaScript.Compiler/` — Lexer, Parser, AST, JsCompiler (DLR expression tree compiler)
-  - `SuperRender.EcmaScript.Runtime/` — JsValue types, Environment, Realm, Builtins (20 standard library objects), Errors
+  - `SuperRender.EcmaScript.Runtime/` — JsValue types, Environment, Realm, Builtins (32 standard library objects), Errors
   - `SuperRender.EcmaScript.Engine/` — JsEngine public API, .NET interop (TypeProxy, ObjectProxy)
   - `SuperRender.EcmaScript.Repl/` — Interactive JS console (Node.js-style REPL)
   - `SuperRender.EcmaScript.Dom/` — JS DOM API bindings: bridges C# DOM to JS runtime (document, element, window, fetch, location, history APIs)
@@ -23,14 +23,14 @@ A complete HTML+CSS rendering engine built with C# (.NET 10), using Silk.NET + V
 - `tests/SuperRender.Document.Tests/` — xUnit tests for Document (295 tests: HTML, CSS, DOM, selectors, entities)
 - `tests/SuperRender.Renderer.Tests/` — xUnit tests for Renderer (216 tests: Style, Layout, Flexbox, Painting)
 - `tests/SuperRender.Renderer.Image.Tests/` — xUnit tests for Image decoders (25 tests: PNG, BMP, JPEG)
-- `tests/SuperRender.EcmaScript.Tests/` — xUnit tests for EcmaScript (441 tests)
+- `tests/SuperRender.EcmaScript.Tests/` — xUnit tests for EcmaScript (668 tests)
 - `tests/SuperRender.Browser.Tests/` — xUnit tests for Browser + DOM bindings (265 tests)
 
 ## Build & Run
 
 ```bash
 dotnet build              # Build all projects (warnings are errors)
-dotnet test               # Run all unit tests (1242 total)
+dotnet test               # Run all unit tests (1469 total)
 dotnet run --project src/Demo/SuperRender.Demo  # Launch the demo window (requires Vulkan)
 dotnet run --project src/Browser/SuperRender.Browser  # Launch the browser (requires Vulkan)
 dotnet run --project src/EcmaScript/SuperRender.EcmaScript.Repl  # Launch the JS console REPL
@@ -82,13 +82,13 @@ Pure C# image decoders in `SuperRender.Renderer.Image` (zero external dependenci
 - `JsCompiler` — AST-to-DLR Expression tree compiler with `RuntimeHelpers` for JS semantics, labeled statement support (`break label`/`continue label`). Split into partial classes: `JsCompiler.cs` (core dispatch), `JsCompiler.Statements.cs`, `JsCompiler.Expressions.cs`, `JsCompiler.Classes.cs`, `JsCompiler.Functions.cs`, `JsCompiler.Helpers.cs`
 - `JsValue` hierarchy — `IDynamicMetaObjectProvider` base, JsObject with prototype chain, JsFunction with closures
 - `Environment` — lexical scope chain with TDZ and const enforcement
-- `Realm` — global object + 15 intrinsic prototypes + GeneratorPrototype
-- `Builtins` — 20 standard library objects (Object, Array, String, Number, Math, JSON, Date, RegExp, Map, Set, Promise, Proxy, Reflect, etc.)
+- `Realm` — global object + intrinsic prototypes (Object, Function, Array, String, Number, Boolean, RegExp, Date, Error, Symbol, Map, Set, Promise, Iterator, Generator, BigInt, WeakRef, FinalizationRegistry, ArrayBuffer, SharedArrayBuffer) + EvalFactory/FunctionFactory delegates for dynamic compilation
+- `Builtins` — 32 standard library objects (Object, Array, String, Number, Math, JSON, Date, RegExp, Map, Set, Promise, Proxy, Reflect, BigInt, WeakRef, FinalizationRegistry, Iterator, ArrayBuffer, SharedArrayBuffer, TypedArrays, Atomics, Intl, Temporal, ShadowRealm, structuredClone, etc.)
 - `GeneratorCoroutine` — thread-based coroutine for generator/async state machines
 - `JsGeneratorObject` — JS generator with next/return/throw, iterator protocol via Symbol.iterator
 - `JsEngine` — public API entry point, sandboxed .NET interop via `RegisterType<T>()`/`SetValue()`
 
-**Deferred features** tracked in `docs/es-2025-todos.md`: BigInt, WeakRef, SharedArrayBuffer, Intl, Temporal, decorators.
+**Deferred features** tracked in `docs/es-2025-todos.md`: Tail Call Optimization, Decorators, Pattern Matching, Module Workers. Most ES2025 features are now implemented (BigInt, Iterator Helpers, Set Methods, RegExp enhancements, Promise.withResolvers, groupBy, String well-formed, WeakRef, FinalizationRegistry, SharedArrayBuffer, Atomics, TypedArrays, structuredClone, eval, Function(), Pipeline Operator, Intl, Temporal, ShadowRealm, Import Assertions, for-await-of, Array.fromAsync). Manual test pages for JS features at `Resources/TestPages/JS/`; see `docs/MANUAL_TESTS_JS.md`.
 
 **Deferred CSS features** tracked in `docs/css-todos.md`: grid, custom properties, transforms, transitions, animations, media queries, container queries, CSS nesting, and more.
 
@@ -190,7 +190,7 @@ A Vulkan-powered browser application with tabbed browsing support.
 - `ResourceLoader` — HTTP client for fetching HTML/CSS/JS/image resources, file:// URI support for local files, sr:// for embedded test pages, data: URI for embedded images
 - `SecurityPolicy` — same-origin checks + CORS header validation for sub-resources
 - `UrlResolver` — resolves relative URLs against base URI (root-relative paths resolve to origin, not file://), normalizes address bar input (supports http/https/file/sr/about schemes, bare domain names, absolute file paths)
-- `TestPages` — provides access to embedded manual test page resources via `sr://test/{name}` protocol, supports P0/P1 subdirectories
+- `TestPages` — provides access to embedded manual test page resources via `sr://test/{name}` protocol, supports P0/P1/JS subdirectories. JS test pages (`sr://test/JS/{name}`) cover ECMAScript 2025 features (BigInt, Iterator Helpers, Set Methods, Temporal, Intl, etc.). See `docs/MANUAL_TESTS_JS.md` for the full JS test plan.
 - `ImageCache` — thread-safe in-memory cache for decoded images, keyed by URL
 - `CookieJar` — in-memory cookie storage with Set-Cookie parsing, domain/path matching, Secure/HttpOnly/SameSite enforcement
 - `HttpCache` — SQLite-backed HTTP response cache with Cache-Control/ETag/Last-Modified/Expires support

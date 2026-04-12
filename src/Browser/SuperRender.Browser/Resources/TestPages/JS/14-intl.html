@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head><title>Intl Tests</title></head>
+<body>
+<h1>Intl API Manual Tests</h1>
+<pre id="output"></pre>
+<script>
+const out = document.getElementById('output');
+function test(id, desc, fn) {
+    try {
+        out.textContent += `${id}: ${desc} => ${fn()}\n`;
+    } catch (e) {
+        out.textContent += `${id}: ${desc} => ERROR: ${e.message}\n`;
+    }
+}
+
+test('14a', 'NumberFormat', () => new Intl.NumberFormat('en-US').format(1234.5));
+test('14b', 'Collator compare', () => new Intl.Collator('en').compare('a', 'b') < 0);
+test('14c', 'DateTimeFormat', () => new Intl.DateTimeFormat('en-US').format(new Date(2024, 0, 15)));
+test('14d', 'PluralRules', () => new Intl.PluralRules('en').select(1));
+</script>
+</body>
+</html>

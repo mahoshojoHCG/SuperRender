@@ -121,6 +121,97 @@ public static class SetConstructor
         proto.DefineSymbolProperty(JsSymbol.Iterator,
             PropertyDescriptor.Data(valuesMethod, writable: true, enumerable: false, configurable: true));
 
+        // ES2025 Set methods
+        BuiltinHelper.DefineMethod(proto, "union", (thisArg, args) =>
+        {
+            var set = RequireSet(thisArg);
+            var other = RequireSet(BuiltinHelper.Arg(args, 0));
+            var result = new JsSetObject { Prototype = realm.SetPrototype };
+            foreach (var v in set.SetValues()) result.SetAdd(v);
+            foreach (var v in other.SetValues()) result.SetAdd(v);
+            return result;
+        }, 1);
+
+        BuiltinHelper.DefineMethod(proto, "intersection", (thisArg, args) =>
+        {
+            var set = RequireSet(thisArg);
+            var other = RequireSet(BuiltinHelper.Arg(args, 0));
+            var result = new JsSetObject { Prototype = realm.SetPrototype };
+            foreach (var v in set.SetValues())
+            {
+                if (other.SetHas(v)) result.SetAdd(v);
+            }
+
+            return result;
+        }, 1);
+
+        BuiltinHelper.DefineMethod(proto, "difference", (thisArg, args) =>
+        {
+            var set = RequireSet(thisArg);
+            var other = RequireSet(BuiltinHelper.Arg(args, 0));
+            var result = new JsSetObject { Prototype = realm.SetPrototype };
+            foreach (var v in set.SetValues())
+            {
+                if (!other.SetHas(v)) result.SetAdd(v);
+            }
+
+            return result;
+        }, 1);
+
+        BuiltinHelper.DefineMethod(proto, "symmetricDifference", (thisArg, args) =>
+        {
+            var set = RequireSet(thisArg);
+            var other = RequireSet(BuiltinHelper.Arg(args, 0));
+            var result = new JsSetObject { Prototype = realm.SetPrototype };
+            foreach (var v in set.SetValues())
+            {
+                if (!other.SetHas(v)) result.SetAdd(v);
+            }
+
+            foreach (var v in other.SetValues())
+            {
+                if (!set.SetHas(v)) result.SetAdd(v);
+            }
+
+            return result;
+        }, 1);
+
+        BuiltinHelper.DefineMethod(proto, "isSubsetOf", (thisArg, args) =>
+        {
+            var set = RequireSet(thisArg);
+            var other = RequireSet(BuiltinHelper.Arg(args, 0));
+            foreach (var v in set.SetValues())
+            {
+                if (!other.SetHas(v)) return JsValue.False;
+            }
+
+            return JsValue.True;
+        }, 1);
+
+        BuiltinHelper.DefineMethod(proto, "isSupersetOf", (thisArg, args) =>
+        {
+            var set = RequireSet(thisArg);
+            var other = RequireSet(BuiltinHelper.Arg(args, 0));
+            foreach (var v in other.SetValues())
+            {
+                if (!set.SetHas(v)) return JsValue.False;
+            }
+
+            return JsValue.True;
+        }, 1);
+
+        BuiltinHelper.DefineMethod(proto, "isDisjointFrom", (thisArg, args) =>
+        {
+            var set = RequireSet(thisArg);
+            var other = RequireSet(BuiltinHelper.Arg(args, 0));
+            foreach (var v in set.SetValues())
+            {
+                if (other.SetHas(v)) return JsValue.False;
+            }
+
+            return JsValue.True;
+        }, 1);
+
         // Symbol.toStringTag
         proto.DefineSymbolProperty(JsSymbol.ToStringTag,
             PropertyDescriptor.Data(new JsString("Set"), writable: false, enumerable: false, configurable: true));

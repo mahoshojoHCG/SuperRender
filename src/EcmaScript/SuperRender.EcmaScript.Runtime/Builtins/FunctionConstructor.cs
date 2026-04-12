@@ -148,14 +148,51 @@ public static class FunctionConstructor
                 return JsValue.False;
             }, 1), writable: false, enumerable: false, configurable: false));
 
-        // Install a non-constructable Function as a global (just for typeof checks and .prototype access)
-        var fnCtor = JsFunction.CreateNative("Function", (_, _) =>
+        // Install a constructable Function global that supports dynamic code compilation
+        var fnCtor = new JsFunction
         {
-            throw new Errors.JsTypeError("Dynamic code evaluation is not supported", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
-        }, 1);
-        fnCtor.Prototype = realm.FunctionPrototype;
-        fnCtor.PrototypeObject = proto;
+            Name = "Function",
+            Length = 1,
+            IsConstructor = true,
+            Prototype = realm.FunctionPrototype,
+            PrototypeObject = proto,
+            CallTarget = (_, args) => CreateDynamicFunction(realm, args),
+            ConstructTarget = args => CreateDynamicFunction(realm, args)
+        };
 
         realm.InstallGlobal("Function", fnCtor);
+    }
+
+    private static JsValue CreateDynamicFunction(Realm realm, JsValue[] args)
+    {
+        if (realm.FunctionFactory is null)
+        {
+            throw new Errors.JsTypeError("Dynamic code evaluation is not supported", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
+        }
+
+        string body;
+        string[] paramNames;
+
+        if (args.Length == 0)
+        {
+            paramNames = [];
+            body = "";
+        }
+        else if (args.Length == 1)
+        {
+            paramNames = [];
+            body = args[0].ToJsString();
+        }
+        else
+        {
+            paramNames = new string[args.Length - 1];
+            for (int i = 0; i < args.Length - 1; i++)
+            {
+                paramNames[i] = args[i].ToJsString();
+            }
+            body = args[^1].ToJsString();
+        }
+
+        return realm.FunctionFactory(paramNames, body);
     }
 }

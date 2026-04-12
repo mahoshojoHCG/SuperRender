@@ -109,6 +109,15 @@ public sealed class Lexer
     {
         var tokens = new List<Token>();
 
+        // Hashbang grammar: skip #! line at position 0
+        if (_pos == 0 && !IsAtEnd && Peek() == '#' && _pos + 1 < _input.Length && _input[_pos + 1] == '!')
+        {
+            while (!IsAtEnd && Peek() != '\n')
+            {
+                Advance();
+            }
+        }
+
         while (true)
         {
             Token token = NextToken();
@@ -400,8 +409,13 @@ public sealed class Lexer
         string raw = sb.ToString();
         string numericPart = isBigInt ? raw[..^1] : raw;
         string stripped = numericPart.Replace("_", "", StringComparison.Ordinal);
-        double numericValue = double.TryParse(stripped, NumberStyles.Float, CultureInfo.InvariantCulture, out double val) ? val : 0;
 
+        if (isBigInt)
+        {
+            return MakeToken(TokenType.BigIntLiteral, raw, tokenLine, tokenColumn);
+        }
+
+        double numericValue = double.TryParse(stripped, NumberStyles.Float, CultureInfo.InvariantCulture, out double val) ? val : 0;
         return MakeToken(TokenType.NumericLiteral, raw, tokenLine, tokenColumn, numericValue);
     }
 
@@ -416,7 +430,8 @@ public sealed class Lexer
             sb.Append(Advance());
         }
 
-        if (!IsAtEnd && Peek() == 'n')
+        bool isBigInt = !IsAtEnd && Peek() == 'n';
+        if (isBigInt)
         {
             sb.Append(Advance());
         }
@@ -428,8 +443,13 @@ public sealed class Lexer
             hexPart = hexPart[..^1];
         }
         string stripped = hexPart.Replace("_", "", StringComparison.Ordinal);
-        double numericValue = long.TryParse(stripped, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out long hexVal) ? hexVal : 0;
 
+        if (isBigInt)
+        {
+            return MakeToken(TokenType.BigIntLiteral, raw, tokenLine, tokenColumn);
+        }
+
+        double numericValue = long.TryParse(stripped, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out long hexVal) ? hexVal : 0;
         return MakeToken(TokenType.NumericLiteral, raw, tokenLine, tokenColumn, numericValue);
     }
 
@@ -444,7 +464,8 @@ public sealed class Lexer
             sb.Append(Advance());
         }
 
-        if (!IsAtEnd && Peek() == 'n')
+        bool isBigInt = !IsAtEnd && Peek() == 'n';
+        if (isBigInt)
         {
             sb.Append(Advance());
         }
@@ -456,6 +477,12 @@ public sealed class Lexer
             octalPart = octalPart[..^1];
         }
         string stripped = octalPart.Replace("_", "", StringComparison.Ordinal);
+
+        if (isBigInt)
+        {
+            return MakeToken(TokenType.BigIntLiteral, raw, tokenLine, tokenColumn);
+        }
+
         double numericValue = 0;
         foreach (char ch in stripped)
         {
@@ -476,7 +503,8 @@ public sealed class Lexer
             sb.Append(Advance());
         }
 
-        if (!IsAtEnd && Peek() == 'n')
+        bool isBigInt = !IsAtEnd && Peek() == 'n';
+        if (isBigInt)
         {
             sb.Append(Advance());
         }
@@ -488,6 +516,12 @@ public sealed class Lexer
             binPart = binPart[..^1];
         }
         string stripped = binPart.Replace("_", "", StringComparison.Ordinal);
+
+        if (isBigInt)
+        {
+            return MakeToken(TokenType.BigIntLiteral, raw, tokenLine, tokenColumn);
+        }
+
         double numericValue = 0;
         foreach (char ch in stripped)
         {
@@ -787,6 +821,7 @@ public sealed class Lexer
         return _lastToken.Type switch
         {
             TokenType.NumericLiteral => false,
+            TokenType.BigIntLiteral => false,
             TokenType.StringLiteral => false,
             TokenType.Identifier => false,
             TokenType.TrueLiteral => false,
@@ -1061,6 +1096,10 @@ public sealed class Lexer
                         return MakeToken(TokenType.PipePipeAssign, "||=", tokenLine, tokenColumn);
                     }
                     return MakeToken(TokenType.PipePipe, "||", tokenLine, tokenColumn);
+                }
+                if (Match('>'))
+                {
+                    return MakeToken(TokenType.Pipeline, "|>", tokenLine, tokenColumn);
                 }
                 if (Match('='))
                 {

@@ -25,6 +25,8 @@ public sealed class JsEngine
         _realm = new Realm();
         _compiler = new JsCompiler(_realm);
         InstallBuiltins();
+        InstallEval();
+        InstallFunctionFactory();
     }
 
     /// <summary>
@@ -209,6 +211,65 @@ public sealed class JsEngine
         ProxyConstructor.Install(_realm);
         ReflectObject.Install(_realm);
         ConsoleObject.Install(_realm);
+        IteratorConstructor.Install(_realm);
+        WeakRefConstructor.Install(_realm);
+        FinalizationRegistryConstructor.Install(_realm);
+        StructuredCloneHelper.Install(_realm);
+        BigIntConstructor.Install(_realm);
+        IntlObject.Install(_realm);
+        TemporalObject.Install(_realm);
+        ArrayBufferConstructor.Install(_realm);
+        TypedArrayConstructor.Install(_realm);
+        AtomicsObject.Install(_realm);
+        ShadowRealmConstructor.Install(_realm);
+    }
+
+    private void InstallEval()
+    {
+        _realm.EvalFactory = (code, targetRealm) =>
+        {
+            var parser = new Parser(code);
+            var program = parser.Parse();
+            var compiler = new JsCompiler(targetRealm);
+            var compiled = compiler.Compile(program);
+            Compiler.RuntimeHelpers.CurrentRealm = targetRealm;
+            return compiled(targetRealm.GlobalEnvironment);
+        };
+
+        _realm.InstallGlobal("eval", JsFunction.CreateNative("eval", (_, args) =>
+        {
+            var codeArg = args.Length > 0 ? args[0] : JsValue.Undefined;
+            if (codeArg is not JsString codeStr) return codeArg;
+            try
+            {
+                var parser = new Parser(codeStr.Value);
+                var program = parser.Parse();
+                var compiled = _compiler.Compile(program);
+                Compiler.RuntimeHelpers.CurrentRealm = _realm;
+                return compiled(_realm.GlobalEnvironment);
+            }
+            catch (Exception ex) when (ex is Runtime.Errors.JsErrorBase)
+            {
+                throw;
+            }
+        }, 1));
+    }
+
+    private void InstallFunctionFactory()
+    {
+        _realm.FunctionFactory = (paramNames, body) =>
+        {
+            var paramList = string.Join(",", paramNames);
+            var source = $"(function({paramList}){{{body}}})";
+            var parser = new Parser(source);
+            var program = parser.Parse();
+            var compiled = _compiler.Compile(program);
+            Compiler.RuntimeHelpers.CurrentRealm = _realm;
+            var result = compiled(_realm.GlobalEnvironment);
+            if (result is JsFunction fn)
+                return fn;
+            throw new Runtime.Errors.JsTypeError("Failed to create function");
+        };
     }
 
     private static JsFunction WrapDelegate(string name, Delegate del)

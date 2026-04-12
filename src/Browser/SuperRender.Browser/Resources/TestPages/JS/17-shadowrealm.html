@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head><title>ShadowRealm Tests</title></head>
+<body>
+<h1>ShadowRealm Manual Tests</h1>
+<pre id="output"></pre>
+<script>
+const out = document.getElementById('output');
+function test(id, desc, fn) {
+    try {
+        out.textContent += `${id}: ${desc} => ${fn()}\n`;
+    } catch (e) {
+        out.textContent += `${id}: ${desc} => ERROR: ${e.message}\n`;
+    }
+}
+
+test('17a', 'evaluate simple expression', () => {
+    const realm = new ShadowRealm();
+    return realm.evaluate("1 + 2");
+});
+
+test('17b', 'isolated globals', () => {
+    const realm = new ShadowRealm();
+    realm.evaluate("var x = 42");
+    return typeof x; // should be 'undefined' in outer scope
+});
+
+test('17c', 'non-primitive throws', () => {
+    const realm = new ShadowRealm();
+    try {
+        realm.evaluate("({ a: 1 })");
+        return 'no error';
+    } catch (e) {
+        return 'TypeError caught';
+    }
+});
+</script>
+</body>
+</html>
