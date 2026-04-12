@@ -86,7 +86,7 @@ public sealed class RenderPipeline
 
     private static void ExtractStylesFromNode(Node node, DomDocument document)
     {
-        if (node is Element element && element.TagName == "style")
+        if (node is Element element && element.TagName == HtmlTagNames.Style)
         {
             var cssText = element.InnerText;
             if (!string.IsNullOrWhiteSpace(cssText))

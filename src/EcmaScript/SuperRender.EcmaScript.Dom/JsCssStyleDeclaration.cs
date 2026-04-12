@@ -83,11 +83,11 @@ internal sealed class JsCssStyleDeclaration : JsObject
     {
         DefineOwnProperty("cssText", PropertyDescriptor.Accessor(
             JsFunction.CreateNative("get cssText", (_, _) =>
-                new JsString(element.GetAttribute("style") ?? ""), 0),
+                new JsString(element.GetAttribute(HtmlAttributeNames.Style) ?? ""), 0),
             JsFunction.CreateNative("set cssText", (_, args) =>
             {
                 if (args.Length > 0)
-                    element.SetAttribute("style", args[0].ToJsString());
+                    element.SetAttribute(HtmlAttributeNames.Style, args[0].ToJsString());
                 return Undefined;
             }, 1),
             enumerable: true, configurable: true));
@@ -98,15 +98,15 @@ internal sealed class JsCssStyleDeclaration : JsObject
             DefineOwnProperty(camelName, PropertyDescriptor.Accessor(
                 JsFunction.CreateNative($"get {camelName}", (_, _) =>
                 {
-                    var styleText = element.GetAttribute("style") ?? "";
+                    var styleText = element.GetAttribute(HtmlAttributeNames.Style) ?? "";
                     return new JsString(GetPropertyValue(styleText, kebab));
                 }, 0),
                 JsFunction.CreateNative($"set {camelName}", (_, args) =>
                 {
                     var value = args.Length > 0 ? args[0].ToJsString() : "";
-                    var styleText = element.GetAttribute("style") ?? "";
+                    var styleText = element.GetAttribute(HtmlAttributeNames.Style) ?? "";
                     var newStyle = SetPropertyValue(styleText, kebab, value);
-                    element.SetAttribute("style", newStyle);
+                    element.SetAttribute(HtmlAttributeNames.Style, newStyle);
                     return Undefined;
                 }, 1),
                 enumerable: true, configurable: true));

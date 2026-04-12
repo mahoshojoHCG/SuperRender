@@ -11,33 +11,30 @@ public static class DomMutationApi
 
     public static void SetInlineStyle(Element element, string cssText)
     {
-        element.SetAttribute("style", cssText);
+        element.SetAttribute(HtmlAttributeNames.Style, cssText);
     }
 
     public static void AddClass(Element element, string className)
     {
-        var current = element.GetAttribute("class") ?? "";
-        var classes = current.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
+        var classes = GetClassList(element);
         if (!classes.Contains(className, StringComparer.OrdinalIgnoreCase))
         {
             classes.Add(className);
-            element.SetAttribute("class", string.Join(' ', classes));
+            SetClassList(element, classes);
         }
     }
 
     public static void RemoveClass(Element element, string className)
     {
-        var current = element.GetAttribute("class") ?? "";
-        var classes = current.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+        var classes = GetClassList(element)
             .Where(c => !c.Equals(className, StringComparison.OrdinalIgnoreCase))
             .ToList();
-        element.SetAttribute("class", string.Join(' ', classes));
+        SetClassList(element, classes);
     }
 
     public static void ToggleClass(Element element, string className)
     {
-        var current = element.GetAttribute("class") ?? "";
-        var classes = current.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
+        var classes = GetClassList(element);
         if (classes.Any(c => c.Equals(className, StringComparison.OrdinalIgnoreCase)))
             RemoveClass(element, className);
         else
@@ -65,15 +62,13 @@ public static class DomMutationApi
 
     public static Element? QuerySelector(Node root, string selectorText)
     {
-        var parser = new SelectorParser(TokenizeSelector(selectorText));
-        var selectors = parser.ParseSelectorList();
+        var selectors = ParseSelectors(selectorText);
         return QuerySelectorInternal(root, selectors);
     }
 
     public static IEnumerable<Element> QuerySelectorAll(Node root, string selectorText)
     {
-        var parser = new SelectorParser(TokenizeSelector(selectorText));
-        var selectors = parser.ParseSelectorList();
+        var selectors = ParseSelectors(selectorText);
         var results = new List<Element>();
         QuerySelectorAllInternal(root, selectors, results);
         return results;
@@ -124,5 +119,22 @@ public static class DomMutationApi
         return tokenizer.Tokenize()
             .Where(t => t.Type != CssTokenType.EndOfFile)
             .ToList();
+    }
+
+    private static List<Selector> ParseSelectors(string selectorText)
+    {
+        var parser = new SelectorParser(TokenizeSelector(selectorText));
+        return parser.ParseSelectorList();
+    }
+
+    private static List<string> GetClassList(Element element)
+    {
+        var current = element.GetAttribute(HtmlAttributeNames.Class) ?? "";
+        return current.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
+    }
+
+    private static void SetClassList(Element element, List<string> classes)
+    {
+        element.SetAttribute(HtmlAttributeNames.Class, string.Join(' ', classes));
     }
 }

@@ -125,15 +125,23 @@ public static class PngDecoder
             if (decompressedLen < expectedSize) return null;
 
             // Reconstruct filtered scanlines
-            byte[] reconstructed = new byte[height * scanlineBytes];
-            if (!ReconstructFilters(decompressedBuf.AsSpan(), reconstructed.AsSpan(), height, scanlineBytes, bytesPerPixel))
-                return null;
+            byte[] reconstructed = ArrayPool<byte>.Shared.Rent(height * scanlineBytes);
+            try
+            {
+                reconstructed.AsSpan(0, height * scanlineBytes).Clear();
+                if (!ReconstructFilters(decompressedBuf.AsSpan(), reconstructed.AsSpan(0, height * scanlineBytes), height, scanlineBytes, bytesPerPixel))
+                    return null;
 
-            // Convert to RGBA
-            byte[] pixels = ConvertToRgba(reconstructed, width, height, colorType, bitDepth,
-                scanlineBytes, palette, transparency);
+                // Convert to RGBA
+                byte[] pixels = ConvertToRgba(reconstructed, width, height, colorType, bitDepth,
+                    scanlineBytes, palette, transparency);
 
-            return new ImageData { Width = width, Height = height, Pixels = pixels };
+                return new ImageData { Width = width, Height = height, Pixels = pixels };
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(reconstructed);
+            }
         }
         finally
         {

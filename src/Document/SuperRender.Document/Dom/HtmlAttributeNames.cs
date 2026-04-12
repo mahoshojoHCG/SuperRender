@@ -21,4 +21,8 @@ public static class HtmlAttributeNames
     // Custom data attributes used by the rendering pipeline
     public const string DataNaturalWidth = "data-natural-width";
     public const string DataNaturalHeight = "data-natural-height";
+
+    // Common attribute values
+    public const string Stylesheet = "stylesheet";
+    public const string TargetBlank = "_blank";
 }

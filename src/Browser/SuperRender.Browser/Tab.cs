@@ -211,7 +211,7 @@ public sealed class Tab : IDisposable
         {
             var rel = link.GetAttribute(HtmlAttributeNames.Rel);
             var href = link.GetAttribute(HtmlAttributeNames.Href);
-            if (rel is not null && rel.Equals("stylesheet", StringComparison.OrdinalIgnoreCase)
+            if (rel is not null && rel.Equals(HtmlAttributeNames.Stylesheet, StringComparison.OrdinalIgnoreCase)
                 && !string.IsNullOrWhiteSpace(href))
             {
                 var cssUri = UrlResolver.Resolve(href, baseUri);

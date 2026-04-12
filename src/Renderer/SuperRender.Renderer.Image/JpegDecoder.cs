@@ -16,6 +16,14 @@ public static class JpegDecoder
     /// </summary>
 #pragma warning disable CA2211 // Set by GPU layer at startup
     public static Func<int[], int[], int[], int, int, byte[]?>? GpuYCbCrConverter;
+
+    /// <summary>
+    /// Optional GPU-accelerated combined dequantization + IDCT transformer.
+    /// Set by the GPU layer at startup for hardware acceleration.
+    /// Signature: (rawDctCoeffs, quantTable, blockCount) → pixel values int[].
+    /// When null, the CPU fallback path (separate dequant + IDCT) is used.
+    /// </summary>
+    public static Func<int[], int[], int, int[]?>? GpuDequantIdctTransformer;
 #pragma warning restore CA2211
 
     public static bool IsJpeg(ReadOnlySpan<byte> data)
@@ -454,6 +462,8 @@ public static class JpegDecoder
         HuffmanTable acTable, int[] quantTable, ref int dcPred, Span<int> block)
     {
         block.Clear();
+        ReadOnlySpan<int> zigzag = ZigZag;
+        ReadOnlySpan<int> quant = quantTable;
 
         // DC coefficient
         int dcCategory = DecodeHuffman(ref reader, dcTable);
@@ -467,7 +477,7 @@ public static class JpegDecoder
             dcDiff = Extend(dcDiff, dcCategory);
         }
         dcPred += dcDiff;
-        block[ZigZag[0]] = dcPred * quantTable[0];
+        block[zigzag[0]] = dcPred * quant[0];
 
         // AC coefficients
         int k = 1;
@@ -497,7 +507,7 @@ public static class JpegDecoder
             if (value < 0) return false;
             value = Extend(value, size);
 
-            block[ZigZag[k]] = value * quantTable[k];
+            block[zigzag[k]] = value * quant[k];
             k++;
         }
 
@@ -509,6 +519,11 @@ public static class JpegDecoder
 
     private static int DecodeHuffman(ref BitReader reader, HuffmanTable table)
     {
+        ReadOnlySpan<int> minCode = table.MinCode;
+        ReadOnlySpan<int> maxCode = table.MaxCode;
+        ReadOnlySpan<int> valPtr = table.ValPtr;
+        ReadOnlySpan<byte> symbols = table.Symbols;
+
         int code = 0;
         for (int bits = 1; bits <= 16; bits++)
         {
@@ -517,11 +532,11 @@ public static class JpegDecoder
             code = (code << 1) | bit;
 
             int idx = bits - 1;
-            if (table.MinCode[idx] != -1 && code <= table.MaxCode[idx])
+            if (minCode[idx] != -1 && code <= maxCode[idx])
             {
-                int symbolIdx = table.ValPtr[idx] + (code - table.MinCode[idx]);
-                if (symbolIdx >= 0 && symbolIdx < table.Symbols.Length)
-                    return table.Symbols[symbolIdx];
+                int symbolIdx = valPtr[idx] + (code - minCode[idx]);
+                if (symbolIdx >= 0 && symbolIdx < symbols.Length)
+                    return symbols[symbolIdx];
             }
         }
         return -1;

@@ -122,57 +122,42 @@ internal sealed class JsDocumentWrapper : JsElementWrapper
         });
     }
 
-    private static Element? FindElement(Node root, string tagName)
+    private static Element? FindFirst(Node root, Func<Element, bool> predicate)
     {
-        if (root is Element el && el.TagName.Equals(tagName, StringComparison.OrdinalIgnoreCase))
+        if (root is Element el && predicate(el))
             return el;
         foreach (var child in root.Children)
         {
-            var found = FindElement(child, tagName);
+            var found = FindFirst(child, predicate);
             if (found is not null) return found;
         }
         return null;
     }
+
+    private static List<Element> FindAll(Node root, Func<Element, bool> predicate)
+    {
+        var results = new List<Element>();
+        CollectAll(root, predicate, results);
+        return results;
+    }
+
+    private static void CollectAll(Node node, Func<Element, bool> predicate, List<Element> results)
+    {
+        if (node is Element el && predicate(el))
+            results.Add(el);
+        foreach (var child in node.Children)
+            CollectAll(child, predicate, results);
+    }
+
+    private static Element? FindElement(Node root, string tagName)
+        => FindFirst(root, el => el.TagName.Equals(tagName, StringComparison.OrdinalIgnoreCase));
 
     private static Element? FindElementById(Node root, string id)
-    {
-        if (root is Element el && id.Equals(el.Id, StringComparison.OrdinalIgnoreCase))
-            return el;
-        foreach (var child in root.Children)
-        {
-            var found = FindElementById(child, id);
-            if (found is not null) return found;
-        }
-        return null;
-    }
+        => FindFirst(root, el => id.Equals(el.Id, StringComparison.OrdinalIgnoreCase));
 
     private static List<Element> FindElementsByTagName(Node root, string tagName)
-    {
-        var results = new List<Element>();
-        CollectByTagName(root, tagName, results);
-        return results;
-    }
-
-    private static void CollectByTagName(Node node, string tagName, List<Element> results)
-    {
-        if (node is Element el && (tagName == "*" || el.TagName.Equals(tagName, StringComparison.OrdinalIgnoreCase)))
-            results.Add(el);
-        foreach (var child in node.Children)
-            CollectByTagName(child, tagName, results);
-    }
+        => FindAll(root, el => tagName == "*" || el.TagName.Equals(tagName, StringComparison.OrdinalIgnoreCase));
 
     private static List<Element> FindElementsByClassName(Node root, string className)
-    {
-        var results = new List<Element>();
-        CollectByClassName(root, className, results);
-        return results;
-    }
-
-    private static void CollectByClassName(Node node, string className, List<Element> results)
-    {
-        if (node is Element el && el.ClassList.Any(c => c.Equals(className, StringComparison.OrdinalIgnoreCase)))
-            results.Add(el);
-        foreach (var child in node.Children)
-            CollectByClassName(child, className, results);
-    }
+        => FindAll(root, el => el.ClassList.Any(c => c.Equals(className, StringComparison.OrdinalIgnoreCase)));
 }

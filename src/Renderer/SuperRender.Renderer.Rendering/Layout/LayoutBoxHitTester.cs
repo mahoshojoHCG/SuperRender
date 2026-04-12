@@ -45,7 +45,7 @@ public static class LayoutBoxHitTester
 
         while (node is not null)
         {
-            if (node is Element el && el.TagName == "a")
+            if (node is Element el && el.TagName == HtmlTagNames.A)
                 return el;
             node = node.Parent;
         }

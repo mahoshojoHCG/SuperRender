@@ -33,6 +33,7 @@ public sealed class BrowserWindow : IDisposable
     private ContextMenu? _contextMenu;
     private ITextMeasurer _measurer = null!;
     private YCbCrCompute? _ycbcrCompute;
+    private IdctCompute? _idctCompute;
     private float _contentScale = 1.0f;
     private readonly ConcurrentQueue<Action> _mainThreadQueue = new();
 
@@ -67,6 +68,21 @@ public sealed class BrowserWindow : IDisposable
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "GPU YCbCr compute pipeline unavailable, using CPU fallback");
+        }
+
+        // Wire up GPU-accelerated combined dequant+IDCT for JPEG decoding
+        try
+        {
+            _idctCompute = new IdctCompute(_renderer.VulkanContext);
+            if (_idctCompute.IsDequantAvailable)
+            {
+                JpegDecoder.GpuDequantIdctTransformer = (rawCoeffs, quantTable, blockCount) =>
+                    _idctCompute.TransformBlocksWithDequant(rawCoeffs, quantTable, blockCount);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GPU dequant+IDCT compute pipeline unavailable, using CPU fallback");
         }
 
         var measurer = new BitmapFontTextMeasurer(_renderer.FontAtlasData);
@@ -308,7 +324,9 @@ public sealed class BrowserWindow : IDisposable
     public void Dispose()
     {
         JpegDecoder.GpuYCbCrConverter = null;
+        JpegDecoder.GpuDequantIdctTransformer = null;
         _ycbcrCompute?.Dispose();
+        _idctCompute?.Dispose();
         _tabManager?.Dispose();
         _httpCache?.Dispose();
         _storageDb?.Dispose();

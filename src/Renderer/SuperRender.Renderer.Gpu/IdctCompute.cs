@@ -13,8 +13,11 @@ public sealed unsafe class IdctCompute : IDisposable
 {
     private readonly VulkanContext _ctx;
     private readonly ComputePipelineManager _pipeline;
+    private readonly DequantIdctPipeline _dequantPipeline;
     private DescriptorPool _descriptorPool;
     private DescriptorSet _descriptorSet;
+    private DescriptorPool _dequantDescriptorPool;
+    private DescriptorSet _dequantDescriptorSet;
     private CommandPool _commandPool;
     private bool _disposed;
 
@@ -24,14 +27,20 @@ public sealed unsafe class IdctCompute : IDisposable
     /// </summary>
     public bool IsAvailable => _pipeline.Pipeline.Handle != 0;
 
+    /// <summary>
+    /// Returns true if the combined dequant+IDCT pipeline is available.
+    /// </summary>
+    public bool IsDequantAvailable => _dequantPipeline.Pipeline.Handle != 0;
+
     public IdctCompute(VulkanContext ctx)
     {
         _ctx = ctx;
         _pipeline = new ComputePipelineManager(ctx);
+        _dequantPipeline = new DequantIdctPipeline(ctx);
 
-        if (IsAvailable)
+        if (IsAvailable || IsDequantAvailable)
         {
-            CreateDescriptorPool();
+            CreateDescriptorPools();
             CreateCommandPool();
         }
     }
@@ -94,6 +103,76 @@ public sealed unsafe class IdctCompute : IDisposable
         // Cleanup buffers
         _ctx.Vk.DestroyBuffer(_ctx.Device, inputBuffer, null);
         _ctx.Vk.FreeMemory(_ctx.Device, inputMemory, null);
+        _ctx.Vk.DestroyBuffer(_ctx.Device, outputBuffer, null);
+        _ctx.Vk.FreeMemory(_ctx.Device, outputMemory, null);
+
+        return result;
+    }
+
+    /// <summary>
+    /// Runs combined dequantization + IDCT on the GPU for a batch of 8x8 DCT blocks.
+    /// Input: flat array of raw (NOT dequantized) DCT coefficients (blockCount * 64 ints)
+    /// and a quantization table (64 ints).
+    /// Output: flat array of pixel values 0-255 (blockCount * 64 ints).
+    /// Returns null if the combined pipeline is unavailable.
+    /// </summary>
+    public int[]? TransformBlocksWithDequant(int[] rawDctCoeffs, int[] quantTable, int blockCount)
+    {
+        if (!IsDequantAvailable || blockCount == 0)
+            return null;
+
+        int totalInts = blockCount * 64;
+        int coeffBufferSize = totalInts * sizeof(int);
+        int quantBufferSize = 64 * sizeof(int);
+
+        // Create SSBOs
+        var (inputBuffer, inputMemory) = CreateStorageBuffer((ulong)coeffBufferSize);
+        UploadToBuffer(inputMemory, rawDctCoeffs.AsSpan(), (ulong)coeffBufferSize);
+
+        var (quantBuffer, quantMemory) = CreateStorageBuffer((ulong)quantBufferSize);
+        UploadToBuffer(quantMemory, quantTable.AsSpan(0, 64), (ulong)quantBufferSize);
+
+        var (outputBuffer, outputMemory) = CreateStorageBuffer((ulong)coeffBufferSize);
+
+        // Update descriptor set for 3 SSBOs
+        AllocateAndWriteDequantDescriptorSet(inputBuffer, quantBuffer, outputBuffer,
+            (ulong)coeffBufferSize, (ulong)quantBufferSize);
+
+        // Record and submit compute command buffer
+        var cmd = BeginCompute();
+
+        _ctx.Vk.CmdBindPipeline(cmd, PipelineBindPoint.Compute, _dequantPipeline.Pipeline);
+        var descSet = _dequantDescriptorSet;
+        _ctx.Vk.CmdBindDescriptorSets(cmd, PipelineBindPoint.Compute,
+            _dequantPipeline.PipelineLayout, 0, 1, &descSet, 0, null);
+
+        uint bc = (uint)blockCount;
+        _ctx.Vk.CmdPushConstants(cmd, _dequantPipeline.PipelineLayout,
+            ShaderStageFlags.ComputeBit, 0, 4, &bc);
+
+        _ctx.Vk.CmdDispatch(cmd, (uint)blockCount, 1, 1);
+
+        var memBarrier = new MemoryBarrier
+        {
+            SType = StructureType.MemoryBarrier,
+            SrcAccessMask = AccessFlags.ShaderWriteBit,
+            DstAccessMask = AccessFlags.HostReadBit,
+        };
+        _ctx.Vk.CmdPipelineBarrier(cmd,
+            PipelineStageFlags.ComputeShaderBit, PipelineStageFlags.HostBit,
+            0, 1, &memBarrier, 0, null, 0, null);
+
+        EndCompute(cmd);
+
+        // Read back results
+        var result = new int[totalInts];
+        ReadFromBuffer(outputMemory, result.AsSpan(), (ulong)coeffBufferSize);
+
+        // Cleanup buffers
+        _ctx.Vk.DestroyBuffer(_ctx.Device, inputBuffer, null);
+        _ctx.Vk.FreeMemory(_ctx.Device, inputMemory, null);
+        _ctx.Vk.DestroyBuffer(_ctx.Device, quantBuffer, null);
+        _ctx.Vk.FreeMemory(_ctx.Device, quantMemory, null);
         _ctx.Vk.DestroyBuffer(_ctx.Device, outputBuffer, null);
         _ctx.Vk.FreeMemory(_ctx.Device, outputMemory, null);
 
@@ -202,6 +281,54 @@ public sealed unsafe class IdctCompute : IDisposable
         }
     }
 
+    private void AllocateAndWriteDequantDescriptorSet(Buffer inputBuffer, Buffer quantBuffer,
+        Buffer outputBuffer, ulong coeffBufferSize, ulong quantBufferSize)
+    {
+        _ctx.Vk.ResetDescriptorPool(_ctx.Device, _dequantDescriptorPool, 0);
+
+        var layout = _dequantPipeline.DescriptorSetLayout;
+        var allocInfo = new DescriptorSetAllocateInfo
+        {
+            SType = StructureType.DescriptorSetAllocateInfo,
+            DescriptorPool = _dequantDescriptorPool,
+            DescriptorSetCount = 1,
+            PSetLayouts = &layout,
+        };
+        _ctx.Vk.AllocateDescriptorSets(_ctx.Device, in allocInfo, out _dequantDescriptorSet);
+
+        var inputInfo = new DescriptorBufferInfo { Buffer = inputBuffer, Offset = 0, Range = coeffBufferSize };
+        var quantInfo = new DescriptorBufferInfo { Buffer = quantBuffer, Offset = 0, Range = quantBufferSize };
+        var outputInfo = new DescriptorBufferInfo { Buffer = outputBuffer, Offset = 0, Range = coeffBufferSize };
+
+        var writes = new WriteDescriptorSet[3];
+        writes[0] = new WriteDescriptorSet
+        {
+            SType = StructureType.WriteDescriptorSet,
+            DstSet = _dequantDescriptorSet, DstBinding = 0,
+            DescriptorType = DescriptorType.StorageBuffer, DescriptorCount = 1,
+            PBufferInfo = &inputInfo,
+        };
+        writes[1] = new WriteDescriptorSet
+        {
+            SType = StructureType.WriteDescriptorSet,
+            DstSet = _dequantDescriptorSet, DstBinding = 1,
+            DescriptorType = DescriptorType.StorageBuffer, DescriptorCount = 1,
+            PBufferInfo = &quantInfo,
+        };
+        writes[2] = new WriteDescriptorSet
+        {
+            SType = StructureType.WriteDescriptorSet,
+            DstSet = _dequantDescriptorSet, DstBinding = 2,
+            DescriptorType = DescriptorType.StorageBuffer, DescriptorCount = 1,
+            PBufferInfo = &outputInfo,
+        };
+
+        fixed (WriteDescriptorSet* pWrites = writes)
+        {
+            _ctx.Vk.UpdateDescriptorSets(_ctx.Device, 3, pWrites, 0, null);
+        }
+    }
+
     private CommandBuffer BeginCompute()
     {
         var allocInfo = new CommandBufferAllocateInfo
@@ -240,22 +367,43 @@ public sealed unsafe class IdctCompute : IDisposable
         _ctx.Vk.FreeCommandBuffers(_ctx.Device, _commandPool, 1, in cmd);
     }
 
-    private void CreateDescriptorPool()
+    private void CreateDescriptorPools()
     {
-        var poolSize = new DescriptorPoolSize
+        if (IsAvailable)
         {
-            Type = DescriptorType.StorageBuffer,
-            DescriptorCount = 2, // input + output SSBOs
-        };
+            var poolSize = new DescriptorPoolSize
+            {
+                Type = DescriptorType.StorageBuffer,
+                DescriptorCount = 2, // input + output SSBOs
+            };
 
-        var poolInfo = new DescriptorPoolCreateInfo
+            var poolInfo = new DescriptorPoolCreateInfo
+            {
+                SType = StructureType.DescriptorPoolCreateInfo,
+                PoolSizeCount = 1,
+                PPoolSizes = &poolSize,
+                MaxSets = 1,
+            };
+            _ctx.Vk.CreateDescriptorPool(_ctx.Device, in poolInfo, null, out _descriptorPool);
+        }
+
+        if (IsDequantAvailable)
         {
-            SType = StructureType.DescriptorPoolCreateInfo,
-            PoolSizeCount = 1,
-            PPoolSizes = &poolSize,
-            MaxSets = 1,
-        };
-        _ctx.Vk.CreateDescriptorPool(_ctx.Device, in poolInfo, null, out _descriptorPool);
+            var poolSize = new DescriptorPoolSize
+            {
+                Type = DescriptorType.StorageBuffer,
+                DescriptorCount = 3, // raw coeffs + quant table + output SSBOs
+            };
+
+            var poolInfo = new DescriptorPoolCreateInfo
+            {
+                SType = StructureType.DescriptorPoolCreateInfo,
+                PoolSizeCount = 1,
+                PPoolSizes = &poolSize,
+                MaxSets = 1,
+            };
+            _ctx.Vk.CreateDescriptorPool(_ctx.Device, in poolInfo, null, out _dequantDescriptorPool);
+        }
     }
 
     private void CreateCommandPool()
@@ -290,6 +438,9 @@ public sealed unsafe class IdctCompute : IDisposable
             _ctx.Vk.DestroyCommandPool(_ctx.Device, _commandPool, null);
         if (_descriptorPool.Handle != 0)
             _ctx.Vk.DestroyDescriptorPool(_ctx.Device, _descriptorPool, null);
+        if (_dequantDescriptorPool.Handle != 0)
+            _ctx.Vk.DestroyDescriptorPool(_ctx.Device, _dequantDescriptorPool, null);
         _pipeline.Dispose();
+        _dequantPipeline.Dispose();
     }
 }

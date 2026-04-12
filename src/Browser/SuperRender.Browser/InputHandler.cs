@@ -469,7 +469,7 @@ public sealed class InputHandler
                         {
                             var resolvedUri = UrlResolver.Resolve(href, tab.CurrentUri);
                             var target = anchor.GetAttribute(HtmlAttributeNames.Target);
-                            if (target is not null && target.Equals("_blank", StringComparison.OrdinalIgnoreCase))
+                            if (target is not null && target.Equals(HtmlAttributeNames.TargetBlank, StringComparison.OrdinalIgnoreCase))
                             {
                                 _tabs.CreateTab();
                             }

@@ -1,5 +1,4 @@
 using DomDocument = SuperRender.Document.Dom.Document;
-using SuperRender.Renderer.Rendering;
 using SuperRender.EcmaScript.Dom;
 using SuperRender.EcmaScript.Engine;
 using SuperRender.EcmaScript.Runtime;
@@ -10,14 +9,7 @@ namespace SuperRender.Browser.Tests;
 public class DomBindingTests
 {
     private static (JsEngine engine, DomDocument doc, DomBridge bridge) CreateTestEnvironment(string html)
-    {
-        var pipeline = new RenderPipeline(new SuperRender.Renderer.Rendering.Layout.MonospaceTextMeasurer());
-        var doc = pipeline.LoadHtml(html);
-        var engine = new JsEngine();
-        var bridge = new DomBridge(engine, doc);
-        bridge.Install();
-        return (engine, doc, bridge);
-    }
+        => TestEnvironmentHelper.Create(html);
 
     private const string BasicHtml = "<html><head><title>Test</title></head><body><div id='test' class='foo bar'>hello</div></body></html>";
 

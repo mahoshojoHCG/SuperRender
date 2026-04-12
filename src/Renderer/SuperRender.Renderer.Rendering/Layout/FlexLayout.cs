@@ -556,34 +556,23 @@ internal static class FlexLayout
         // HTML attributes or decoded image data, use those directly.
         if (item.DomNode is Document.Dom.Element imgEl && imgEl.TagName == HtmlTagNames.Img)
         {
-            float imgW = 0, imgH = 0;
-            var widthAttr = imgEl.GetAttribute(HtmlAttributeNames.Width) ?? imgEl.GetAttribute(HtmlAttributeNames.DataNaturalWidth);
-            var heightAttr = imgEl.GetAttribute(HtmlAttributeNames.Height) ?? imgEl.GetAttribute(HtmlAttributeNames.DataNaturalHeight);
-            if (widthAttr != null)
-                float.TryParse(widthAttr, System.Globalization.CultureInfo.InvariantCulture, out imgW);
-            if (heightAttr != null)
-                float.TryParse(heightAttr, System.Globalization.CultureInfo.InvariantCulture, out imgH);
-            if (imgW > 0 || imgH > 0)
+            ImageIntrinsicSizeHelper.TryGetWidth(item, out float imgW);
+            ImageIntrinsicSizeHelper.TryGetHeight(item, imgW, out float imgH);
+            // Also handle height-only case (width derived from height)
+            if (imgH > 0 && imgW == 0)
             {
-                // Preserve aspect ratio if only one dimension specified
                 var naturalW = imgEl.GetAttribute(HtmlAttributeNames.DataNaturalWidth);
                 var naturalH = imgEl.GetAttribute(HtmlAttributeNames.DataNaturalHeight);
-                if (imgW > 0 && imgH == 0 && naturalW != null && naturalH != null
-                    && float.TryParse(naturalW, System.Globalization.CultureInfo.InvariantCulture, out float nw)
-                    && float.TryParse(naturalH, System.Globalization.CultureInfo.InvariantCulture, out float nh)
-                    && nw > 0)
-                {
-                    imgH = imgW * nh / nw;
-                }
-                if (imgH > 0 && imgW == 0 && naturalW != null && naturalH != null
+                if (naturalW != null && naturalH != null
                     && float.TryParse(naturalW, System.Globalization.CultureInfo.InvariantCulture, out float nw2)
                     && float.TryParse(naturalH, System.Globalization.CultureInfo.InvariantCulture, out float nh2)
                     && nh2 > 0)
                 {
                     imgW = imgH * nw2 / nh2;
                 }
-                return (imgW, imgH);
             }
+            if (imgW > 0 || imgH > 0)
+                return (imgW, imgH);
         }
 
         // Lay out item with shrink-to-fit semantics: use available width as max,

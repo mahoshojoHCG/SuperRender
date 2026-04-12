@@ -42,10 +42,10 @@ dotnet run --project src/EcmaScript/SuperRender.EcmaScript.Repl  # Launch the JS
 
 **Key components:**
 - `RenderPipeline` — orchestrator with dirty-flag optimization
-- `HtmlParser` — state-machine tokenizer + tree builder with auto-closing rules and adoption agency algorithm
-- `CssParser` — tokenizer + parser with shorthand expansion (margin/padding/border/flex/flex-flow/border-radius)
-- `StyleResolver` — cascade, specificity, `!important`, global keywords (`initial`/`inherit`/`unset`/`revert`), inherited properties (color, font-size, font-family, font-weight, font-style, text-align, line-height, white-space, visibility, text-transform, letter-spacing, word-spacing, cursor, word-break, overflow-wrap, list-style-type), `hidden` attribute, box-sizing, min/max constraints, overflow, z-index, opacity, CSS font-family list parsing, `calc()`/`min()`/`max()`/`clamp()` evaluation, viewport units (vw/vh/vmin/vmax)
-- `LayoutEngine` — block layout, inline layout with word-wrap, anonymous block wrapping, inline-block layout, flexbox layout (`FlexLayout` with direction/wrap/justify/align/grow/shrink/basis/gap, decomposed into phases: collect items, wrap into lines, resolve sizes, position items), position:relative/absolute, white-space modes, replaced element sizing for `<img>` with intrinsic dimensions and aspect ratio preservation. `BoxDimensions` provides `HorizontalEdge`/`VerticalEdge`/`LeftEdge`/`TopEdge` helpers for margin+border+padding calculations.
+- `HtmlParser` — state-machine tokenizer + tree builder with auto-closing rules and adoption agency algorithm. `HtmlTokenizer` split into partial classes: `HtmlTokenizer.cs` (fields, dispatch loop, helpers) and `HtmlTokenizer.States.cs` (16 state handler methods)
+- `CssParser` — tokenizer + parser with shorthand expansion (margin/padding/border/flex/flex-flow/border-radius). Split into partial classes: `CssParser.cs` (core parsing, value parsing, token helpers) and `CssParser.Shorthands.cs` (all `Expand*Shorthand` methods)
+- `StyleResolver` — cascade, specificity, `!important`, global keywords (`initial`/`inherit`/`unset`/`revert`), inherited properties (color, font-size, font-family, font-weight, font-style, text-align, line-height, white-space, visibility, text-transform, letter-spacing, word-spacing, cursor, word-break, overflow-wrap, list-style-type), `hidden` attribute, box-sizing, min/max constraints, overflow, z-index, opacity, CSS font-family list parsing, `calc()`/`min()`/`max()`/`clamp()` evaluation, viewport units (vw/vh/vmin/vmax). Split into partial classes: `StyleResolver.cs` (core resolution), `StyleResolver.BoxModel.cs`, `StyleResolver.Typography.cs`, `StyleResolver.Color.cs`, `StyleResolver.Position.cs`, `StyleResolver.Flex.cs`, `StyleResolver.Helpers.cs`
+- `LayoutEngine` — block layout, inline layout with word-wrap, anonymous block wrapping, inline-block layout, flexbox layout (`FlexLayout` with direction/wrap/justify/align/grow/shrink/basis/gap, decomposed into phases: collect items, wrap into lines, resolve sizes, position items), position:relative/absolute, white-space modes, replaced element sizing for `<img>` with intrinsic dimensions and aspect ratio preservation. `BoxDimensions` provides `HorizontalEdge`/`VerticalEdge`/`LeftEdge`/`TopEdge` helpers for margin+border+padding calculations. `ImageIntrinsicSizeHelper` provides shared image dimension reading used by both `BlockLayout` and `FlexLayout`.
 - `Painter` — generates FillRect/DrawText/DrawImage/PushClip/PopClip commands from layout tree, per-run inline background painting, text-decoration rendering, z-index ordering, overflow:hidden clipping, list markers, opacity compositing, visibility:hidden support, `<img>` alt text fallback
 - `SelectorMatcher` — CSS Selectors Level 4: descendant/child/adjacent-sibling/general-sibling combinators, attribute selectors, structural pseudo-classes (`:first-child`/`:last-child`/`:nth-child(An+B)`/`:only-child`/`:first-of-type`/etc.), functional pseudo-classes (`:not()`/`:is()`/`:where()`), dynamic pseudo-classes (`:hover`/`:focus`/`:active`/`:link`/`:visited`), pseudo-elements (`::before`/`::after`), `:root`/`:empty`
 - `SelectionPainter` — generates highlight FillRect commands for text selection ranges, font-aware width measurement
@@ -68,7 +68,7 @@ Pure C# image decoders in `SuperRender.Renderer.Image` (zero external dependenci
 - `BmpDecoder` — BMP (24-bit/32-bit uncompressed, bottom-up/top-down row order)
 - `JpegDecoder` — Baseline JPEG (SOF0, Huffman decode, IDCT, YCbCr→RGB, 4:4:4/4:2:0 subsampling)
 
-**Pipeline:** `ImageDecoder.Decode(byte[])` → auto-detects format → returns `ImageData { Width, Height, byte[] Pixels }` (RGBA, 4 bytes/pixel, row-major). Hot decode paths use `Span<byte>`/`ReadOnlySpan<byte>` and `unsafe` fixed pointers for bounds-check elimination. `JpegDecoder.GpuYCbCrConverter` static callback enables optional GPU-accelerated YCbCr→RGBA conversion.
+**Pipeline:** `ImageDecoder.Decode(byte[])` → auto-detects format → returns `ImageData { Width, Height, byte[] Pixels }` (RGBA, 4 bytes/pixel, row-major). Hot decode paths use `Span<byte>`/`ReadOnlySpan<byte>` and `unsafe` fixed pointers for bounds-check elimination. JPEG Huffman decoding caches table arrays as `ReadOnlySpan<T>` locals for reduced indirection. PNG uses `ArrayPool<byte>` for intermediate reconstruction buffers. `JpegDecoder.GpuYCbCrConverter` static callback enables optional GPU-accelerated YCbCr→RGBA conversion. `JpegDecoder.GpuDequantIdctTransformer` static callback enables optional GPU-accelerated combined dequantization + IDCT.
 
 **Integration:** `Tab.LoadImagesAsync()` fetches image bytes via `ResourceLoader.FetchImageBytesAsync()` (supports HTTP/file/data: URIs), decodes with `ImageDecoder`, stores in `ImageCache`, sets `data-natural-width`/`data-natural-height` attributes on `<img>` elements for layout sizing.
 
@@ -79,7 +79,7 @@ Pure C# image decoders in `SuperRender.Renderer.Image` (zero external dependenci
 **Key components:**
 - `Lexer` — character-by-character scanner, full ES2025 token set
 - `Parser` — recursive descent + Pratt parser (20 precedence levels), ASI, arrow detection, destructuring, modules
-- `JsCompiler` — AST-to-DLR Expression tree compiler with `RuntimeHelpers` for JS semantics, labeled statement support (`break label`/`continue label`)
+- `JsCompiler` — AST-to-DLR Expression tree compiler with `RuntimeHelpers` for JS semantics, labeled statement support (`break label`/`continue label`). Split into partial classes: `JsCompiler.cs` (core dispatch), `JsCompiler.Statements.cs`, `JsCompiler.Expressions.cs`, `JsCompiler.Classes.cs`, `JsCompiler.Functions.cs`, `JsCompiler.Helpers.cs`
 - `JsValue` hierarchy — `IDynamicMetaObjectProvider` base, JsObject with prototype chain, JsFunction with closures
 - `Environment` — lexical scope chain with TDZ and const enforcement
 - `Realm` — global object + 15 intrinsic prototypes + GeneratorPrototype
@@ -138,7 +138,7 @@ Node.js-style interactive REPL powered by the EcmaScript engine.
 - Embedded resource names are derived via reflection (`typeof(T).Assembly.GetName().Name`), never hardcoded — keeps resource lookup stable across project renames
 - CSS property name strings are centralized in `CssPropertyNames` (Style/ directory) — use constants, not string literals
 - HTML tag name strings are centralized in `HtmlTagNames` (Dom/ directory) — use constants, not string literals
-- HTML attribute name strings are centralized in `HtmlAttributeNames` (Dom/ directory) — use constants, not string literals
+- HTML attribute name strings are centralized in `HtmlAttributeNames` (Dom/ directory) — use constants, not string literals. Also contains common attribute values (`Stylesheet`, `TargetBlank`)
 - Style default values (font size, viewport dimensions) are centralized in `PropertyDefaults` — use constants, not magic numbers
 - DOM wrapper boilerplate uses `JsWrapperExtensions` helpers (`DefineMethod`, `DefineGetter`, `DefineGetterSetter`) — prefer these over raw `DefineOwnProperty` calls
 - Browser and Gpu projects use `Microsoft.Extensions.Logging` (ILogger); zero-dep projects keep Console.WriteLine
@@ -146,6 +146,8 @@ Node.js-style interactive REPL powered by the EcmaScript engine.
 - DevTools is per-tab: each Tab owns its own DevToolsWindow; closing a tab closes its DevTools
 - JS errors surface line/column from `JsErrorBase` in ConsoleMessage and DevTools output
 - `RuntimeHelpers.SetLocation()` emits source line/column at statement boundaries in compiled JS code; `ExecutionContext.CurrentLine`/`CurrentColumn` (thread-static) provide location context for runtime error throws
+- Large classes use `partial class` splits by concern (e.g., `JsCompiler.Statements.cs`, `StyleResolver.BoxModel.cs`). Each partial file replicates the same `using` directives and `#pragma` suppressions as the main file
+- Browser test classes use `TestEnvironmentHelper.Create(html)` for shared JsEngine/Document/DomBridge setup — prefer this over per-class `CreateTestEnvironment` methods
 
 ### GPU-First Rendering
 
@@ -161,10 +163,12 @@ Prefer GPU rendering and compute over CPU wherever feasible:
 ### GPU Compute Infrastructure
 
 - `ComputePipelineManager` — creates Vulkan compute pipelines with SSBO descriptors and push constants
-- `IdctCompute` — orchestrates GPU-accelerated JPEG 8x8 IDCT: uploads DCT coefficients → dispatches compute shader → reads back pixel values. Falls back gracefully when compute pipeline is unavailable.
+- `IdctCompute` — orchestrates GPU-accelerated JPEG 8x8 IDCT: uploads DCT coefficients → dispatches compute shader → reads back pixel values. Supports both standard IDCT (`TransformBlocks`) and combined dequant+IDCT (`TransformBlocksWithDequant`). Falls back gracefully when compute pipeline is unavailable.
+- `DequantIdctPipeline` — Vulkan compute pipeline with 3 SSBOs (raw DCT coefficients, quantization table, output pixels) for combined dequantization + IDCT in a single GPU dispatch
 - `YCbCrComputePipeline` — Vulkan compute pipeline with 4 SSBOs for YCbCr→RGBA color conversion
 - `YCbCrCompute` — orchestrates GPU-accelerated YCbCr→RGBA conversion: uploads per-pixel Y/Cb/Cr planes → dispatches compute shader → reads back RGBA pixels. `JpegDecoder.GpuYCbCrConverter` static callback enables GPU path while keeping Renderer.Image dependency-free.
 - `Shaders/idct.comp.glsl` — compute shader: 64 threads per workgroup process one 8x8 DCT block in parallel
+- `Shaders/idct_dequant.comp.glsl` — compute shader: 64 threads per workgroup, shared memory dequantization + IDCT in a single dispatch (eliminates one CPU→GPU transfer vs separate passes)
 - `Shaders/ycbcr_to_rgba.comp.glsl` — compute shader: 256 threads per workgroup, each thread converts one pixel from YCbCr to RGBA
 - `ShaderCompiler` supports `"comp"` stage (shaderc kind 5) via `LoadOrCompileComputeShader()`
 
