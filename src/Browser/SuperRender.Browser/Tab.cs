@@ -1,4 +1,5 @@
 using DomDocument = SuperRender.Document.Dom.Document;
+using Microsoft.Extensions.Logging;
 using SuperRender.Browser.Networking;
 using SuperRender.Browser.Storage;
 using SuperRender.Renderer.Rendering;
@@ -9,6 +10,7 @@ using SuperRender.Renderer.Rendering.Layout;
 using SuperRender.EcmaScript.Runtime.Builtins;
 using SuperRender.EcmaScript.Dom;
 using SuperRender.EcmaScript.Engine;
+using SuperRender.EcmaScript.Runtime.Errors;
 using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.Browser;
@@ -20,6 +22,7 @@ public sealed class Tab : IDisposable
 {
     private readonly ITextMeasurer _measurer;
     private readonly ResourceLoader _loader;
+    private readonly ILogger<Tab>? _logger;
     private RenderPipeline? _pipeline;
     private JsEngine? _jsEngine;
     private DomBridge? _domBridge;
@@ -38,6 +41,11 @@ public sealed class Tab : IDisposable
     public TimerScheduler? Timers => _domBridge?.TimerQueue;
     public SessionStorage SessionStorage { get; set; } = new();
 
+    /// <summary>
+    /// Developer tools window bound to this tab. Closed when the tab is closed.
+    /// </summary>
+    public DevToolsWindow? DevTools { get; set; }
+
     // External dependencies injected from BrowserWindow
     public CookieJar? CookieJar { get; set; }
     public StorageDatabase? StorageDb { get; set; }
@@ -49,10 +57,11 @@ public sealed class Tab : IDisposable
     /// </summary>
     public event Action<Uri>? AddressBarChanged;
 
-    public Tab(ITextMeasurer measurer, ResourceLoader loader)
+    public Tab(ITextMeasurer measurer, ResourceLoader loader, ILogger<Tab>? logger = null)
     {
         _measurer = measurer;
         _loader = loader;
+        _logger = logger;
     }
 
     /// <summary>
@@ -166,12 +175,7 @@ public sealed class Tab : IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Tab] Navigation error: {ex.Message}");
-            ConsoleLog.Add(new ConsoleMessage
-            {
-                Level = ConsoleMessageLevel.Error,
-                Text = $"Navigation error: {ex.Message}",
-            });
+            LogError("Tab", "Navigation error", ex);
             LoadErrorPage($"Error: {ex.Message}");
         }
         finally
@@ -188,14 +192,11 @@ public sealed class Tab : IDisposable
 
     private void LoadErrorPage(string message)
     {
-        var errorHtml = $$"""
-            <html><head><style>
-                body { margin: 40px; font-size: 16px; color: #333; }
-                h1 { color: #c0392b; font-size: 24px; }
-                p { margin-top: 16px; }
-            </style></head>
-            <body><h1>Navigation Error</h1><p>{{message}}</p></body></html>
-            """;
+        var asm = typeof(Tab).Assembly;
+        var prefix = asm.GetName().Name + ".Resources.";
+        using var stream = asm.GetManifestResourceStream(prefix + "ErrorPage.html")!;
+        using var reader = new System.IO.StreamReader(stream);
+        var errorHtml = reader.ReadToEnd().Replace("{{MESSAGE}}", System.Net.WebUtility.HtmlEncode(message));
         _pipeline = new RenderPipeline(_measurer, useUserAgentStylesheet: true);
         _pipeline.LoadHtml(errorHtml);
         Title = "Error";
@@ -287,12 +288,7 @@ public sealed class Tab : IDisposable
                     try { _jsEngine.Execute(jsCode); }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"[JS] Script error ({src}): {ex.Message}");
-                        ConsoleLog.Add(new ConsoleMessage
-                        {
-                            Level = ConsoleMessageLevel.Error,
-                            Text = $"Script error ({src}): {ex.Message}",
-                        });
+                        LogError("JS", $"Script error ({src})", ex);
                     }
                 }
             }
@@ -312,12 +308,7 @@ public sealed class Tab : IDisposable
                 try { _jsEngine.Execute(script.InnerText); }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[JS] Inline script error: {ex.Message}");
-                    ConsoleLog.Add(new ConsoleMessage
-                    {
-                        Level = ConsoleMessageLevel.Error,
-                        Text = $"Inline script error: {ex.Message}",
-                    });
+                    LogError("JS", "Inline script error", ex);
                 }
             }
         }
@@ -436,11 +427,7 @@ public sealed class Tab : IDisposable
         }
         catch (Exception ex)
         {
-            ConsoleLog.Add(new ConsoleMessage
-            {
-                Level = ConsoleMessageLevel.Error,
-                Text = ex.Message,
-            });
+            LogError("JS", "Console error", ex);
             return null;
         }
     }
@@ -506,9 +493,36 @@ public sealed class Tab : IDisposable
             CollectElements(child, tagName, results);
     }
 
+    private void LogError(string tag, string context, Exception ex)
+    {
+        int line = 0, col = 0;
+        string? source = null;
+        if (ex is JsErrorBase jsErr)
+        {
+            line = jsErr.Line;
+            col = jsErr.Column;
+            source = jsErr.SourceContext;
+        }
+
+        var lineInfo = line > 0 ? $" (line {line}, col {col})" : "";
+        _logger?.LogError(ex, "[{Tag}] {Context}{LineInfo}", tag, context, lineInfo);
+        ConsoleLog.Add(new ConsoleMessage
+        {
+            Level = ConsoleMessageLevel.Error,
+            Text = $"{context}: {ex.Message}{lineInfo}",
+            Line = line,
+            Column = col,
+            Source = source,
+        });
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
+
+        DevTools?.Close();
+        DevTools?.Dispose();
+        DevTools = null;
     }
 }

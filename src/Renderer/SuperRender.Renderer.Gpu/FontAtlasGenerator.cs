@@ -1,4 +1,5 @@
 using FreeTypeSharp;
+using Microsoft.Extensions.Logging;
 
 namespace SuperRender.Renderer.Gpu;
 
@@ -21,7 +22,8 @@ public static class FontAtlasGenerator
         out Dictionary<char, GlyphInfo> glyphs,
         out Dictionary<char, GlyphInfo> boldGlyphs,
         out Dictionary<char, GlyphInfo> monoGlyphs,
-        float contentScale = 1.0f)
+        float contentScale = 1.0f,
+        ILogger? logger = null)
     {
         using var locator = new SystemFontLocator();
 
@@ -36,7 +38,7 @@ public static class FontAtlasGenerator
 
         if (regularPath == null)
         {
-            Console.WriteLine("Warning: No system font found. Using fallback bitmap font.");
+            logger?.LogWarning("No system font found. Using fallback bitmap font.");
             var fallback = GenerateFallbackAtlas(out glyphs);
             boldGlyphs = glyphs;
             monoGlyphs = glyphs;
@@ -48,7 +50,8 @@ public static class FontAtlasGenerator
             boldPath ?? regularPath,
             monoPath ?? regularPath,
             out glyphs, out boldGlyphs, out monoGlyphs,
-            contentScale);
+            contentScale,
+            logger);
     }
 
     /// <summary>
@@ -61,7 +64,8 @@ public static class FontAtlasGenerator
         out Dictionary<char, GlyphInfo> glyphs,
         out Dictionary<char, GlyphInfo> boldGlyphs,
         out Dictionary<char, GlyphInfo> monoGlyphs,
-        float contentScale = 1.0f)
+        float contentScale = 1.0f,
+        ILogger? logger = null)
     {
         glyphs = new Dictionary<char, GlyphInfo>();
         boldGlyphs = new Dictionary<char, GlyphInfo>();
@@ -71,24 +75,25 @@ public static class FontAtlasGenerator
 
         var lib = new FreeTypeLibrary();
 
-        Console.WriteLine($"Using system font: {regularFontPath}");
+        logger?.LogInformation("Using system font: {FontPath}", regularFontPath);
 
         // Generate regular glyphs in top portion of atlas
         int nextRowY = GenerateVariantGlyphs(lib, regularFontPath, renderSize, pixels, glyphs, 0);
 
         // Generate bold glyphs
-        Console.WriteLine($"Using bold font: {boldFontPath}");
+        logger?.LogInformation("Using bold font: {FontPath}", boldFontPath);
         nextRowY = GenerateVariantGlyphs(lib, boldFontPath, renderSize, pixels, boldGlyphs, nextRowY + Padding);
         if (boldGlyphs.Count == 0) boldGlyphs = glyphs;
 
         // Generate monospace glyphs
-        Console.WriteLine($"Using monospace font: {monoFontPath}");
+        logger?.LogInformation("Using monospace font: {FontPath}", monoFontPath);
         GenerateVariantGlyphs(lib, monoFontPath, renderSize, pixels, monoGlyphs, nextRowY + Padding);
         if (monoGlyphs.Count == 0) monoGlyphs = glyphs;
 
         lib.Dispose();
         AtlasRenderSize = renderSize;
-        Console.WriteLine($"Font atlas generated: {glyphs.Count}+{boldGlyphs.Count}+{monoGlyphs.Count} glyphs, renderSize={renderSize:F0}");
+        logger?.LogInformation("Font atlas generated: {RegularCount}+{BoldCount}+{MonoCount} glyphs, renderSize={RenderSize:F0}",
+            glyphs.Count, boldGlyphs.Count, monoGlyphs.Count, renderSize);
         return pixels;
     }
 
@@ -102,7 +107,8 @@ public static class FontAtlasGenerator
         out Dictionary<char, GlyphInfo> glyphs,
         out Dictionary<char, GlyphInfo> boldGlyphs,
         out Dictionary<char, GlyphInfo> monoGlyphs,
-        float contentScale = 1.0f)
+        float contentScale = 1.0f,
+        ILogger? logger = null)
     {
         // Resolve sans-serif for regular and bold
         var sansEntry = locator.Resolve(["sans-serif"]);
@@ -115,7 +121,7 @@ public static class FontAtlasGenerator
 
         if (regularPath == null)
         {
-            Console.WriteLine("Warning: No system font found. Using fallback bitmap font.");
+            logger?.LogWarning("No system font found. Using fallback bitmap font.");
             var fallback = GenerateFallbackAtlas(out glyphs);
             boldGlyphs = glyphs;
             monoGlyphs = glyphs;
@@ -127,7 +133,8 @@ public static class FontAtlasGenerator
             boldPath ?? regularPath,
             monoPath ?? regularPath,
             out glyphs, out boldGlyphs, out monoGlyphs,
-            contentScale);
+            contentScale,
+            logger);
     }
 
     private static unsafe int GenerateVariantGlyphs(

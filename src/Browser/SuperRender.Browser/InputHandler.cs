@@ -67,106 +67,112 @@ public sealed class InputHandler
         _mouseDownY = y;
 
         if (y < BrowserChrome.TotalChromeHeight)
-        {
-            var hit = BrowserChrome.HitTest(x, y, logicalWidth, _tabs);
-            _chrome.AddressBarFocused = false;
-
-            switch (hit.Area)
-            {
-                case ChromeHitArea.TabClicked:
-                    _tabs.SwitchTab(hit.TabIndex);
-                    UpdateAddressFromTab();
-                    break;
-
-                case ChromeHitArea.NewTabButton:
-                    _tabs.CreateTab();
-                    _chrome.AddressText = "";
-                    _chrome.CursorPosition = 0;
-                    _chrome.AddressBarFocused = true;
-                    break;
-
-                case ChromeHitArea.CloseTabButton:
-                    _tabs.CloseTab(hit.TabIndex);
-                    UpdateAddressFromTab();
-                    break;
-
-                case ChromeHitArea.AddressBar:
-                    _chrome.AddressBarFocused = true;
-                    int cursorPos = HitTestAddressBarCursor(x);
-                    _chrome.CursorPosition = cursorPos;
-                    _chrome.SelectionStart = cursorPos;
-                    _chrome.SelectionEnd = cursorPos;
-                    _isAddressBarDragging = true;
-                    break;
-
-                case ChromeHitArea.GoButton:
-                    TriggerNavigation();
-                    break;
-
-                case ChromeHitArea.ReloadButton:
-                    if (_tabs.ActiveTab?.CurrentUri is not null)
-                        _navigateCallback(_tabs.ActiveTab.CurrentUri);
-                    break;
-
-                case ChromeHitArea.BackButton:
-                    _goBackCallback();
-                    break;
-
-                case ChromeHitArea.ForwardButton:
-                    _goForwardCallback();
-                    break;
-            }
-        }
+            HandleChromeMouseDown(x, y, logicalWidth);
         else
+            HandleContentMouseDown(x, y);
+    }
+
+    private void HandleChromeMouseDown(float x, float y, float logicalWidth)
+    {
+        var hit = BrowserChrome.HitTest(x, y, logicalWidth, _tabs);
+        _chrome.AddressBarFocused = false;
+
+        switch (hit.Area)
         {
-            // Click in content area - unfocus address bar, start text selection
-            _chrome.AddressBarFocused = false;
-            _mouseDownNode = null;
+            case ChromeHitArea.TabClicked:
+                _tabs.SwitchTab(hit.TabIndex);
+                UpdateAddressFromTab();
+                break;
 
-            var tab = _tabs.ActiveTab;
-            if (tab?.LayoutRoot is not null)
+            case ChromeHitArea.NewTabButton:
+                _tabs.CreateTab();
+                _chrome.AddressText = "";
+                _chrome.CursorPosition = 0;
+                _chrome.AddressBarFocused = true;
+                break;
+
+            case ChromeHitArea.CloseTabButton:
+                _tabs.CloseTab(hit.TabIndex);
+                UpdateAddressFromTab();
+                break;
+
+            case ChromeHitArea.AddressBar:
+                _chrome.AddressBarFocused = true;
+                int cursorPos = HitTestAddressBarCursor(x);
+                _chrome.CursorPosition = cursorPos;
+                _chrome.SelectionStart = cursorPos;
+                _chrome.SelectionEnd = cursorPos;
+                _isAddressBarDragging = true;
+                break;
+
+            case ChromeHitArea.GoButton:
+                TriggerNavigation();
+                break;
+
+            case ChromeHitArea.ReloadButton:
+                if (_tabs.ActiveTab?.CurrentUri is not null)
+                    _navigateCallback(_tabs.ActiveTab.CurrentUri);
+                break;
+
+            case ChromeHitArea.BackButton:
+                _goBackCallback();
+                break;
+
+            case ChromeHitArea.ForwardButton:
+                _goForwardCallback();
+                break;
+        }
+    }
+
+    private void HandleContentMouseDown(float x, float y)
+    {
+        // Click in content area - unfocus address bar, start text selection
+        _chrome.AddressBarFocused = false;
+        _mouseDownNode = null;
+
+        var tab = _tabs.ActiveTab;
+        if (tab?.LayoutRoot is not null)
+        {
+            float contentX = x;
+            float contentY = y - BrowserChrome.TotalChromeHeight + tab.Scroll.ScrollY;
+
+            // Hit-test layout boxes for DOM event dispatch
+            var hitBox = LayoutBoxHitTester.HitTest(tab.LayoutRoot, contentX, contentY);
+            if (hitBox?.DomNode is not null)
             {
-                float contentX = x;
-                float contentY = y - BrowserChrome.TotalChromeHeight + tab.Scroll.ScrollY;
+                _mouseDownNode = hitBox.DomNode;
 
-                // Hit-test layout boxes for DOM event dispatch
-                var hitBox = LayoutBoxHitTester.HitTest(tab.LayoutRoot, contentX, contentY);
-                if (hitBox?.DomNode is not null)
+                // Set :active state on the target element
+                _currentActiveNode = hitBox.DomNode;
+                InteractionStateHelper.SetActive(hitBox.DomNode);
+
+                // Set :focus on the nearest focusable element, clear previous focus
+                var targetElement = hitBox.DomNode as Element
+                    ?? hitBox.DomNode.Parent as Element;
+                _currentFocusedElement = InteractionStateHelper.SetFocus(
+                    targetElement, _currentFocusedElement);
+
+                if (tab.Document is not null)
+                    tab.Document.NeedsLayout = true;
+
+                hitBox.DomNode.DispatchEvent(new MouseEvent
                 {
-                    _mouseDownNode = hitBox.DomNode;
+                    Type = "mousedown", Bubbles = true, Cancelable = true,
+                    ClientX = contentX, ClientY = contentY, Button = 0,
+                });
+            }
 
-                    // Set :active state on the target element
-                    _currentActiveNode = hitBox.DomNode;
-                    InteractionStateHelper.SetActive(hitBox.DomNode);
-
-                    // Set :focus on the nearest focusable element, clear previous focus
-                    var targetElement = hitBox.DomNode as Element
-                        ?? hitBox.DomNode.Parent as Element;
-                    _currentFocusedElement = InteractionStateHelper.SetFocus(
-                        targetElement, _currentFocusedElement);
-
-                    if (tab.Document is not null)
-                        tab.Document.NeedsLayout = true;
-
-                    hitBox.DomNode.DispatchEvent(new MouseEvent
-                    {
-                        Type = "mousedown", Bubbles = true, Cancelable = true,
-                        ClientX = contentX, ClientY = contentY, Button = 0,
-                    });
-                }
-
-                var allRuns = TextHitTester.CollectTextRuns(tab.LayoutRoot);
-                var hit = TextHitTester.HitTest(allRuns, contentX, contentY, _measurer);
-                if (hit.HasValue)
-                {
-                    tab.Selection.Start = new TextPosition(hit.Value.runIndex, hit.Value.charOffset);
-                    tab.Selection.End = tab.Selection.Start;
-                    _isDragging = true;
-                }
-                else
-                {
-                    tab.Selection.Clear();
-                }
+            var allRuns = TextHitTester.CollectTextRuns(tab.LayoutRoot);
+            var hit = TextHitTester.HitTest(allRuns, contentX, contentY, _measurer);
+            if (hit.HasValue)
+            {
+                tab.Selection.Start = new TextPosition(hit.Value.runIndex, hit.Value.charOffset);
+                tab.Selection.End = tab.Selection.Start;
+                _isDragging = true;
+            }
+            else
+            {
+                tab.Selection.Clear();
             }
         }
     }
@@ -176,6 +182,22 @@ public sealed class InputHandler
         bool cmd = IsCommandModifier(kb);
         bool shift = IsShiftPressed(kb);
 
+        if (HandleGlobalShortcut(key, cmd, shift))
+            return;
+
+        // Address bar key handling
+        if (_chrome.AddressBarFocused)
+        {
+            HandleAddressBarKeyDown(key);
+            return;
+        }
+
+        // Content area key handling (scrolling)
+        HandleContentKeyDown(key);
+    }
+
+    private bool HandleGlobalShortcut(Key key, bool cmd, bool shift)
+    {
         // Global shortcuts (always active, regardless of focus)
         if (cmd)
         {
@@ -183,7 +205,7 @@ public sealed class InputHandler
             if (shift && key == Key.I)
             {
                 _onToggleDevTools();
-                return;
+                return true;
             }
 
             switch (key)
@@ -193,11 +215,11 @@ public sealed class InputHandler
                     _chrome.AddressText = "";
                     _chrome.CursorPosition = 0;
                     _chrome.AddressBarFocused = true;
-                    return;
+                    return true;
                 case Key.W:
                     _tabs.CloseTab(_tabs.ActiveTabIndex);
                     UpdateAddressFromTab();
-                    return;
+                    return true;
                 case Key.Tab:
                     if (_tabs.Tabs.Count > 1)
                     {
@@ -207,24 +229,24 @@ public sealed class InputHandler
                         _tabs.SwitchTab(nextIdx);
                         UpdateAddressFromTab();
                     }
-                    return;
+                    return true;
                 case Key.L:
                     _chrome.AddressBarFocused = true;
                     _chrome.SelectionStart = 0;
                     _chrome.SelectionEnd = _chrome.AddressText.Length;
                     _chrome.CursorPosition = _chrome.AddressText.Length;
-                    return;
+                    return true;
                 case Key.R:
                     ReloadActiveTab();
-                    return;
+                    return true;
                 case Key.LeftBracket:
                 case Key.Left:
                     _goBackCallback();
-                    return;
+                    return true;
                 case Key.RightBracket:
                 case Key.Right:
                     _goForwardCallback();
-                    return;
+                    return true;
             }
         }
 
@@ -232,13 +254,13 @@ public sealed class InputHandler
         if (key == Key.F12)
         {
             _onToggleDevTools();
-            return;
+            return true;
         }
 
         if (key == Key.F5)
         {
             ReloadActiveTab();
-            return;
+            return true;
         }
 
         if (key == Key.Escape)
@@ -248,21 +270,13 @@ public sealed class InputHandler
                 _chrome.AddressBarFocused = false;
                 UpdateAddressFromTab();
             }
-            return;
+            return true;
         }
 
-        // Address bar key handling
-        if (_chrome.AddressBarFocused)
-        {
-            HandleAddressBarKey(key);
-            return;
-        }
-
-        // Content area key handling (scrolling)
-        HandleContentKey(key);
+        return false;
     }
 
-    private void HandleAddressBarKey(Key key)
+    private void HandleAddressBarKeyDown(Key key)
     {
         switch (key)
         {
@@ -302,7 +316,7 @@ public sealed class InputHandler
         }
     }
 
-    private void HandleContentKey(Key key)
+    private void HandleContentKeyDown(Key key)
     {
         var scroll = _tabs.ActiveTab?.Scroll;
         if (scroll is null) return;

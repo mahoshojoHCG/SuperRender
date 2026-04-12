@@ -177,15 +177,13 @@ public static class JpegDecoder
         int mcuCols = (width + mcuWidth - 1) / mcuWidth;
         int mcuRows = (height + mcuHeight - 1) / mcuHeight;
 
-        // Allocate block storage per component
-        var blockData = new int[componentCount][][];
+        // Allocate block storage per component (flat: blocksX * blocksY * 64)
+        var blockData = new int[componentCount][];
         for (int c = 0; c < componentCount; c++)
         {
             int blocksX = mcuCols * components[c].H;
             int blocksY = mcuRows * components[c].V;
-            blockData[c] = new int[blocksX * blocksY][];
-            for (int b = 0; b < blockData[c].Length; b++)
-                blockData[c][b] = new int[64];
+            blockData[c] = new int[blocksX * blocksY * 64];
         }
 
         // Decode entropy-coded data
@@ -228,12 +226,13 @@ public static class JpegDecoder
                             int blockX = mcuCol * hi + h;
                             int blockY = mcuRow * vi + v;
                             int blockIdx = blockY * blocksPerRow + blockX;
+                            int blockOffset = blockIdx * 64;
 
-                            if (blockIdx >= blockData[compIdx].Length) return null;
+                            if (blockOffset + 64 > blockData[compIdx].Length) return null;
 
                             if (!DecodeBlock(ref bitReader, dcTable, acTable,
                                     quantTables[qtId]!, ref dcPred[compIdx],
-                                    blockData[compIdx][blockIdx]))
+                                    blockData[compIdx].AsSpan(blockOffset, 64)))
                                 return null;
                         }
                     }
@@ -442,9 +441,9 @@ public static class JpegDecoder
     #region Entropy Decoding
 
     private static bool DecodeBlock(ref BitReader reader, HuffmanTable dcTable,
-        HuffmanTable acTable, int[] quantTable, ref int dcPred, int[] block)
+        HuffmanTable acTable, int[] quantTable, ref int dcPred, Span<int> block)
     {
-        Array.Clear(block);
+        block.Clear();
 
         // DC coefficient
         int dcCategory = DecodeHuffman(ref reader, dcTable);
@@ -552,9 +551,9 @@ public static class JpegDecoder
     /// f(x,y) = (1/4) * sum_u sum_v C(u)*C(v)*F(u,v)*cos((2x+1)*u*pi/16)*cos((2y+1)*v*pi/16)
     /// Input: dequantized DCT coefficients in row-major order. Output: pixel values [0, 255].
     /// </summary>
-    internal static void IDCT8x8(int[] block)
+    internal static void IDCT8x8(Span<int> block)
     {
-        var result = new double[64];
+        Span<double> result = stackalloc double[64];
 
         for (int y = 0; y < 8; y++)
         {
@@ -606,16 +605,15 @@ public static class JpegDecoder
 
     #region Block Assembly
 
-    private static void AssembleGrayscale(int[][] blocks, int width, int height,
+    private static void AssembleGrayscale(int[] blocks, int width, int height,
         int blocksPerRow, byte[] pixels)
     {
         for (int blockY = 0; blockY < (height + 7) / 8; blockY++)
         {
             for (int blockX = 0; blockX < blocksPerRow; blockX++)
             {
-                int blockIdx = blockY * blocksPerRow + blockX;
-                if (blockIdx >= blocks.Length) continue;
-                var block = blocks[blockIdx];
+                int blockOffset = (blockY * blocksPerRow + blockX) * 64;
+                if (blockOffset + 64 > blocks.Length) continue;
 
                 for (int py = 0; py < 8; py++)
                 {
@@ -627,7 +625,7 @@ public static class JpegDecoder
                         int imgX = blockX * 8 + px;
                         if (imgX >= width) break;
 
-                        int value = block[py * 8 + px];
+                        int value = blocks[blockOffset + py * 8 + px];
                         int offset = (imgY * width + imgX) * 4;
                         pixels[offset] = (byte)value;
                         pixels[offset + 1] = (byte)value;
@@ -639,7 +637,7 @@ public static class JpegDecoder
         }
     }
 
-    private static void AssembleYCbCr(int[][][] blockData, FrameComponent[] components,
+    private static void AssembleYCbCr(int[][] blockData, FrameComponent[] components,
         int maxH, int maxV, int mcuCols, int mcuRows, int width, int height, byte[] pixels)
     {
         for (int mcuRow = 0; mcuRow < mcuRows; mcuRow++)
@@ -678,7 +676,7 @@ public static class JpegDecoder
         }
     }
 
-    private static int SampleComponent(int[][] blocks, FrameComponent component,
+    private static int SampleComponent(int[] blocks, FrameComponent component,
         int mcuCol, int mcuRow, int mcuCols, int maxH, int maxV, int px, int py)
     {
         int hi = component.H;
@@ -691,13 +689,13 @@ public static class JpegDecoder
 
         int blockX = mcuCol * hi + compPixelX / 8;
         int blockY = mcuRow * vi + compPixelY / 8;
-        int blockIdx = blockY * blocksPerRow + blockX;
+        int blockOffset = (blockY * blocksPerRow + blockX) * 64;
 
         int inBlockX = compPixelX % 8;
         int inBlockY = compPixelY % 8;
 
-        if (blockIdx >= blocks.Length) return 128;
-        return blocks[blockIdx][inBlockY * 8 + inBlockX];
+        if (blockOffset + 64 > blocks.Length) return 128;
+        return blocks[blockOffset + inBlockY * 8 + inBlockX];
     }
 
     #endregion

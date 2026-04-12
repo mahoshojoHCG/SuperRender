@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 
 namespace SuperRender.Renderer.Gpu;
 
@@ -8,7 +9,18 @@ public static class ShaderCompiler
     private static readonly Assembly GpuAssembly = typeof(ShaderCompiler).Assembly;
     private static readonly string ResourcePrefix = typeof(ShaderCompiler).Assembly.GetName().Name! + ".";
 
-    public static byte[]? LoadOrCompileShader(string spvResourceSuffix, string glslResourceSuffix, bool isVertex)
+    public static byte[]? LoadOrCompileShader(string spvResourceSuffix, string glslResourceSuffix, bool isVertex, ILogger? logger = null)
+    {
+        var stage = isVertex ? "vert" : "frag";
+        return LoadOrCompileShaderByStage(spvResourceSuffix, glslResourceSuffix, stage, logger);
+    }
+
+    public static byte[]? LoadOrCompileComputeShader(string spvResourceSuffix, string glslResourceSuffix, ILogger? logger = null)
+    {
+        return LoadOrCompileShaderByStage(spvResourceSuffix, glslResourceSuffix, "comp", logger);
+    }
+
+    private static byte[]? LoadOrCompileShaderByStage(string spvResourceSuffix, string glslResourceSuffix, string stage, ILogger? logger = null)
     {
         // First try pre-compiled SPIR-V
         var spv = LoadEmbeddedResource(ResourcePrefix + spvResourceSuffix);
@@ -19,10 +31,10 @@ public static class ShaderCompiler
         var glsl = LoadEmbeddedResourceString(fullGlslName);
         if (glsl == null) return null;
 
-        return CompileGlsl(glsl, isVertex ? "vert" : "frag", fullGlslName);
+        return CompileGlsl(glsl, stage, fullGlslName, logger);
     }
 
-    private static byte[]? CompileGlsl(string source, string stage, string filename)
+    private static byte[]? CompileGlsl(string source, string stage, string filename, ILogger? logger = null)
     {
         try
         {
@@ -42,6 +54,7 @@ public static class ShaderCompiler
                 {
                     "vert" => 0,  // shaderc_vertex_shader
                     "frag" => 1,  // shaderc_fragment_shader
+                    "comp" => 5,  // shaderc_compute_shader
                     _ => 0
                 };
 
@@ -72,7 +85,7 @@ public static class ShaderCompiler
                             {
                                 var errPtr = ShadercNative.shaderc_result_get_error_message(result);
                                 var err = errPtr != nint.Zero ? Marshal.PtrToStringUTF8(errPtr) : "Unknown error";
-                                Console.WriteLine($"Shader compile error ({filename}): {err}");
+                                logger?.LogError("Shader compile error ({Filename}): {Error}", filename, err);
                                 return null;
                             }
 
@@ -97,12 +110,12 @@ public static class ShaderCompiler
         }
         catch (DllNotFoundException)
         {
-            Console.WriteLine("Warning: shaderc native library not found. Cannot compile shaders at runtime.");
+            logger?.LogWarning("shaderc native library not found. Cannot compile shaders at runtime.");
             return null;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Warning: Shader compilation failed: {ex.Message}");
+            logger?.LogWarning(ex, "Shader compilation failed");
             return null;
         }
     }

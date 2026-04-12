@@ -113,6 +113,7 @@ Node.js-style interactive REPL powered by the EcmaScript engine.
 - **Rule suppressions** go in `.editorconfig`, not in `.csproj` `<NoWarn>` — keeps rules centralized and auditable
 - CA1707 (underscore in identifiers) is suppressed only under `tests/` for xUnit `Method_Scenario_Expected` naming
 - CA1720 (identifier contains type name) is suppressed under `src/Renderer/SuperRender.Renderer.Rendering/Style/` for CSS-mandated property names (e.g., `CursorType.Pointer`)
+- CA1848 (LoggerMessage delegates) and CA1873 (expensive logging params) suppressed globally — project log volume doesn't warrant the complexity
 
 ## Platform Notes
 
@@ -133,6 +134,11 @@ Node.js-style interactive REPL powered by the EcmaScript engine.
 - .NET interop is sandboxed: only explicitly mounted types are accessible from JS
 - The `Document` class requires a `DomDocument` using alias in files under `SuperRender.Document.*` or `SuperRender.Renderer.*` namespaces due to namespace collision with the `SuperRender.Document` namespace segment
 - Embedded resource names are derived via reflection (`typeof(T).Assembly.GetName().Name`), never hardcoded — keeps resource lookup stable across project renames
+- CSS property name strings are centralized in `CssPropertyNames` (Style/ directory) — use constants, not string literals
+- Browser and Gpu projects use `Microsoft.Extensions.Logging` (ILogger); zero-dep projects keep Console.WriteLine
+- Inline HTML pages (welcome, error) are embedded resources in `Resources/` — not inline strings
+- DevTools is per-tab: each Tab owns its own DevToolsWindow; closing a tab closes its DevTools
+- JS errors surface line/column from `JsErrorBase` in ConsoleMessage and DevTools output
 
 ### GPU-First Rendering
 
@@ -144,6 +150,13 @@ Prefer GPU rendering and compute over CPU wherever feasible:
 - **Enable hardware blending** on all pipelines that may carry alpha (quads included). Do not rely on draw-order opacity hacks.
 - **Batch aggressively.** Merge draw calls where possible; minimize pipeline switches and scissor-rect flushes per frame.
 - When adding a new rendering feature (gradients, rounded corners, shadows, filters, transforms), implement it as a GPU shader pipeline — not as CPU-generated quads or pixel manipulation.
+
+### GPU Compute Infrastructure
+
+- `ComputePipelineManager` — creates Vulkan compute pipelines with SSBO descriptors and push constants
+- `IdctCompute` — orchestrates GPU-accelerated JPEG 8x8 IDCT: uploads DCT coefficients → dispatches compute shader → reads back pixel values. Falls back gracefully when compute pipeline is unavailable.
+- `Shaders/idct.comp.glsl` — compute shader: 64 threads per workgroup process one 8x8 DCT block in parallel
+- `ShaderCompiler` supports `"comp"` stage (shaderc kind 5) via `LoadOrCompileComputeShader()`
 
 ## Browser
 

@@ -1,4 +1,5 @@
 using FreeTypeSharp;
+using Microsoft.Extensions.Logging;
 
 namespace SuperRender.Renderer.Gpu;
 
@@ -37,6 +38,7 @@ public sealed class FontAtlas : IDisposable
 
     // FreeType state for on-demand rendering
     private FreeTypeLibrary? _lib;
+    private readonly ILogger? _logger;
     private readonly string? _regularFontPath;
     private readonly string? _boldFontPath;
     private readonly string? _monoFontPath;
@@ -65,11 +67,12 @@ public sealed class FontAtlas : IDisposable
         MonospaceGlyphs = monoGlyphs;
     }
 
-    public FontAtlas(SystemFontLocator locator, float contentScale = 1.0f)
+    public FontAtlas(SystemFontLocator locator, float contentScale = 1.0f, ILogger? logger = null)
     {
         AtlasWidth = FontAtlasGenerator.AtlasWidth;
         AtlasHeight = FontAtlasGenerator.AtlasHeight;
         _renderSize = FontAtlasGenerator.BaseFontSize * Math.Max(contentScale, 1.0f);
+        _logger = logger;
 
         Glyphs = new Dictionary<char, GlyphInfo>();
         BoldGlyphs = new Dictionary<char, GlyphInfo>();
@@ -93,14 +96,14 @@ public sealed class FontAtlas : IDisposable
             if (cjkEntry?.RegularPath != null)
             {
                 _cjkFontPath = cjkEntry.RegularPath;
-                Console.WriteLine($"Using CJK font: {cjkName} ({_cjkFontPath})");
+                _logger?.LogInformation("Using CJK font: {CjkFontName} ({CjkFontPath})", cjkName, _cjkFontPath);
                 break;
             }
         }
 
         if (_regularFontPath == null)
         {
-            Console.WriteLine("Warning: No system font found. Using fallback bitmap font.");
+            _logger?.LogWarning("No system font found. Using fallback bitmap font.");
             PixelData = FontAtlasGenerator.GenerateAtlas(
                 out var glyphs, out var boldGlyphs, out var monoGlyphs, contentScale);
             Glyphs = glyphs;
@@ -109,9 +112,9 @@ public sealed class FontAtlas : IDisposable
             return;
         }
 
-        Console.WriteLine($"Using system font: {_regularFontPath}");
-        Console.WriteLine($"Using bold font: {_boldFontPath}");
-        Console.WriteLine($"Using monospace font: {_monoFontPath}");
+        _logger?.LogInformation("Using system font: {FontPath}", _regularFontPath);
+        _logger?.LogInformation("Using bold font: {FontPath}", _boldFontPath);
+        _logger?.LogInformation("Using monospace font: {FontPath}", _monoFontPath);
 
         PixelData = new byte[AtlasWidth * AtlasHeight];
         _lib = new FreeTypeLibrary();
@@ -120,7 +123,8 @@ public sealed class FontAtlas : IDisposable
         PreRenderAscii();
 
         FontAtlasGenerator.AtlasRenderSize = _renderSize;
-        Console.WriteLine($"Font atlas generated: {Glyphs.Count}+{BoldGlyphs.Count}+{MonospaceGlyphs.Count} glyphs, renderSize={_renderSize:F0}");
+        _logger?.LogInformation("Font atlas generated: {RegularCount}+{BoldCount}+{MonoCount} glyphs, renderSize={RenderSize:F0}",
+            Glyphs.Count, BoldGlyphs.Count, MonospaceGlyphs.Count, _renderSize);
     }
 
     /// <summary>

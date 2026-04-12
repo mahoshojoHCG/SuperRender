@@ -8,8 +8,8 @@
     <File Path=".gitignore" />
     <File Path="TODO.md" />
     <File Path="LICENSE" />
-    <File Path="MANUAL_TESTS_P0.md" />
-    <File Path="MANUAL_TESTS_P1.md" />
+    <File Path="docs/MANUAL_TESTS_P0.md" />
+    <File Path="docs/MANUAL_TESTS_P1.md" />
   </Folder>
   <Folder Name="/src/Document/">
     <Project Path="src/Document/SuperRender.Document/SuperRender.Document.csproj" />

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
@@ -17,6 +18,8 @@ namespace SuperRender.Browser;
 public sealed class BrowserWindow : IDisposable
 {
     private readonly IWindow _window;
+    private readonly ILoggerFactory _loggerFactory;
+    private readonly ILogger<BrowserWindow> _logger;
     private VulkanRenderer _renderer = null!;
     private TabManager _tabManager = null!;
     private BrowserChrome _chrome = null!;
@@ -25,16 +28,17 @@ public sealed class BrowserWindow : IDisposable
     private CookieJar _cookieJar = null!;
     private StorageDatabase? _storageDb;
     private HttpCache? _httpCache;
-    private DevToolsWindow? _devToolsWindow;
     private PaintList? _lastCombinedPaintList;
     private ContextMenu? _contextMenu;
     private ITextMeasurer _measurer = null!;
     private float _contentScale = 1.0f;
     private readonly ConcurrentQueue<Action> _mainThreadQueue = new();
 
-    public BrowserWindow(IWindow window)
+    public BrowserWindow(IWindow window, ILoggerFactory loggerFactory)
     {
         _window = window;
+        _loggerFactory = loggerFactory;
+        _logger = loggerFactory.CreateLogger<BrowserWindow>();
     }
 
     public void OnLoad()
@@ -46,7 +50,7 @@ public sealed class BrowserWindow : IDisposable
         if (logicalSize.X > 0)
             _contentScale = (float)fbSize.X / logicalSize.X;
 
-        _renderer = new VulkanRenderer(_window, _contentScale);
+        _renderer = new VulkanRenderer(_window, _contentScale, _loggerFactory.CreateLogger<VulkanRenderer>());
 
         var measurer = new BitmapFontTextMeasurer(_renderer.FontAtlasData);
         _measurer = measurer;
@@ -64,14 +68,14 @@ public sealed class BrowserWindow : IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Browser] Failed to initialize SQLite databases: {ex.Message}");
+            _logger.LogError(ex, "Failed to initialize SQLite databases");
         }
 
         // Initialize cookie jar with persistence
         _cookieJar = new CookieJar(_storageDb);
         _resourceLoader.CookieJar = _cookieJar;
 
-        _tabManager = new TabManager(measurer, _resourceLoader)
+        _tabManager = new TabManager(measurer, _resourceLoader, _loggerFactory)
         {
             CookieJar = _cookieJar,
             StorageDb = _storageDb,
@@ -117,7 +121,7 @@ public sealed class BrowserWindow : IDisposable
             mouse.Scroll += OnMouseScroll;
         }
 
-        Console.WriteLine("SuperRenderer Browser started.");
+        _logger.LogInformation("SuperRenderer Browser started.");
     }
 
     public void OnRender(double deltaTime)
@@ -260,8 +264,9 @@ public sealed class BrowserWindow : IDisposable
             return data is not null ? (data.Pixels, data.Width, data.Height) : (null, 0, 0);
         });
 
-        // Drive the DevTools window rendering (secondary windows aren't driven by Silk.NET's Run())
-        _devToolsWindow?.RenderFrame();
+        // Drive all open DevTools windows (secondary windows aren't driven by Silk.NET's Run())
+        foreach (var tab in _tabManager.Tabs)
+            tab.DevTools?.RenderFrame();
     }
 
     public void OnResize(Vector2D<int> size)
@@ -285,7 +290,6 @@ public sealed class BrowserWindow : IDisposable
 
     public void Dispose()
     {
-        _devToolsWindow?.Dispose();
         _tabManager?.Dispose();
         _httpCache?.Dispose();
         _storageDb?.Dispose();
@@ -403,100 +407,56 @@ public sealed class BrowserWindow : IDisposable
 
     private void ToggleDevTools()
     {
-        if (_devToolsWindow is { IsOpen: true })
+        var tab = _tabManager.ActiveTab;
+        if (tab is null) return;
+
+        if (tab.DevTools is { IsOpen: true })
         {
-            _devToolsWindow.Close();
-            _devToolsWindow = null;
+            tab.DevTools.Close();
+            tab.DevTools = null;
         }
         else
         {
-            _devToolsWindow = new DevToolsWindow(
-                () => _tabManager.ActiveTab?.ConsoleLog,
-                () => _devToolsWindow = null);
-            _devToolsWindow.Open();
+            tab.DevTools = new DevToolsWindow(
+                tab.ConsoleLog,
+                () => { if (tab.DevTools is not null) tab.DevTools = null; });
+            tab.DevTools.Open();
         }
     }
 
     private void DrainDevToolsExecutionQueue()
     {
-        if (_devToolsWindow is null) return;
-
-        while (_devToolsWindow.ExecutionQueue.TryDequeue(out var code))
+        foreach (var tab in _tabManager.Tabs)
         {
-            var tab = _tabManager.ActiveTab;
-            if (tab is null) continue;
+            if (tab.DevTools is not { IsOpen: true }) continue;
 
-            var result = tab.ExecuteConsoleInput(code);
-            if (result is not null)
+            while (tab.DevTools.ExecutionQueue.TryDequeue(out var code))
             {
-                tab.ConsoleLog.Add(new ConsoleMessage
+                var result = tab.ExecuteConsoleInput(code);
+                if (result is not null)
                 {
-                    Level = ConsoleMessageLevel.Info,
-                    Text = "< " + result,
-                });
+                    tab.ConsoleLog.Add(new ConsoleMessage
+                    {
+                        Level = ConsoleMessageLevel.Info,
+                        Text = "< " + result,
+                    });
+                }
             }
         }
     }
 
     private static void LoadWelcomePage(Tab tab)
     {
-        var welcomeHtml = """
-            <html>
-            <head>
-                <style>
-                    body {
-                        background-color: #ffffff;
-                        color: #333333;
-                        font-size: 16px;
-                        margin: 40px;
-                    }
-                    h1 {
-                        color: #2c3e50;
-                        font-size: 28px;
-                        margin-bottom: 16px;
-                    }
-                    .welcome {
-                        width: 600px;
-                        padding: 24px;
-                        background-color: #f8f9fa;
-                        border-width: 1px;
-                        border-color: #dee2e6;
-                        border-style: solid;
-                    }
-                    p {
-                        margin-bottom: 12px;
-                        line-height: 1.5;
-                    }
-                    .hint {
-                        color: #6c757d;
-                        font-size: 14px;
-                    }
-                    ul {
-                        margin-left: 20px;
-                        margin-bottom: 12px;
-                    }
-                    li { margin-bottom: 6px; }
-                </style>
-            </head>
-            <body>
-                <h1>Welcome to SuperRenderer Browser</h1>
-                <div class="welcome">
-                    <p>This browser is powered by the SuperRenderer engine, built entirely in C# with Vulkan rendering.</p>
-                    <p>Features:</p>
-                    <ul>
-                        <li>HTML + CSS rendering engine</li>
-                        <li>ECMAScript 2025 JavaScript engine</li>
-                        <li>Tab support</li>
-                        <li>Cross-origin resource checking</li>
-                        <li>HiDPI display support</li>
-                    </ul>
-                    <p class="hint">Type a URL in the address bar above and press Enter to navigate.</p>
-                </div>
-            </body>
-            </html>
-            """;
+        tab.LoadHtmlDirect(LoadEmbeddedHtml("WelcomePage.html"));
+    }
 
-        tab.LoadHtmlDirect(welcomeHtml);
+    private static string LoadEmbeddedHtml(string name)
+    {
+        var asm = typeof(BrowserWindow).Assembly;
+        var prefix = asm.GetName().Name + ".Resources.";
+        using var stream = asm.GetManifestResourceStream(prefix + name)!;
+        using var reader = new System.IO.StreamReader(stream);
+        return reader.ReadToEnd();
     }
 
     /// <summary>

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using SuperRender.Browser.Networking;
 using SuperRender.Browser.Storage;
 using SuperRender.Renderer.Rendering.Layout;
@@ -12,6 +13,7 @@ public sealed class TabManager : IDisposable
     private readonly List<Tab> _tabs = [];
     private readonly ITextMeasurer _measurer;
     private readonly ResourceLoader _loader;
+    private readonly ILoggerFactory? _loggerFactory;
     private readonly Dictionary<string, SessionStorage> _sessionStorageByOrigin = new(StringComparer.OrdinalIgnoreCase);
 
     public IReadOnlyList<Tab> Tabs => _tabs;
@@ -31,15 +33,16 @@ public sealed class TabManager : IDisposable
     /// </summary>
     public Action<Tab, Uri>? OnTabAddressBarChanged { get; set; }
 
-    public TabManager(ITextMeasurer measurer, ResourceLoader loader)
+    public TabManager(ITextMeasurer measurer, ResourceLoader loader, ILoggerFactory? loggerFactory = null)
     {
         _measurer = measurer;
         _loader = loader;
+        _loggerFactory = loggerFactory;
     }
 
     public Tab CreateTab()
     {
-        var tab = new Tab(_measurer, _loader)
+        var tab = new Tab(_measurer, _loader, _loggerFactory?.CreateLogger<Tab>())
         {
             CookieJar = CookieJar,
             StorageDb = StorageDb,

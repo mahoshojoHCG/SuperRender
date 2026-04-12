@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.KHR;
@@ -18,10 +19,12 @@ public sealed unsafe class VulkanContext : IDisposable
     public KhrSurface KhrSurfaceApi { get; }
     public SurfaceKHR Surface { get; }
 
+    private readonly ILogger? _logger;
     private bool _disposed;
 
-    public VulkanContext(IWindow window)
+    public VulkanContext(IWindow window, ILogger? logger = null)
     {
+        _logger = logger;
         Vk = Vk.GetApi();
 
         // --- Create Instance ---
@@ -284,7 +287,7 @@ public sealed unsafe class VulkanContext : IDisposable
     /// Make MoltenVK discoverable by both GLFW and the Vulkan loader.
     /// Must be called before any Silk.NET Vulkan/Window usage.
     /// </summary>
-    public static void EnsureMoltenVK()
+    public static void EnsureMoltenVK(ILogger? logger = null)
     {
         var appDir = AppContext.BaseDirectory;
 
@@ -303,7 +306,7 @@ public sealed unsafe class VulkanContext : IDisposable
         if (nativeDir == null)
         {
             if (!File.Exists(Path.Combine(appDir, "libMoltenVK.dylib")))
-                Console.WriteLine("Warning: libMoltenVK.dylib not found. Vulkan may not work on macOS.");
+                logger?.LogWarning("libMoltenVK.dylib not found. Vulkan may not work on macOS.");
             return;
         }
 
@@ -328,7 +331,7 @@ public sealed unsafe class VulkanContext : IDisposable
             }
         }
 
-        Console.WriteLine($"MoltenVK activated from {nativeDir}");
+        logger?.LogInformation("MoltenVK activated from {NativeDir}", nativeDir);
     }
 
     private static void CreateSymlinkIfMissing(string link, string target)

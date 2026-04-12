@@ -13,5 +13,13 @@ insert_final_newline = true
 # Suppressed in test projects where Method_Scenario_Expected is standard xUnit convention
 dotnet_diagnostic.CA1707.severity = warning
 
+# CA1848: Use LoggerMessage delegates for performance
+# Suppressed globally — perf benefit is negligible for this project's log volume
+dotnet_diagnostic.CA1848.severity = none
+
+# CA1873: Avoid computing parameters when logging is disabled
+# Suppressed — our log calls use simple string parameters, not expensive computations
+dotnet_diagnostic.CA1873.severity = none
+
 [tests/**/*.cs]
 dotnet_diagnostic.CA1707.severity = none

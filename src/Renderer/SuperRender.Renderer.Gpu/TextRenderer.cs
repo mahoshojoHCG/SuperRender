@@ -21,24 +21,6 @@ public sealed class TextRenderer
         _fontAtlas = fontAtlas;
     }
 
-    /// <summary>
-    /// Scans the <paramref name="paintList"/> for <see cref="DrawTextCommand"/> entries
-    /// and returns interleaved vertex + index arrays for textured quads.
-    /// </summary>
-    public (TextVertex[] vertices, uint[] indices) BuildTextBatch(PaintList paintList)
-    {
-        var vertices = new List<TextVertex>();
-        var indices = new List<uint>();
-
-        foreach (var cmd in paintList.Commands)
-        {
-            if (cmd is DrawTextCommand text)
-                EmitTextQuads(vertices, indices, text);
-        }
-
-        return (vertices.ToArray(), indices.ToArray());
-    }
-
     public void EmitTextQuads(
         List<TextVertex> verts, List<uint> idx, DrawTextCommand cmd)
     {

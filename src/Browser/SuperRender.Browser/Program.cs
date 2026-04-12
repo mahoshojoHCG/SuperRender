@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
 using SuperRender.Renderer.Gpu;
@@ -11,6 +12,9 @@ public static class Program
         if (OperatingSystem.IsMacOS())
             VulkanContext.EnsureMoltenVK();
 
+        using var loggerFactory = LoggerFactory.Create(builder =>
+            builder.AddConsole().SetMinimumLevel(LogLevel.Information));
+
         var opts = WindowOptions.DefaultVulkan with
         {
             Size = new Vector2D<int>(1280, 900),
@@ -19,7 +23,7 @@ public static class Program
         };
 
         var window = Window.Create(opts);
-        var browser = new BrowserWindow(window);
+        var browser = new BrowserWindow(window, loggerFactory);
 
         window.Load += browser.OnLoad;
         window.Render += browser.OnRender;

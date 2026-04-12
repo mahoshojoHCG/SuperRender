@@ -215,7 +215,7 @@ public sealed class StyleResolver
         string? content = null;
         foreach (var matched in declarations)
         {
-            if (matched.Declaration.Property == "content")
+            if (matched.Declaration.Property == CssPropertyNames.Content)
             {
                 content = ParseContentValue(matched.Declaration.Value.Raw);
             }
@@ -312,22 +312,22 @@ public sealed class StyleResolver
             }
         }
 
+        if (ApplyBoxModelProperty(style, prop, value, parentStyle))
+            return;
+        if (ApplyTypographyProperty(style, prop, value, parentStyle))
+            return;
+        if (ApplyColorProperty(style, prop, value, parentStyle))
+            return;
+        if (ApplyPositionProperty(style, prop, value, parentStyle))
+            return;
+        ApplyFlexProperty(style, prop, value, parentStyle);
+    }
+
+    private bool ApplyBoxModelProperty(ComputedStyle style, string prop, CssValue value, ComputedStyle? parentStyle)
+    {
         switch (prop)
         {
-            case "display":
-                style.Display = value.Raw.ToLowerInvariant() switch
-                {
-                    "block" => DisplayType.Block,
-                    "inline" => DisplayType.Inline,
-                    "inline-block" => DisplayType.InlineBlock,
-                    "flow-root" => DisplayType.FlowRoot,
-                    "none" => DisplayType.None,
-                    "flex" => DisplayType.Flex,
-                    _ => style.Display
-                };
-                break;
-
-            case "width":
+            case CssPropertyNames.Width:
                 if (value.Type == CssValueType.Calc && value.CalcExpr != null)
                 {
                     style.WidthCalc = value.CalcExpr;
@@ -344,7 +344,7 @@ public sealed class StyleResolver
                     style.WidthCalc = null;
                 }
                 break;
-            case "height":
+            case CssPropertyNames.Height:
                 if (value.Type == CssValueType.Calc && value.CalcExpr != null)
                 {
                     style.HeightCalc = value.CalcExpr;
@@ -362,7 +362,7 @@ public sealed class StyleResolver
                 }
                 break;
 
-            case "box-sizing":
+            case CssPropertyNames.BoxSizing:
                 style.BoxSizing = value.Raw.ToLowerInvariant() switch
                 {
                     "content-box" => BoxSizingType.ContentBox,
@@ -371,11 +371,11 @@ public sealed class StyleResolver
                 };
                 break;
 
-            case "min-width":
+            case CssPropertyNames.MinWidth:
                 var minW = ResolveLength(value, parentStyle);
                 style.MinWidth = float.IsNaN(minW) ? 0 : minW;
                 break;
-            case "max-width":
+            case CssPropertyNames.MaxWidth:
                 if (value.Raw.Equals("none", StringComparison.OrdinalIgnoreCase))
                     style.MaxWidth = float.PositiveInfinity;
                 else
@@ -384,11 +384,11 @@ public sealed class StyleResolver
                     style.MaxWidth = float.IsNaN(maxW) ? float.PositiveInfinity : maxW;
                 }
                 break;
-            case "min-height":
+            case CssPropertyNames.MinHeight:
                 var minH = ResolveLength(value, parentStyle);
                 style.MinHeight = float.IsNaN(minH) ? 0 : minH;
                 break;
-            case "max-height":
+            case CssPropertyNames.MaxHeight:
                 if (value.Raw.Equals("none", StringComparison.OrdinalIgnoreCase))
                     style.MaxHeight = float.PositiveInfinity;
                 else
@@ -398,27 +398,138 @@ public sealed class StyleResolver
                 }
                 break;
 
-            case "overflow" or "overflow-x" or "overflow-y":
-                style.Overflow = value.Raw.ToLowerInvariant() switch
+            case CssPropertyNames.MarginTop:
+                style.Margin = style.Margin with { Top = ResolveLength(value, parentStyle) };
+                break;
+            case CssPropertyNames.MarginRight:
+                style.Margin = style.Margin with { Right = ResolveLength(value, parentStyle) };
+                break;
+            case CssPropertyNames.MarginBottom:
+                style.Margin = style.Margin with { Bottom = ResolveLength(value, parentStyle) };
+                break;
+            case CssPropertyNames.MarginLeft:
+                style.Margin = style.Margin with { Left = ResolveLength(value, parentStyle) };
+                break;
+
+            case CssPropertyNames.PaddingTop:
+                style.Padding = style.Padding with { Top = ResolveLength(value, parentStyle) };
+                break;
+            case CssPropertyNames.PaddingRight:
+                style.Padding = style.Padding with { Right = ResolveLength(value, parentStyle) };
+                break;
+            case CssPropertyNames.PaddingBottom:
+                style.Padding = style.Padding with { Bottom = ResolveLength(value, parentStyle) };
+                break;
+            case CssPropertyNames.PaddingLeft:
+                style.Padding = style.Padding with { Left = ResolveLength(value, parentStyle) };
+                break;
+
+            case CssPropertyNames.BorderWidth:
+                var bw = ResolveLength(value, parentStyle);
+                style.BorderWidth = new EdgeSizes(bw);
+                break;
+            case CssPropertyNames.BorderTopWidth:
+                style.BorderWidth = style.BorderWidth with { Top = ResolveLength(value, parentStyle) };
+                break;
+            case CssPropertyNames.BorderRightWidth:
+                style.BorderWidth = style.BorderWidth with { Right = ResolveLength(value, parentStyle) };
+                break;
+            case CssPropertyNames.BorderBottomWidth:
+                style.BorderWidth = style.BorderWidth with { Bottom = ResolveLength(value, parentStyle) };
+                break;
+            case CssPropertyNames.BorderLeftWidth:
+                style.BorderWidth = style.BorderWidth with { Left = ResolveLength(value, parentStyle) };
+                break;
+
+            case CssPropertyNames.BorderStyle:
+                var bs = value.Raw.ToLowerInvariant();
+                style.BorderTopStyle = bs;
+                style.BorderRightStyle = bs;
+                style.BorderBottomStyle = bs;
+                style.BorderLeftStyle = bs;
+                break;
+            case CssPropertyNames.BorderTopStyle:
+                style.BorderTopStyle = value.Raw.ToLowerInvariant();
+                break;
+            case CssPropertyNames.BorderRightStyle:
+                style.BorderRightStyle = value.Raw.ToLowerInvariant();
+                break;
+            case CssPropertyNames.BorderBottomStyle:
+                style.BorderBottomStyle = value.Raw.ToLowerInvariant();
+                break;
+            case CssPropertyNames.BorderLeftStyle:
+                style.BorderLeftStyle = value.Raw.ToLowerInvariant();
+                break;
+
+            case CssPropertyNames.BorderTopLeftRadius:
+                style.BorderTopLeftRadius = ResolveBorderRadius(value, parentStyle);
+                break;
+            case CssPropertyNames.BorderTopRightRadius:
+                style.BorderTopRightRadius = ResolveBorderRadius(value, parentStyle);
+                break;
+            case CssPropertyNames.BorderBottomRightRadius:
+                style.BorderBottomRightRadius = ResolveBorderRadius(value, parentStyle);
+                break;
+            case CssPropertyNames.BorderBottomLeftRadius:
+                style.BorderBottomLeftRadius = ResolveBorderRadius(value, parentStyle);
+                break;
+
+            default:
+                return false;
+        }
+        return true;
+    }
+
+    private bool ApplyTypographyProperty(ComputedStyle style, string prop, CssValue value, ComputedStyle? parentStyle)
+    {
+        switch (prop)
+        {
+            case CssPropertyNames.FontSize:
+                style.FontSize = ResolveFontSize(value, parentStyle);
+                break;
+            case CssPropertyNames.FontFamily:
+                style.FontFamilies = FontFamilyParser.Parse(value.Raw);
+                break;
+
+            case CssPropertyNames.TextAlign:
+                style.TextAlign = value.Raw.ToLowerInvariant() switch
                 {
-                    "visible" => OverflowType.Visible,
-                    "hidden" => OverflowType.Hidden,
-                    "scroll" => OverflowType.Scroll,
-                    "auto" => OverflowType.Auto,
-                    _ => style.Overflow
+                    "left" => TextAlign.Left,
+                    "right" => TextAlign.Right,
+                    "center" => TextAlign.Center,
+                    "justify" => TextAlign.Justify,
+                    _ => style.TextAlign
                 };
                 break;
 
-            case "text-overflow":
-                style.TextOverflow = value.Raw.ToLowerInvariant() switch
+            case CssPropertyNames.LineHeight:
+                if (value.Type == CssValueType.Number)
+                    style.LineHeight = (float)value.NumericValue;
+                else if (value.Type == CssValueType.Length)
+                    style.LineHeight = (float)value.NumericValue / style.FontSize;
+                else if (value.Type == CssValueType.Percentage)
+                    style.LineHeight = (float)value.NumericValue / 100f;
+                break;
+
+            case CssPropertyNames.FontWeight:
+                style.FontWeight = ResolveFontWeight(value, parentStyle);
+                break;
+
+            case CssPropertyNames.FontStyle:
+                style.FontStyle = value.Raw.ToLowerInvariant() switch
                 {
-                    "clip" => TextOverflowType.Clip,
-                    "ellipsis" => TextOverflowType.Ellipsis,
-                    _ => style.TextOverflow
+                    "normal" => FontStyleType.Normal,
+                    "italic" => FontStyleType.Italic,
+                    "oblique" => FontStyleType.Oblique,
+                    _ => style.FontStyle
                 };
                 break;
 
-            case "white-space":
+            case CssPropertyNames.TextDecoration or CssPropertyNames.TextDecorationLine:
+                style.TextDecorationLine = ResolveTextDecorationLine(value);
+                break;
+
+            case CssPropertyNames.WhiteSpace:
                 style.WhiteSpace = value.Raw.ToLowerInvariant() switch
                 {
                     "normal" => WhiteSpaceType.Normal,
@@ -430,158 +541,131 @@ public sealed class StyleResolver
                 };
                 break;
 
-            case "margin-top":
-                style.Margin = style.Margin with { Top = ResolveLength(value, parentStyle) };
-                break;
-            case "margin-right":
-                style.Margin = style.Margin with { Right = ResolveLength(value, parentStyle) };
-                break;
-            case "margin-bottom":
-                style.Margin = style.Margin with { Bottom = ResolveLength(value, parentStyle) };
-                break;
-            case "margin-left":
-                style.Margin = style.Margin with { Left = ResolveLength(value, parentStyle) };
+            case CssPropertyNames.TextTransform:
+                style.TextTransform = value.Raw.ToLowerInvariant() switch
+                {
+                    "none" => TextTransformType.None,
+                    "uppercase" => TextTransformType.Uppercase,
+                    "lowercase" => TextTransformType.Lowercase,
+                    "capitalize" => TextTransformType.Capitalize,
+                    _ => style.TextTransform
+                };
                 break;
 
-            case "padding-top":
-                style.Padding = style.Padding with { Top = ResolveLength(value, parentStyle) };
-                break;
-            case "padding-right":
-                style.Padding = style.Padding with { Right = ResolveLength(value, parentStyle) };
-                break;
-            case "padding-bottom":
-                style.Padding = style.Padding with { Bottom = ResolveLength(value, parentStyle) };
-                break;
-            case "padding-left":
-                style.Padding = style.Padding with { Left = ResolveLength(value, parentStyle) };
+            case CssPropertyNames.LetterSpacing:
+                if (value.Raw.Equals("normal", StringComparison.OrdinalIgnoreCase))
+                    style.LetterSpacing = 0;
+                else
+                    style.LetterSpacing = ResolveLength(value, parentStyle);
                 break;
 
-            case "border-width":
-                var bw = ResolveLength(value, parentStyle);
-                style.BorderWidth = new EdgeSizes(bw);
-                break;
-            case "border-top-width":
-                style.BorderWidth = style.BorderWidth with { Top = ResolveLength(value, parentStyle) };
-                break;
-            case "border-right-width":
-                style.BorderWidth = style.BorderWidth with { Right = ResolveLength(value, parentStyle) };
-                break;
-            case "border-bottom-width":
-                style.BorderWidth = style.BorderWidth with { Bottom = ResolveLength(value, parentStyle) };
-                break;
-            case "border-left-width":
-                style.BorderWidth = style.BorderWidth with { Left = ResolveLength(value, parentStyle) };
+            case CssPropertyNames.WordSpacing:
+                if (value.Raw.Equals("normal", StringComparison.OrdinalIgnoreCase))
+                    style.WordSpacing = 0;
+                else
+                    style.WordSpacing = ResolveLength(value, parentStyle);
                 break;
 
-            case "border-color":
+            case CssPropertyNames.WordBreak:
+                style.WordBreak = value.Raw.ToLowerInvariant() switch
+                {
+                    "normal" => WordBreakType.Normal,
+                    "break-all" => WordBreakType.BreakAll,
+                    "keep-all" => WordBreakType.KeepAll,
+                    _ => style.WordBreak
+                };
+                break;
+
+            case CssPropertyNames.OverflowWrap or CssPropertyNames.WordWrap:
+                style.OverflowWrap = value.Raw.ToLowerInvariant() switch
+                {
+                    "normal" => OverflowWrapType.Normal,
+                    "break-word" => OverflowWrapType.BreakWord,
+                    "anywhere" => OverflowWrapType.Anywhere,
+                    _ => style.OverflowWrap
+                };
+                break;
+
+            case CssPropertyNames.ListStyleType:
+                style.ListStyleType = value.Raw.ToLowerInvariant();
+                break;
+
+            case CssPropertyNames.ListStyle:
+                // Simplified: treat entire value as list-style-type
+                style.ListStyleType = value.Raw.ToLowerInvariant();
+                break;
+
+            default:
+                return false;
+        }
+        return true;
+    }
+
+    private static bool ApplyColorProperty(ComputedStyle style, string prop, CssValue value, ComputedStyle? parentStyle)
+    {
+        switch (prop)
+        {
+            case CssPropertyNames.Color:
+                style.Color = ResolveColor(value, parentStyle);
+                break;
+            case CssPropertyNames.BackgroundColor:
+                style.BackgroundColor = ResolveColor(value, style);
+                break;
+
+            case CssPropertyNames.BorderColor:
                 var bc = ResolveColor(value, style);
                 style.BorderTopColor = bc;
                 style.BorderRightColor = bc;
                 style.BorderBottomColor = bc;
                 style.BorderLeftColor = bc;
                 break;
-            case "border-top-color":
+            case CssPropertyNames.BorderTopColor:
                 style.BorderTopColor = ResolveColor(value, style);
                 break;
-            case "border-right-color":
+            case CssPropertyNames.BorderRightColor:
                 style.BorderRightColor = ResolveColor(value, style);
                 break;
-            case "border-bottom-color":
+            case CssPropertyNames.BorderBottomColor:
                 style.BorderBottomColor = ResolveColor(value, style);
                 break;
-            case "border-left-color":
+            case CssPropertyNames.BorderLeftColor:
                 style.BorderLeftColor = ResolveColor(value, style);
                 break;
-            case "border-style":
-                var bs = value.Raw.ToLowerInvariant();
-                style.BorderTopStyle = bs;
-                style.BorderRightStyle = bs;
-                style.BorderBottomStyle = bs;
-                style.BorderLeftStyle = bs;
-                break;
-            case "border-top-style":
-                style.BorderTopStyle = value.Raw.ToLowerInvariant();
-                break;
-            case "border-right-style":
-                style.BorderRightStyle = value.Raw.ToLowerInvariant();
-                break;
-            case "border-bottom-style":
-                style.BorderBottomStyle = value.Raw.ToLowerInvariant();
-                break;
-            case "border-left-style":
-                style.BorderLeftStyle = value.Raw.ToLowerInvariant();
-                break;
 
-            case "border-top-left-radius":
-                style.BorderTopLeftRadius = ResolveBorderRadius(value, parentStyle);
-                break;
-            case "border-top-right-radius":
-                style.BorderTopRightRadius = ResolveBorderRadius(value, parentStyle);
-                break;
-            case "border-bottom-right-radius":
-                style.BorderBottomRightRadius = ResolveBorderRadius(value, parentStyle);
-                break;
-            case "border-bottom-left-radius":
-                style.BorderBottomLeftRadius = ResolveBorderRadius(value, parentStyle);
-                break;
-
-            case "color":
-                style.Color = ResolveColor(value, parentStyle);
-                break;
-            case "background-color":
-                style.BackgroundColor = ResolveColor(value, style);
-                break;
-
-            case "font-size":
-                style.FontSize = ResolveFontSize(value, parentStyle);
-                break;
-            case "font-family":
-                style.FontFamilies = FontFamilyParser.Parse(value.Raw);
-                break;
-
-            case "text-align":
-                style.TextAlign = value.Raw.ToLowerInvariant() switch
-                {
-                    "left" => TextAlign.Left,
-                    "right" => TextAlign.Right,
-                    "center" => TextAlign.Center,
-                    "justify" => TextAlign.Justify,
-                    _ => style.TextAlign
-                };
-                break;
-
-            case "line-height":
-                if (value.Type == CssValueType.Number)
-                    style.LineHeight = (float)value.NumericValue;
-                else if (value.Type == CssValueType.Length)
-                    style.LineHeight = (float)value.NumericValue / style.FontSize;
-                else if (value.Type == CssValueType.Percentage)
-                    style.LineHeight = (float)value.NumericValue / 100f;
-                break;
-
-            case "font-weight":
-                style.FontWeight = ResolveFontWeight(value, parentStyle);
-                break;
-
-            case "font-style":
-                style.FontStyle = value.Raw.ToLowerInvariant() switch
-                {
-                    "normal" => FontStyleType.Normal,
-                    "italic" => FontStyleType.Italic,
-                    "oblique" => FontStyleType.Oblique,
-                    _ => style.FontStyle
-                };
-                break;
-
-            case "text-decoration" or "text-decoration-line":
-                style.TextDecorationLine = ResolveTextDecorationLine(value);
-                break;
-
-            case "text-decoration-color":
+            case CssPropertyNames.TextDecorationColor:
                 style.TextDecorationColor = ResolveColor(value, style);
                 break;
 
-            case "position":
+            // P1: Opacity
+            case CssPropertyNames.Opacity:
+                if (value.Type is CssValueType.Number or CssValueType.Percentage)
+                    style.Opacity = (float)Math.Clamp(value.NumericValue, 0, 1);
+                break;
+
+            default:
+                return false;
+        }
+        return true;
+    }
+
+    private bool ApplyPositionProperty(ComputedStyle style, string prop, CssValue value, ComputedStyle? parentStyle)
+    {
+        switch (prop)
+        {
+            case CssPropertyNames.Display:
+                style.Display = value.Raw.ToLowerInvariant() switch
+                {
+                    "block" => DisplayType.Block,
+                    "inline" => DisplayType.Inline,
+                    "inline-block" => DisplayType.InlineBlock,
+                    "flow-root" => DisplayType.FlowRoot,
+                    "none" => DisplayType.None,
+                    "flex" => DisplayType.Flex,
+                    _ => style.Display
+                };
+                break;
+
+            case CssPropertyNames.Position:
                 style.Position = value.Raw.ToLowerInvariant() switch
                 {
                     "static" => PositionType.Static,
@@ -591,20 +675,20 @@ public sealed class StyleResolver
                 };
                 break;
 
-            case "top":
+            case CssPropertyNames.Top:
                 style.Top = ResolveLength(value, parentStyle);
                 break;
-            case "left":
+            case CssPropertyNames.Left:
                 style.Left = ResolveLength(value, parentStyle);
                 break;
-            case "right":
+            case CssPropertyNames.Right:
                 style.Right = ResolveLength(value, parentStyle);
                 break;
-            case "bottom":
+            case CssPropertyNames.Bottom:
                 style.Bottom = ResolveLength(value, parentStyle);
                 break;
 
-            case "z-index":
+            case CssPropertyNames.ZIndex:
                 if (value.Raw.Equals("auto", StringComparison.OrdinalIgnoreCase))
                 {
                     style.ZIndex = 0;
@@ -617,8 +701,19 @@ public sealed class StyleResolver
                 }
                 break;
 
+            case CssPropertyNames.Overflow or CssPropertyNames.OverflowX or CssPropertyNames.OverflowY:
+                style.Overflow = value.Raw.ToLowerInvariant() switch
+                {
+                    "visible" => OverflowType.Visible,
+                    "hidden" => OverflowType.Hidden,
+                    "scroll" => OverflowType.Scroll,
+                    "auto" => OverflowType.Auto,
+                    _ => style.Overflow
+                };
+                break;
+
             // P1: Inherited text properties
-            case "visibility":
+            case CssPropertyNames.Visibility:
                 style.Visibility = value.Raw.ToLowerInvariant() switch
                 {
                     "visible" => VisibilityType.Visible,
@@ -628,32 +723,16 @@ public sealed class StyleResolver
                 };
                 break;
 
-            case "text-transform":
-                style.TextTransform = value.Raw.ToLowerInvariant() switch
+            case CssPropertyNames.TextOverflow:
+                style.TextOverflow = value.Raw.ToLowerInvariant() switch
                 {
-                    "none" => TextTransformType.None,
-                    "uppercase" => TextTransformType.Uppercase,
-                    "lowercase" => TextTransformType.Lowercase,
-                    "capitalize" => TextTransformType.Capitalize,
-                    _ => style.TextTransform
+                    "clip" => TextOverflowType.Clip,
+                    "ellipsis" => TextOverflowType.Ellipsis,
+                    _ => style.TextOverflow
                 };
                 break;
 
-            case "letter-spacing":
-                if (value.Raw.Equals("normal", StringComparison.OrdinalIgnoreCase))
-                    style.LetterSpacing = 0;
-                else
-                    style.LetterSpacing = ResolveLength(value, parentStyle);
-                break;
-
-            case "word-spacing":
-                if (value.Raw.Equals("normal", StringComparison.OrdinalIgnoreCase))
-                    style.WordSpacing = 0;
-                else
-                    style.WordSpacing = ResolveLength(value, parentStyle);
-                break;
-
-            case "cursor":
+            case CssPropertyNames.Cursor:
                 style.Cursor = value.Raw.ToLowerInvariant() switch
                 {
                     "auto" => CursorType.Auto,
@@ -669,43 +748,17 @@ public sealed class StyleResolver
                 };
                 break;
 
-            case "word-break":
-                style.WordBreak = value.Raw.ToLowerInvariant() switch
-                {
-                    "normal" => WordBreakType.Normal,
-                    "break-all" => WordBreakType.BreakAll,
-                    "keep-all" => WordBreakType.KeepAll,
-                    _ => style.WordBreak
-                };
-                break;
+            default:
+                return false;
+        }
+        return true;
+    }
 
-            case "overflow-wrap" or "word-wrap":
-                style.OverflowWrap = value.Raw.ToLowerInvariant() switch
-                {
-                    "normal" => OverflowWrapType.Normal,
-                    "break-word" => OverflowWrapType.BreakWord,
-                    "anywhere" => OverflowWrapType.Anywhere,
-                    _ => style.OverflowWrap
-                };
-                break;
-
-            case "list-style-type":
-                style.ListStyleType = value.Raw.ToLowerInvariant();
-                break;
-
-            case "list-style":
-                // Simplified: treat entire value as list-style-type
-                style.ListStyleType = value.Raw.ToLowerInvariant();
-                break;
-
-            // P1: Opacity
-            case "opacity":
-                if (value.Type is CssValueType.Number or CssValueType.Percentage)
-                    style.Opacity = (float)Math.Clamp(value.NumericValue, 0, 1);
-                break;
-
-            // Flexbox properties
-            case "flex-direction":
+    private bool ApplyFlexProperty(ComputedStyle style, string prop, CssValue value, ComputedStyle? parentStyle)
+    {
+        switch (prop)
+        {
+            case CssPropertyNames.FlexDirection:
                 style.FlexDirection = value.Raw.ToLowerInvariant() switch
                 {
                     "row" => FlexDirectionType.Row,
@@ -716,7 +769,7 @@ public sealed class StyleResolver
                 };
                 break;
 
-            case "flex-wrap":
+            case CssPropertyNames.FlexWrap:
                 style.FlexWrap = value.Raw.ToLowerInvariant() switch
                 {
                     "nowrap" => FlexWrapType.Nowrap,
@@ -726,11 +779,11 @@ public sealed class StyleResolver
                 };
                 break;
 
-            case "flex-flow":
+            case CssPropertyNames.FlexFlow:
                 ApplyFlexFlowShorthand(style, value.Raw);
                 break;
 
-            case "justify-content":
+            case CssPropertyNames.JustifyContent:
                 style.JustifyContent = value.Raw.ToLowerInvariant() switch
                 {
                     "flex-start" => JustifyContentType.FlexStart,
@@ -743,7 +796,7 @@ public sealed class StyleResolver
                 };
                 break;
 
-            case "align-items":
+            case CssPropertyNames.AlignItems:
                 style.AlignItems = value.Raw.ToLowerInvariant() switch
                 {
                     "stretch" => AlignItemsType.Stretch,
@@ -755,7 +808,7 @@ public sealed class StyleResolver
                 };
                 break;
 
-            case "align-self":
+            case CssPropertyNames.AlignSelf:
                 style.AlignSelf = value.Raw.ToLowerInvariant() switch
                 {
                     "auto" => AlignSelfType.Auto,
@@ -768,25 +821,25 @@ public sealed class StyleResolver
                 };
                 break;
 
-            case "flex-grow":
+            case CssPropertyNames.FlexGrow:
                 if (value.Type is CssValueType.Number)
                     style.FlexGrow = (float)value.NumericValue;
                 break;
 
-            case "flex-shrink":
+            case CssPropertyNames.FlexShrink:
                 if (value.Type is CssValueType.Number)
                     style.FlexShrink = (float)value.NumericValue;
                 break;
 
-            case "flex-basis":
+            case CssPropertyNames.FlexBasis:
                 style.FlexBasis = ResolveLength(value, parentStyle);
                 break;
 
-            case "flex":
+            case CssPropertyNames.Flex:
                 ApplyFlexShorthand(style, value);
                 break;
 
-            case "gap":
+            case CssPropertyNames.Gap:
                 {
                     var gapVal = ResolveLength(value, parentStyle);
                     if (!float.IsNaN(gapVal))
@@ -798,7 +851,7 @@ public sealed class StyleResolver
                 }
                 break;
 
-            case "row-gap":
+            case CssPropertyNames.RowGap:
                 {
                     var rgVal = ResolveLength(value, parentStyle);
                     if (!float.IsNaN(rgVal))
@@ -806,14 +859,18 @@ public sealed class StyleResolver
                 }
                 break;
 
-            case "column-gap":
+            case CssPropertyNames.ColumnGap:
                 {
                     var cgVal = ResolveLength(value, parentStyle);
                     if (!float.IsNaN(cgVal))
                         style.ColumnGap = cgVal;
                 }
                 break;
+
+            default:
+                return false;
         }
+        return true;
     }
 
     private static void ApplyFlexShorthand(ComputedStyle style, CssValue value)

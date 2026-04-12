@@ -1,6 +1,5 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
-using SuperRender.Renderer.Rendering.Painting;
 
 namespace SuperRender.Renderer.Gpu;
 
@@ -17,49 +16,6 @@ public struct QuadVertex
 
 public sealed class QuadRenderer
 {
-    /// <summary>
-    /// Scans the <paramref name="paintList"/> for <see cref="FillRectCommand"/> and
-    /// <see cref="StrokeRectCommand"/> entries and returns interleaved vertex + index
-    /// arrays ready for GPU upload.
-    /// </summary>
-    public static (QuadVertex[] vertices, uint[] indices) BuildQuadBatch(PaintList paintList)
-    {
-        var vertices = new List<QuadVertex>();
-        var indices = new List<uint>();
-
-        foreach (var cmd in paintList.Commands)
-        {
-            switch (cmd)
-            {
-                case FillRectCommand fill:
-                    AddFilledRect(vertices, indices, fill.Rect.X, fill.Rect.Y,
-                        fill.Rect.Width, fill.Rect.Height, fill.Color,
-                        fill.RadiusTL, fill.RadiusTR, fill.RadiusBR, fill.RadiusBL);
-                    break;
-
-                case StrokeRectCommand stroke:
-                    if (stroke.RadiusTL > 0 || stroke.RadiusTR > 0 ||
-                        stroke.RadiusBR > 0 || stroke.RadiusBL > 0)
-                    {
-                        AddRoundedStrokeRect(vertices, indices,
-                            stroke.Rect.X, stroke.Rect.Y,
-                            stroke.Rect.Width, stroke.Rect.Height,
-                            stroke.LineWidth, stroke.Color,
-                            stroke.RadiusTL, stroke.RadiusTR,
-                            stroke.RadiusBR, stroke.RadiusBL);
-                    }
-                    else
-                    {
-                        AddStrokeRect(vertices, indices, stroke.Rect.X, stroke.Rect.Y,
-                            stroke.Rect.Width, stroke.Rect.Height, stroke.LineWidth, stroke.Color);
-                    }
-                    break;
-            }
-        }
-
-        return (vertices.ToArray(), indices.ToArray());
-    }
-
     public static void AddFilledRect(
         List<QuadVertex> verts, List<uint> idx,
         float x, float y, float w, float h,

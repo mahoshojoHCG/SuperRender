@@ -21,20 +21,20 @@ public sealed class DevToolsWindow : IDisposable
     private float _contentScale = 1.0f;
     private bool _disposed;
 
-    private readonly Func<ConsoleLog?> _getConsoleLog;
+    private readonly ConsoleLog _consoleLog;
     private readonly Action _onClosed;
 
     /// <summary>
-    /// Queue of JS code strings to execute on the active tab's engine.
+    /// Queue of JS code strings to execute on the tab's engine.
     /// Drained by BrowserWindow on the main thread.
     /// </summary>
     public ConcurrentQueue<string> ExecutionQueue { get; } = new();
 
     public bool IsOpen => _window is not null && !_disposed;
 
-    public DevToolsWindow(Func<ConsoleLog?> getConsoleLog, Action onClosed)
+    public DevToolsWindow(ConsoleLog consoleLog, Action onClosed)
     {
-        _getConsoleLog = getConsoleLog;
+        _consoleLog = consoleLog;
         _onClosed = onClosed;
     }
 
@@ -97,10 +97,7 @@ public sealed class DevToolsWindow : IDisposable
         // Update panel height to match window
         _panel.Height = logicalHeight;
 
-        var log = _getConsoleLog();
-        if (log is null) return;
-
-        var paintList = _panel.BuildPaintList(logicalWidth, 0, log);
+        var paintList = _panel.BuildPaintList(logicalWidth, 0, _consoleLog);
         _renderer.RenderFrame(paintList);
     }
 
@@ -204,8 +201,7 @@ public sealed class DevToolsWindow : IDisposable
                 if (IsCommandModifier(kb))
                 {
                     // Queue clear as a special command
-                    var log = _getConsoleLog();
-                    log?.Clear();
+                    _consoleLog.Clear();
                 }
                 break;
         }
@@ -236,7 +232,7 @@ public sealed class DevToolsWindow : IDisposable
                 Close();
                 break;
             case DevToolsHitArea.ClearButton:
-                _getConsoleLog()?.Clear();
+                _consoleLog.Clear();
                 break;
             case DevToolsHitArea.InputLine:
                 _panel.InputFocused = true;
@@ -260,8 +256,7 @@ public sealed class DevToolsWindow : IDisposable
         if (string.IsNullOrEmpty(code)) return;
 
         // Log the input command immediately (ConsoleLog is thread-safe)
-        var log = _getConsoleLog();
-        log?.Add(new ConsoleMessage
+        _consoleLog.Add(new ConsoleMessage
         {
             Level = ConsoleMessageLevel.Log,
             Text = "> " + code,

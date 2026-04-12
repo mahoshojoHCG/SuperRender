@@ -9,7 +9,7 @@ namespace SuperRender.Browser;
 public static class TestPages
 {
     private static readonly Assembly Assembly = typeof(TestPages).Assembly;
-    private static readonly string ResourcePrefix = typeof(TestPages).Assembly.GetName().Name + ".TestPages.";
+    private static readonly string ResourcePrefix = typeof(TestPages).Assembly.GetName().Name + ".Resources.TestPages.";
 
     /// <summary>
     /// Lists all available test page names (without extension for HTML, with extension for CSS/JS).

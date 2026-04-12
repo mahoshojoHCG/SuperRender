@@ -26,31 +26,11 @@ public sealed unsafe class BufferManager : IDisposable
         _imageIndexBuf = new PersistentBuffer(ctx, BufferUsageFlags.IndexBufferBit);
     }
 
-    public void UploadQuads(uint frameIndex, ReadOnlySpan<QuadVertex> vertices, ReadOnlySpan<uint> indices)
-    {
-        if (vertices.IsEmpty || indices.IsEmpty) return;
+    public void UploadQuads(uint frameIndex, ReadOnlySpan<QuadVertex> vertices, ReadOnlySpan<uint> indices) =>
+        UploadData(frameIndex, vertices, indices, _quadVertexBuf, _quadIndexBuf);
 
-        var vertBytes = MemoryMarshal.AsBytes(vertices);
-        _quadVertexBuf.EnsureCapacity((ulong)vertBytes.Length);
-        _quadVertexBuf.WriteSlot(frameIndex, vertBytes);
-
-        var idxBytes = MemoryMarshal.AsBytes(indices);
-        _quadIndexBuf.EnsureCapacity((ulong)idxBytes.Length);
-        _quadIndexBuf.WriteSlot(frameIndex, idxBytes);
-    }
-
-    public void UploadTextQuads(uint frameIndex, ReadOnlySpan<TextVertex> vertices, ReadOnlySpan<uint> indices)
-    {
-        if (vertices.IsEmpty || indices.IsEmpty) return;
-
-        var vertBytes = MemoryMarshal.AsBytes(vertices);
-        _textVertexBuf.EnsureCapacity((ulong)vertBytes.Length);
-        _textVertexBuf.WriteSlot(frameIndex, vertBytes);
-
-        var idxBytes = MemoryMarshal.AsBytes(indices);
-        _textIndexBuf.EnsureCapacity((ulong)idxBytes.Length);
-        _textIndexBuf.WriteSlot(frameIndex, idxBytes);
-    }
+    public void UploadTextQuads(uint frameIndex, ReadOnlySpan<TextVertex> vertices, ReadOnlySpan<uint> indices) =>
+        UploadData(frameIndex, vertices, indices, _textVertexBuf, _textIndexBuf);
 
     public (Buffer Buffer, ulong Offset) GetQuadVertexBinding(uint frameIndex) =>
         _quadVertexBuf.GetBinding(frameIndex);
@@ -68,17 +48,21 @@ public sealed unsafe class BufferManager : IDisposable
     public bool HasTextData => _textVertexBuf.IsAllocated;
     public bool HasImageData => _imageVertexBuf.IsAllocated;
 
-    public void UploadImageQuads(uint frameIndex, ReadOnlySpan<TextVertex> vertices, ReadOnlySpan<uint> indices)
+    public void UploadImageQuads(uint frameIndex, ReadOnlySpan<TextVertex> vertices, ReadOnlySpan<uint> indices) =>
+        UploadData(frameIndex, vertices, indices, _imageVertexBuf, _imageIndexBuf);
+
+    private static void UploadData<T>(uint frameIndex, ReadOnlySpan<T> vertices, ReadOnlySpan<uint> indices,
+        PersistentBuffer vertexBuf, PersistentBuffer indexBuf) where T : unmanaged
     {
         if (vertices.IsEmpty || indices.IsEmpty) return;
 
         var vertBytes = MemoryMarshal.AsBytes(vertices);
-        _imageVertexBuf.EnsureCapacity((ulong)vertBytes.Length);
-        _imageVertexBuf.WriteSlot(frameIndex, vertBytes);
+        vertexBuf.EnsureCapacity((ulong)vertBytes.Length);
+        vertexBuf.WriteSlot(frameIndex, vertBytes);
 
         var idxBytes = MemoryMarshal.AsBytes(indices);
-        _imageIndexBuf.EnsureCapacity((ulong)idxBytes.Length);
-        _imageIndexBuf.WriteSlot(frameIndex, idxBytes);
+        indexBuf.EnsureCapacity((ulong)idxBytes.Length);
+        indexBuf.WriteSlot(frameIndex, idxBytes);
     }
 
     public (Buffer Buffer, ulong Offset) GetImageVertexBinding(uint frameIndex) =>
@@ -89,12 +73,17 @@ public sealed unsafe class BufferManager : IDisposable
 
     #region Texture operations (staging pattern, unchanged)
 
-    public (Image image, DeviceMemory memory) CreateTextureImage(byte[] pixels, int width, int height)
-    {
-        // Create staging buffer
-        var (stagingBuffer, stagingMemory) = CreateStagingBuffer(pixels.AsSpan());
+    public (Image image, DeviceMemory memory) CreateTextureImage(byte[] pixels, int width, int height) =>
+        CreateTextureImageCore(pixels.AsSpan(), width, height, Format.R8Unorm);
 
-        // Create image
+    public (Image image, DeviceMemory memory) CreateRgbaTextureImage(byte[] pixels, int width, int height) =>
+        CreateTextureImageCore(pixels.AsSpan(), width, height, Format.R8G8B8A8Unorm);
+
+    private (Image image, DeviceMemory memory) CreateTextureImageCore(
+        ReadOnlySpan<byte> pixels, int width, int height, Format format)
+    {
+        var (stagingBuffer, stagingMemory) = CreateStagingBuffer(pixels);
+
         var imageInfo = new ImageCreateInfo
         {
             SType = StructureType.ImageCreateInfo,
@@ -102,7 +91,7 @@ public sealed unsafe class BufferManager : IDisposable
             Extent = new Extent3D { Width = (uint)width, Height = (uint)height, Depth = 1 },
             MipLevels = 1,
             ArrayLayers = 1,
-            Format = Format.R8Unorm,
+            Format = format,
             Tiling = ImageTiling.Optimal,
             InitialLayout = ImageLayout.Undefined,
             Usage = ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit,
@@ -112,7 +101,7 @@ public sealed unsafe class BufferManager : IDisposable
 
         var result = _ctx.Vk.CreateImage(_ctx.Device, in imageInfo, null, out var image);
         if (result != Result.Success)
-            throw new InvalidOperationException($"Failed to create image: {result}");
+            throw new InvalidOperationException($"Failed to create {format} image: {result}");
 
         _ctx.Vk.GetImageMemoryRequirements(_ctx.Device, image, out var memReqs);
 
@@ -125,55 +114,7 @@ public sealed unsafe class BufferManager : IDisposable
 
         result = _ctx.Vk.AllocateMemory(_ctx.Device, in allocInfo, null, out var imageMemory);
         if (result != Result.Success)
-            throw new InvalidOperationException($"Failed to allocate image memory: {result}");
-
-        _ctx.Vk.BindImageMemory(_ctx.Device, image, imageMemory, 0);
-
-        // Transition + copy via a one-shot command buffer
-        TransitionAndCopyBufferToImage(stagingBuffer, image, (uint)width, (uint)height);
-
-        // Cleanup staging
-        _ctx.Vk.DestroyBuffer(_ctx.Device, stagingBuffer, null);
-        _ctx.Vk.FreeMemory(_ctx.Device, stagingMemory, null);
-
-        return (image, imageMemory);
-    }
-
-    public (Image image, DeviceMemory memory) CreateRgbaTextureImage(byte[] pixels, int width, int height)
-    {
-        var (stagingBuffer, stagingMemory) = CreateStagingBuffer(pixels.AsSpan());
-
-        var imageInfo = new ImageCreateInfo
-        {
-            SType = StructureType.ImageCreateInfo,
-            ImageType = ImageType.Type2D,
-            Extent = new Extent3D { Width = (uint)width, Height = (uint)height, Depth = 1 },
-            MipLevels = 1,
-            ArrayLayers = 1,
-            Format = Format.R8G8B8A8Unorm,
-            Tiling = ImageTiling.Optimal,
-            InitialLayout = ImageLayout.Undefined,
-            Usage = ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit,
-            SharingMode = SharingMode.Exclusive,
-            Samples = SampleCountFlags.Count1Bit,
-        };
-
-        var result = _ctx.Vk.CreateImage(_ctx.Device, in imageInfo, null, out var image);
-        if (result != Result.Success)
-            throw new InvalidOperationException($"Failed to create RGBA image: {result}");
-
-        _ctx.Vk.GetImageMemoryRequirements(_ctx.Device, image, out var memReqs);
-
-        var allocInfo = new MemoryAllocateInfo
-        {
-            SType = StructureType.MemoryAllocateInfo,
-            AllocationSize = memReqs.Size,
-            MemoryTypeIndex = FindMemoryType(memReqs.MemoryTypeBits, MemoryPropertyFlags.DeviceLocalBit),
-        };
-
-        result = _ctx.Vk.AllocateMemory(_ctx.Device, in allocInfo, null, out var imageMemory);
-        if (result != Result.Success)
-            throw new InvalidOperationException($"Failed to allocate RGBA image memory: {result}");
+            throw new InvalidOperationException($"Failed to allocate {format} image memory: {result}");
 
         _ctx.Vk.BindImageMemory(_ctx.Device, image, imageMemory, 0);
 

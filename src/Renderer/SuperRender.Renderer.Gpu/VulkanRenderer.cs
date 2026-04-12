@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 using Silk.NET.Vulkan;
 using SuperRender.Renderer.Rendering.Painting;
 
@@ -8,6 +9,7 @@ namespace SuperRender.Renderer.Gpu;
 public sealed unsafe class VulkanRenderer : IDisposable
 {
     private readonly VulkanContext _ctx;
+    private readonly ILogger? _logger;
     private SwapchainManager _swapchain;
     private PipelineManager _pipelines;
     private readonly BufferManager _buffers;
@@ -50,12 +52,13 @@ public sealed unsafe class VulkanRenderer : IDisposable
 
     public FontAtlas FontAtlasData => _fontAtlas;
 
-    public VulkanRenderer(Silk.NET.Windowing.IWindow window, float contentScale = 1.0f)
+    public VulkanRenderer(Silk.NET.Windowing.IWindow window, float contentScale = 1.0f, ILogger? logger = null)
     {
         ContentScale = contentScale;
+        _logger = logger;
         _ctx = new VulkanContext(window);
         _fontLocator = new SystemFontLocator();
-        _fontAtlas = new FontAtlas(_fontLocator, contentScale);
+        _fontAtlas = new FontAtlas(_fontLocator, contentScale, _logger);
         _textRenderer = new TextRenderer(_fontAtlas);
 
         var fbSize = window.FramebufferSize;
@@ -63,7 +66,7 @@ public sealed unsafe class VulkanRenderer : IDisposable
         _height = (uint)fbSize.Y;
 
         _swapchain = new SwapchainManager(_ctx, _width, _height);
-        _pipelines = new PipelineManager(_ctx, _swapchain.RenderPass, _swapchain.Extent);
+        _pipelines = new PipelineManager(_ctx, _swapchain.RenderPass, _swapchain.Extent, _logger);
         _buffers = new BufferManager(_ctx);
 
         CreateFontAtlasTexture();
@@ -120,91 +123,16 @@ public sealed unsafe class VulkanRenderer : IDisposable
             _fontAtlas.ClearDirty();
         }
 
-        // Collect all quad and text data across segments into single buffers
-        var allQuadVerts = new List<QuadVertex>();
-        var allQuadIdx = new List<uint>();
-        var allTextVerts = new List<TextVertex>();
-        var allTextIdx = new List<uint>();
-        var allImageVerts = new List<TextVertex>();
-        var allImageIdx = new List<uint>();
-
-        foreach (var seg in segments)
-        {
-            seg.QuadIndexOffset = (uint)allQuadIdx.Count;
-            seg.QuadVertexOffset = (uint)allQuadVerts.Count;
-            seg.TextIndexOffset = (uint)allTextIdx.Count;
-            seg.TextVertexOffset = (uint)allTextVerts.Count;
-            seg.ImageIndexOffset = (uint)allImageIdx.Count;
-            seg.ImageVertexOffset = (uint)allImageVerts.Count;
-
-            allQuadIdx.AddRange(seg.QuadIndices);
-            allQuadVerts.AddRange(seg.QuadVertices);
-
-            allTextIdx.AddRange(seg.TextIndices);
-            allTextVerts.AddRange(seg.TextVertices);
-
-            allImageIdx.AddRange(seg.ImageIndices);
-            allImageVerts.AddRange(seg.ImageVertices);
-        }
-
-        // Upload directly into persistent mapped GPU buffers (no per-frame alloc/free)
-        _buffers.UploadQuads(_currentFrame,
-            CollectionsMarshal.AsSpan(allQuadVerts),
-            CollectionsMarshal.AsSpan(allQuadIdx));
-        _buffers.UploadTextQuads(_currentFrame,
-            CollectionsMarshal.AsSpan(allTextVerts),
-            CollectionsMarshal.AsSpan(allTextIdx));
-        _buffers.UploadImageQuads(_currentFrame,
-            CollectionsMarshal.AsSpan(allImageVerts),
-            CollectionsMarshal.AsSpan(allImageIdx));
+        // Collect segment data into combined buffers and upload to GPU
+        UploadSegmentData(segments);
 
         // Record command buffer
         var cmd = _commandBuffers[_currentFrame];
         vk.ResetCommandBuffer(cmd, 0);
         RecordCommandBuffer(cmd, imageIndex, segments);
 
-        // Submit
-        var waitSemaphore = _imageAvailableSemaphores[_currentFrame];
-        var waitStage = PipelineStageFlags.ColorAttachmentOutputBit;
-        var signalSemaphore = _renderFinishedSemaphores[_currentFrame];
-
-        var submitInfo = new SubmitInfo
-        {
-            SType = StructureType.SubmitInfo,
-            WaitSemaphoreCount = 1,
-            PWaitSemaphores = &waitSemaphore,
-            PWaitDstStageMask = &waitStage,
-            CommandBufferCount = 1,
-            PCommandBuffers = &cmd,
-            SignalSemaphoreCount = 1,
-            PSignalSemaphores = &signalSemaphore,
-        };
-
-        var submitResult = vk.QueueSubmit(_ctx.GraphicsQueue, 1, in submitInfo, _inFlightFences[_currentFrame]);
-        if (submitResult != Result.Success)
-            return;
-
-        // Present
-        var swapchain = _swapchain.Swapchain;
-        var presentInfo = new PresentInfoKHR
-        {
-            SType = StructureType.PresentInfoKhr,
-            WaitSemaphoreCount = 1,
-            PWaitSemaphores = &signalSemaphore,
-            SwapchainCount = 1,
-            PSwapchains = &swapchain,
-            PImageIndices = &imageIndex,
-        };
-
-        var presentResult = _swapchain.KhrSwapchainApi.QueuePresent(_ctx.PresentQueue, in presentInfo);
-
-        if (presentResult == Result.ErrorOutOfDateKhr || presentResult == Result.SuboptimalKhr || _framebufferResized)
-        {
-            _framebufferResized = false;
-            RecreateSwapchain();
-        }
-
-        _currentFrame = (_currentFrame + 1) % MaxFramesInFlight;
+        // Submit and present
+        SubmitAndPresent(cmd, imageIndex);
     }
 
     public void OnResize(int width, int height)
@@ -381,13 +309,7 @@ public sealed unsafe class VulkanRenderer : IDisposable
             {
                 case PushClipCommand clip:
                 {
-                    // Flush current segment if it has content
-                    if (current.QuadIndices.Count > 0 || current.TextIndices.Count > 0
-                        || current.ImageIndices.Count > 0)
-                    {
-                        segments.Add(current);
-                        current = new DrawSegment();
-                    }
+                    current = FlushSegment(segments, current);
 
                     // Intersect new clip with current clip
                     var (px, py, pw, ph) = clipStack.Peek();
@@ -406,13 +328,7 @@ public sealed unsafe class VulkanRenderer : IDisposable
 
                 case PopClipCommand:
                 {
-                    // Flush current segment
-                    if (current.QuadIndices.Count > 0 || current.TextIndices.Count > 0
-                        || current.ImageIndices.Count > 0)
-                    {
-                        segments.Add(current);
-                        current = new DrawSegment();
-                    }
+                    current = FlushSegment(segments, current);
 
                     if (clipStack.Count > 1) clipStack.Pop();
                     var (rx, ry, rw, rh) = clipStack.Peek();
@@ -465,11 +381,119 @@ public sealed unsafe class VulkanRenderer : IDisposable
         }
 
         // Add final segment
-        if (current.QuadIndices.Count > 0 || current.TextIndices.Count > 0
-            || current.ImageIndices.Count > 0)
-            segments.Add(current);
+        FlushSegment(segments, current);
 
         return segments;
+    }
+
+    /// <summary>
+    /// If the segment has any content (quads, text, or images), adds it to the list
+    /// and returns a fresh empty segment. Otherwise returns the existing segment unchanged.
+    /// </summary>
+    private static DrawSegment FlushSegment(List<DrawSegment> segments, DrawSegment current)
+    {
+        if (current.QuadIndices.Count > 0 || current.TextIndices.Count > 0
+            || current.ImageIndices.Count > 0)
+        {
+            segments.Add(current);
+            return new DrawSegment();
+        }
+        return current;
+    }
+
+    /// <summary>
+    /// Collects all quad, text, and image vertex/index data across segments into combined
+    /// buffers and uploads them to the persistent mapped GPU buffers.
+    /// Sets per-segment offsets into the combined buffers before upload.
+    /// </summary>
+    private void UploadSegmentData(List<DrawSegment> segments)
+    {
+        var allQuadVerts = new List<QuadVertex>();
+        var allQuadIdx = new List<uint>();
+        var allTextVerts = new List<TextVertex>();
+        var allTextIdx = new List<uint>();
+        var allImageVerts = new List<TextVertex>();
+        var allImageIdx = new List<uint>();
+
+        foreach (var seg in segments)
+        {
+            seg.QuadIndexOffset = (uint)allQuadIdx.Count;
+            seg.QuadVertexOffset = (uint)allQuadVerts.Count;
+            seg.TextIndexOffset = (uint)allTextIdx.Count;
+            seg.TextVertexOffset = (uint)allTextVerts.Count;
+            seg.ImageIndexOffset = (uint)allImageIdx.Count;
+            seg.ImageVertexOffset = (uint)allImageVerts.Count;
+
+            allQuadIdx.AddRange(seg.QuadIndices);
+            allQuadVerts.AddRange(seg.QuadVertices);
+
+            allTextIdx.AddRange(seg.TextIndices);
+            allTextVerts.AddRange(seg.TextVertices);
+
+            allImageIdx.AddRange(seg.ImageIndices);
+            allImageVerts.AddRange(seg.ImageVertices);
+        }
+
+        _buffers.UploadQuads(_currentFrame,
+            CollectionsMarshal.AsSpan(allQuadVerts),
+            CollectionsMarshal.AsSpan(allQuadIdx));
+        _buffers.UploadTextQuads(_currentFrame,
+            CollectionsMarshal.AsSpan(allTextVerts),
+            CollectionsMarshal.AsSpan(allTextIdx));
+        _buffers.UploadImageQuads(_currentFrame,
+            CollectionsMarshal.AsSpan(allImageVerts),
+            CollectionsMarshal.AsSpan(allImageIdx));
+    }
+
+    /// <summary>
+    /// Submits the recorded command buffer to the graphics queue, presents the
+    /// swapchain image, handles out-of-date/suboptimal results, and advances
+    /// the in-flight frame index.
+    /// </summary>
+    private void SubmitAndPresent(CommandBuffer cmd, uint imageIndex)
+    {
+        var vk = _ctx.Vk;
+
+        var waitSemaphore = _imageAvailableSemaphores[_currentFrame];
+        var waitStage = PipelineStageFlags.ColorAttachmentOutputBit;
+        var signalSemaphore = _renderFinishedSemaphores[_currentFrame];
+
+        var submitInfo = new SubmitInfo
+        {
+            SType = StructureType.SubmitInfo,
+            WaitSemaphoreCount = 1,
+            PWaitSemaphores = &waitSemaphore,
+            PWaitDstStageMask = &waitStage,
+            CommandBufferCount = 1,
+            PCommandBuffers = &cmd,
+            SignalSemaphoreCount = 1,
+            PSignalSemaphores = &signalSemaphore,
+        };
+
+        var submitResult = vk.QueueSubmit(_ctx.GraphicsQueue, 1, in submitInfo, _inFlightFences[_currentFrame]);
+        if (submitResult != Result.Success)
+            return;
+
+        var swapchain = _swapchain.Swapchain;
+        var presentInfo = new PresentInfoKHR
+        {
+            SType = StructureType.PresentInfoKhr,
+            WaitSemaphoreCount = 1,
+            PWaitSemaphores = &signalSemaphore,
+            SwapchainCount = 1,
+            PSwapchains = &swapchain,
+            PImageIndices = &imageIndex,
+        };
+
+        var presentResult = _swapchain.KhrSwapchainApi.QueuePresent(_ctx.PresentQueue, in presentInfo);
+
+        if (presentResult == Result.ErrorOutOfDateKhr || presentResult == Result.SuboptimalKhr || _framebufferResized)
+        {
+            _framebufferResized = false;
+            RecreateSwapchain();
+        }
+
+        _currentFrame = (_currentFrame + 1) % MaxFramesInFlight;
     }
 
     private void CreateFontAtlasTexture()
@@ -477,36 +501,8 @@ public sealed unsafe class VulkanRenderer : IDisposable
         (_atlasImage, _atlasMemory) = _buffers.CreateTextureImage(
             _fontAtlas.PixelData, _fontAtlas.AtlasWidth, _fontAtlas.AtlasHeight);
 
-        var viewInfo = new ImageViewCreateInfo
-        {
-            SType = StructureType.ImageViewCreateInfo,
-            Image = _atlasImage,
-            ViewType = ImageViewType.Type2D,
-            Format = Format.R8Unorm,
-            SubresourceRange = new ImageSubresourceRange
-            {
-                AspectMask = ImageAspectFlags.ColorBit,
-                BaseMipLevel = 0, LevelCount = 1,
-                BaseArrayLayer = 0, LayerCount = 1,
-            },
-        };
-        _ctx.Vk.CreateImageView(_ctx.Device, in viewInfo, null, out _atlasImageView);
-
-        var samplerInfo = new SamplerCreateInfo
-        {
-            SType = StructureType.SamplerCreateInfo,
-            MagFilter = Filter.Linear,
-            MinFilter = Filter.Linear,
-            AddressModeU = SamplerAddressMode.ClampToEdge,
-            AddressModeV = SamplerAddressMode.ClampToEdge,
-            AddressModeW = SamplerAddressMode.ClampToEdge,
-            AnisotropyEnable = false,
-            BorderColor = BorderColor.IntOpaqueBlack,
-            UnnormalizedCoordinates = false,
-            CompareEnable = false,
-            MipmapMode = SamplerMipmapMode.Linear,
-        };
-        _ctx.Vk.CreateSampler(_ctx.Device, in samplerInfo, null, out _atlasSampler);
+        _atlasImageView = CreateImageView(_atlasImage, Format.R8Unorm);
+        _atlasSampler = CreateLinearSampler();
     }
 
     private void CreateDescriptorResources()
@@ -538,25 +534,7 @@ public sealed unsafe class VulkanRenderer : IDisposable
         };
         _ctx.Vk.AllocateDescriptorSets(_ctx.Device, in allocInfo, out _textDescriptorSet);
 
-        var imageInfo = new DescriptorImageInfo
-        {
-            ImageLayout = ImageLayout.ShaderReadOnlyOptimal,
-            ImageView = _atlasImageView,
-            Sampler = _atlasSampler,
-        };
-
-        var write = new WriteDescriptorSet
-        {
-            SType = StructureType.WriteDescriptorSet,
-            DstSet = _textDescriptorSet,
-            DstBinding = 0,
-            DstArrayElement = 0,
-            DescriptorType = DescriptorType.CombinedImageSampler,
-            DescriptorCount = 1,
-            PImageInfo = &imageInfo,
-        };
-
-        _ctx.Vk.UpdateDescriptorSets(_ctx.Device, 1, in write, 0, null);
+        WriteImageDescriptorSet(_textDescriptorSet, _atlasImageView, _atlasSampler);
     }
 
     private void CreateImageDescriptorPool()
@@ -607,36 +585,8 @@ public sealed unsafe class VulkanRenderer : IDisposable
         {
             var (image, memory) = _buffers.CreateRgbaTextureImage(pixels, width, height);
 
-            var viewInfo = new ImageViewCreateInfo
-            {
-                SType = StructureType.ImageViewCreateInfo,
-                Image = image,
-                ViewType = ImageViewType.Type2D,
-                Format = Format.R8G8B8A8Unorm,
-                SubresourceRange = new ImageSubresourceRange
-                {
-                    AspectMask = ImageAspectFlags.ColorBit,
-                    BaseMipLevel = 0, LevelCount = 1,
-                    BaseArrayLayer = 0, LayerCount = 1,
-                },
-            };
-            _ctx.Vk.CreateImageView(_ctx.Device, in viewInfo, null, out var imageView);
-
-            var samplerInfo = new SamplerCreateInfo
-            {
-                SType = StructureType.SamplerCreateInfo,
-                MagFilter = Filter.Linear,
-                MinFilter = Filter.Linear,
-                AddressModeU = SamplerAddressMode.ClampToEdge,
-                AddressModeV = SamplerAddressMode.ClampToEdge,
-                AddressModeW = SamplerAddressMode.ClampToEdge,
-                AnisotropyEnable = false,
-                BorderColor = BorderColor.IntOpaqueBlack,
-                UnnormalizedCoordinates = false,
-                CompareEnable = false,
-                MipmapMode = SamplerMipmapMode.Linear,
-            };
-            _ctx.Vk.CreateSampler(_ctx.Device, in samplerInfo, null, out var sampler);
+            var imageView = CreateImageView(image, Format.R8G8B8A8Unorm);
+            var sampler = CreateLinearSampler();
 
             // Allocate descriptor set from image pool
             var descriptorSet = AllocateImageDescriptorSet(imageView, sampler);
@@ -660,7 +610,7 @@ public sealed unsafe class VulkanRenderer : IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[GPU] Failed to upload image texture: {ex.Message}");
+            _logger?.LogError(ex, "Failed to upload image texture");
             return null;
         }
     }
@@ -687,25 +637,7 @@ public sealed unsafe class VulkanRenderer : IDisposable
             if (result != Result.Success) return default;
         }
 
-        var imageInfo = new DescriptorImageInfo
-        {
-            ImageLayout = ImageLayout.ShaderReadOnlyOptimal,
-            ImageView = imageView,
-            Sampler = sampler,
-        };
-
-        var write = new WriteDescriptorSet
-        {
-            SType = StructureType.WriteDescriptorSet,
-            DstSet = descriptorSet,
-            DstBinding = 0,
-            DstArrayElement = 0,
-            DescriptorType = DescriptorType.CombinedImageSampler,
-            DescriptorCount = 1,
-            PImageInfo = &imageInfo,
-        };
-
-        _ctx.Vk.UpdateDescriptorSets(_ctx.Device, 1, in write, 0, null);
+        WriteImageDescriptorSet(descriptorSet, imageView, sampler);
         return descriptorSet;
     }
 
@@ -826,7 +758,7 @@ public sealed unsafe class VulkanRenderer : IDisposable
 
         _pipelines.Dispose();
         _swapchain.Recreate(_width, _height);
-        _pipelines = new PipelineManager(_ctx, _swapchain.RenderPass, _swapchain.Extent);
+        _pipelines = new PipelineManager(_ctx, _swapchain.RenderPass, _swapchain.Extent, _logger);
 
         if (_descriptorPool.Handle != 0)
             _ctx.Vk.DestroyDescriptorPool(_ctx.Device, _descriptorPool, null);
@@ -836,6 +768,72 @@ public sealed unsafe class VulkanRenderer : IDisposable
         DestroyImageTextures();
         CreateImageDescriptorPool();
     }
+
+    #region Vulkan resource helpers
+
+    private ImageView CreateImageView(Image image, Format format)
+    {
+        var viewInfo = new ImageViewCreateInfo
+        {
+            SType = StructureType.ImageViewCreateInfo,
+            Image = image,
+            ViewType = ImageViewType.Type2D,
+            Format = format,
+            SubresourceRange = new ImageSubresourceRange
+            {
+                AspectMask = ImageAspectFlags.ColorBit,
+                BaseMipLevel = 0, LevelCount = 1,
+                BaseArrayLayer = 0, LayerCount = 1,
+            },
+        };
+        _ctx.Vk.CreateImageView(_ctx.Device, in viewInfo, null, out var imageView);
+        return imageView;
+    }
+
+    private Sampler CreateLinearSampler()
+    {
+        var samplerInfo = new SamplerCreateInfo
+        {
+            SType = StructureType.SamplerCreateInfo,
+            MagFilter = Filter.Linear,
+            MinFilter = Filter.Linear,
+            AddressModeU = SamplerAddressMode.ClampToEdge,
+            AddressModeV = SamplerAddressMode.ClampToEdge,
+            AddressModeW = SamplerAddressMode.ClampToEdge,
+            AnisotropyEnable = false,
+            BorderColor = BorderColor.IntOpaqueBlack,
+            UnnormalizedCoordinates = false,
+            CompareEnable = false,
+            MipmapMode = SamplerMipmapMode.Linear,
+        };
+        _ctx.Vk.CreateSampler(_ctx.Device, in samplerInfo, null, out var sampler);
+        return sampler;
+    }
+
+    private void WriteImageDescriptorSet(DescriptorSet descriptorSet, ImageView imageView, Sampler sampler)
+    {
+        var imageInfo = new DescriptorImageInfo
+        {
+            ImageLayout = ImageLayout.ShaderReadOnlyOptimal,
+            ImageView = imageView,
+            Sampler = sampler,
+        };
+
+        var write = new WriteDescriptorSet
+        {
+            SType = StructureType.WriteDescriptorSet,
+            DstSet = descriptorSet,
+            DstBinding = 0,
+            DstArrayElement = 0,
+            DescriptorType = DescriptorType.CombinedImageSampler,
+            DescriptorCount = 1,
+            PImageInfo = &imageInfo,
+        };
+
+        _ctx.Vk.UpdateDescriptorSets(_ctx.Device, 1, in write, 0, null);
+    }
+
+    #endregion
 
     public void Dispose()
     {

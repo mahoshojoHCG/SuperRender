@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Buffers.Binary;
 using System.IO.Compression;
 using System.Text;
@@ -92,21 +93,7 @@ public static class PngDecoder
         // Color type 3 requires a palette
         if (colorType == 3 && palette == null) return null;
 
-        // Decompress IDAT data (skip 2-byte zlib header)
-        byte[] compressedData = idatStream.ToArray();
-        if (compressedData.Length < 2) return null;
-
-        byte[] decompressed;
-        try
-        {
-            decompressed = DecompressZlib(compressedData);
-        }
-        catch
-        {
-            return null;
-        }
-
-        // Calculate bytes per pixel and scanline stride
+        // Calculate bytes per pixel and scanline stride (needed for expected decompressed size)
         int channels = GetChannelCount(colorType);
         int bitsPerPixel = channels * bitDepth;
         int bytesPerPixel = Math.Max(1, bitsPerPixel / 8);
@@ -117,18 +104,41 @@ public static class PngDecoder
 
         // Expected decompressed size: height * (1 filter byte + scanlineBytes)
         int expectedSize = height * (1 + scanlineBytes);
-        if (decompressed.Length < expectedSize) return null;
 
-        // Reconstruct filtered scanlines
-        byte[] reconstructed = new byte[height * scanlineBytes];
-        if (!ReconstructFilters(decompressed, reconstructed, height, scanlineBytes, bytesPerPixel))
-            return null;
+        // Decompress IDAT data (skip 2-byte zlib header)
+        byte[] compressedData = idatStream.ToArray();
+        if (compressedData.Length < 2) return null;
 
-        // Convert to RGBA
-        byte[] pixels = ConvertToRgba(reconstructed, width, height, colorType, bitDepth,
-            scanlineBytes, palette, transparency);
+        byte[] decompressedBuf = ArrayPool<byte>.Shared.Rent(expectedSize);
+        try
+        {
+            int decompressedLen;
+            try
+            {
+                decompressedLen = DecompressZlib(compressedData, decompressedBuf);
+            }
+            catch
+            {
+                return null;
+            }
 
-        return new ImageData { Width = width, Height = height, Pixels = pixels };
+            if (decompressedLen < expectedSize) return null;
+
+            // Reconstruct filtered scanlines
+            byte[] reconstructed = new byte[height * scanlineBytes];
+            if (!ReconstructFilters(decompressedBuf, reconstructed, height, scanlineBytes, bytesPerPixel))
+                return null;
+
+            // Convert to RGBA
+            byte[] pixels = ConvertToRgba(reconstructed, width, height, colorType, bitDepth,
+                scanlineBytes, palette, transparency);
+
+            return new ImageData { Width = width, Height = height, Pixels = pixels };
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(decompressedBuf);
+        }
     }
 
     private static bool IsValidColorTypeBitDepth(byte colorType, byte bitDepth) => colorType switch
@@ -151,14 +161,19 @@ public static class PngDecoder
         _ => 0
     };
 
-    private static byte[] DecompressZlib(byte[] zlibData)
+    private static int DecompressZlib(byte[] zlibData, byte[] output)
     {
         // Skip 2-byte zlib header (CMF + FLG)
         using var compressed = new MemoryStream(zlibData, 2, zlibData.Length - 2);
         using var deflate = new DeflateStream(compressed, CompressionMode.Decompress);
-        using var output = new MemoryStream();
-        deflate.CopyTo(output);
-        return output.ToArray();
+        int totalRead = 0;
+        int read;
+        while (totalRead < output.Length &&
+               (read = deflate.Read(output, totalRead, output.Length - totalRead)) > 0)
+        {
+            totalRead += read;
+        }
+        return totalRead;
     }
 
     private static bool ReconstructFilters(byte[] decompressed, byte[] reconstructed,

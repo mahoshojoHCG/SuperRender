@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Silk.NET.Vulkan;
 
 namespace SuperRender.Renderer.Gpu;
@@ -5,6 +6,7 @@ namespace SuperRender.Renderer.Gpu;
 public sealed unsafe class PipelineManager : IDisposable
 {
     private readonly VulkanContext _ctx;
+    private readonly ILogger? _logger;
 
     public Pipeline QuadPipeline { get; private set; }
     public PipelineLayout QuadPipelineLayout { get; private set; }
@@ -16,9 +18,10 @@ public sealed unsafe class PipelineManager : IDisposable
 
     private bool _disposed;
 
-    public PipelineManager(VulkanContext ctx, RenderPass renderPass, Extent2D extent)
+    public PipelineManager(VulkanContext ctx, RenderPass renderPass, Extent2D extent, ILogger? logger = null)
     {
         _ctx = ctx;
+        _logger = logger;
 
         CreateQuadPipeline(renderPass, extent);
         CreateTextPipeline(renderPass, extent);
@@ -29,14 +32,14 @@ public sealed unsafe class PipelineManager : IDisposable
     {
         var vertBytes = ShaderCompiler.LoadOrCompileShader(
             "Resources.Shaders.quad.vert.spv",
-            "Shaders.quad.vert.glsl", isVertex: true);
+            "Shaders.quad.vert.glsl", isVertex: true, _logger);
         var fragBytes = ShaderCompiler.LoadOrCompileShader(
             "Resources.Shaders.quad.frag.spv",
-            "Shaders.quad.frag.glsl", isVertex: false);
+            "Shaders.quad.frag.glsl", isVertex: false, _logger);
 
         if (vertBytes == null || fragBytes == null)
         {
-            Console.WriteLine("Warning: Quad shaders not available. Skipping quad pipeline creation.");
+            _logger?.LogWarning("Quad shaders not available. Skipping quad pipeline creation.");
             return;
         }
 
@@ -103,14 +106,14 @@ public sealed unsafe class PipelineManager : IDisposable
     {
         var vertBytes = ShaderCompiler.LoadOrCompileShader(
             "Resources.Shaders.text.vert.spv",
-            "Shaders.text.vert.glsl", isVertex: true);
+            "Shaders.text.vert.glsl", isVertex: true, _logger);
         var fragBytes = ShaderCompiler.LoadOrCompileShader(
             "Resources.Shaders.text.frag.spv",
-            "Shaders.text.frag.glsl", isVertex: false);
+            "Shaders.text.frag.glsl", isVertex: false, _logger);
 
         if (vertBytes == null || fragBytes == null)
         {
-            Console.WriteLine("Warning: Text shaders not available. Skipping text pipeline creation.");
+            _logger?.LogWarning("Text shaders not available. Skipping text pipeline creation.");
             return;
         }
 
@@ -201,14 +204,14 @@ public sealed unsafe class PipelineManager : IDisposable
 
         var vertBytes = ShaderCompiler.LoadOrCompileShader(
             "Resources.Shaders.text.vert.spv",
-            "Shaders.text.vert.glsl", isVertex: true);
+            "Shaders.text.vert.glsl", isVertex: true, _logger);
         var fragBytes = ShaderCompiler.LoadOrCompileShader(
             "Resources.Shaders.image.frag.spv",
-            "Shaders.image.frag.glsl", isVertex: false);
+            "Shaders.image.frag.glsl", isVertex: false, _logger);
 
         if (vertBytes == null || fragBytes == null)
         {
-            Console.WriteLine("Warning: Image shaders not available. Skipping image pipeline creation.");
+            _logger?.LogWarning("Image shaders not available. Skipping image pipeline creation.");
             return;
         }
 
