@@ -2,7 +2,7 @@
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <PackageId>SuperRender.EcmaScript.Compiler</PackageId>
-    <Version>0.0.1-beta.1</Version>
+    <Version>0.0.1-beta.2</Version>
     <Authors>mahoshojoHCG</Authors>
     <Description>ECMAScript 2025 compiler: lexer, recursive-descent parser, AST, and DLR expression tree compiler.</Description>
     <PackageTags>ecmascript;javascript;compiler;parser;lexer;js-engine</PackageTags>

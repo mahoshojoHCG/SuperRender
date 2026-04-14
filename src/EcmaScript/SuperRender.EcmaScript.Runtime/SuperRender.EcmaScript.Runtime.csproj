@@ -2,7 +2,7 @@
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <PackageId>SuperRender.EcmaScript.Runtime</PackageId>
-    <Version>0.0.1-beta.1</Version>
+    <Version>0.0.1-beta.2</Version>
     <Authors>mahoshojoHCG</Authors>
     <Description>ECMAScript 2025 runtime: JsValue type hierarchy, prototype chains, lexical environments, realm and builtins infrastructure.</Description>
     <PackageTags>ecmascript;javascript;runtime;js-engine</PackageTags>
