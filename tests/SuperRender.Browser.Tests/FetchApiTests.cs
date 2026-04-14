@@ -26,16 +26,26 @@ public class FetchApiTests
 
         // Use a queue so we can control when actions are executed
         var pendingActions = new Queue<Action>();
-        bridge.SetFetch(fetchFunc, action => pendingActions.Enqueue(action));
+        var actionEnqueued = new AutoResetEvent(false);
+        bridge.SetFetch(fetchFunc, action =>
+        {
+            pendingActions.Enqueue(action);
+            actionEnqueued.Set();
+        });
 
         bridge.Install();
 
         void DrainQueue()
         {
-            // Give the Task.Run a moment to complete and enqueue its action
-            Thread.Sleep(50);
+            // Wait for the async task to enqueue its callback (up to 5s for slow CI)
+            actionEnqueued.WaitOne(5000);
             while (pendingActions.Count > 0)
+            {
                 pendingActions.Dequeue()();
+                // Allow for additional callbacks from chained promises
+                if (pendingActions.Count == 0)
+                    actionEnqueued.WaitOne(100);
+            }
         }
 
         return (engine, bridge, DrainQueue);

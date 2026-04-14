@@ -45,7 +45,7 @@ public class GridLayoutTests
         Assert.Equal(LayoutBoxType.GridContainer, grid.BoxType);
     }
 
-    [Fact(Skip = "Grid child positioning needs refinement - container creation works")]
+    [Fact]
     public void Grid_TwoColumns_ChildrenPositioned()
     {
         var root = LayoutHtml(@"
@@ -67,7 +67,7 @@ public class GridLayoutTests
         Assert.True(b.Dimensions.X > a.Dimensions.X);
     }
 
-    [Fact(Skip = "Grid child positioning needs refinement")]
+    [Fact]
     public void Grid_FrUnits_DistributeSpace()
     {
         var root = LayoutHtml(@"
@@ -89,7 +89,7 @@ public class GridLayoutTests
         Assert.True(b.Dimensions.Width > a.Dimensions.Width);
     }
 
-    [Fact(Skip = "Grid child positioning needs refinement")]
+    [Fact]
     public void Grid_MultipleRows_ChildrenOnNextRow()
     {
         var root = LayoutHtml(@"
