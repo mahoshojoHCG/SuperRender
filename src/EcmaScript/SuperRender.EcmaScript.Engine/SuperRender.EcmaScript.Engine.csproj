@@ -11,6 +11,7 @@
     <RepositoryUrl>https://github.com/mahoshojoHCG/SuperRender.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\SuperRender.EcmaScript.Compiler\SuperRender.EcmaScript.Compiler.csproj" />
@@ -18,5 +19,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="../../../icon.png" Pack="true" PackagePath="/" />
+    <None Include="../../../PACKAGE_README.md" Pack="true" PackagePath="/README.md" />
   </ItemGroup>
 </Project>
