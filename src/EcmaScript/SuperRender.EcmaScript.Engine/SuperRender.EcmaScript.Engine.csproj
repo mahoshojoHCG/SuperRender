@@ -1,6 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Library</OutputType>
+    <PackageId>SuperRender.EcmaScript.Engine</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>mahoshojoHCG</Authors>
+    <Description>Embeddable ECMAScript 2025 engine for .NET: compile and execute JavaScript with sandboxed .NET interop.</Description>
+    <PackageTags>ecmascript;javascript;engine;scripting;js-engine;embedding</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/mahoshojoHCG/SuperRender</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/mahoshojoHCG/SuperRender.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\SuperRender.EcmaScript.Compiler\SuperRender.EcmaScript.Compiler.csproj" />

@@ -1,6 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Library</OutputType>
+    <PackageId>SuperRender.EcmaScript.Compiler</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>mahoshojoHCG</Authors>
+    <Description>ECMAScript 2025 compiler: lexer, recursive-descent parser, AST, and DLR expression tree compiler.</Description>
+    <PackageTags>ecmascript;javascript;compiler;parser;lexer;js-engine</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/mahoshojoHCG/SuperRender</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/mahoshojoHCG/SuperRender.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\SuperRender.EcmaScript.Runtime\SuperRender.EcmaScript.Runtime.csproj" />

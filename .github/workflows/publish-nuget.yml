@@ -1,0 +1,88 @@
+name: Publish NuGet Packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version (e.g. 1.0.0 or 1.0.0-beta.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  PROJECTS: >-
+    src/EcmaScript/SuperRender.EcmaScript.Runtime/SuperRender.EcmaScript.Runtime.csproj
+    src/EcmaScript/SuperRender.EcmaScript.Compiler/SuperRender.EcmaScript.Compiler.csproj
+    src/EcmaScript/SuperRender.EcmaScript.Engine/SuperRender.EcmaScript.Engine.csproj
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Update version in csproj files
+        run: |
+          VERSION="${{ inputs.version }}"
+          for proj in ${{ env.PROJECTS }}; do
+            sed -i "s|<Version>.*</Version>|<Version>${VERSION}</Version>|" "$proj"
+            echo "Updated $proj to version ${VERSION}"
+          done
+
+      - name: Build
+        run: dotnet build -c Release /p:Version=${{ inputs.version }}
+
+      - name: Test
+        run: dotnet test -c Release --no-build --filter "FullyQualifiedName~SuperRender.EcmaScript"
+
+      - name: Pack
+        run: |
+          for proj in ${{ env.PROJECTS }}; do
+            dotnet pack "$proj" -c Release --no-build -o ./nupkgs /p:Version=${{ inputs.version }}
+          done
+
+      - name: Push to NuGet
+        run: |
+          for pkg in ./nupkgs/*.nupkg; do
+            dotnet nuget push "$pkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+          done
+
+      - name: Commit version update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ${{ env.PROJECTS }}
+          git commit -m "chore: bump EcmaScript package version to ${{ inputs.version }}"
+          git push
+
+      - name: Determine prerelease
+        id: prerelease
+        run: |
+          if [[ "${{ inputs.version }}" == *-* ]]; then
+            echo "flag=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "flag=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ inputs.version }}" \
+            --title "v${{ inputs.version }}" \
+            --generate-notes \
+            ${{ steps.prerelease.outputs.flag == 'true' && '--prerelease' || '' }} \
+            ./nupkgs/*.nupkg
