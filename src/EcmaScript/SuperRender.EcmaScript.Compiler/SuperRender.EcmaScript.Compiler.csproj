@@ -10,8 +10,12 @@
     <PackageProjectUrl>https://github.com/mahoshojoHCG/SuperRender</PackageProjectUrl>
     <RepositoryUrl>https://github.com/mahoshojoHCG/SuperRender.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
+    <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\SuperRender.EcmaScript.Runtime\SuperRender.EcmaScript.Runtime.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../../../icon.png" Pack="true" PackagePath="/" />
   </ItemGroup>
 </Project>
