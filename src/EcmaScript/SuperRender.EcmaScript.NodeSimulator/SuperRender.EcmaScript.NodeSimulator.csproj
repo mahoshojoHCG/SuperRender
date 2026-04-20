@@ -6,6 +6,9 @@
     <ProjectReference Include="..\SuperRender.EcmaScript.Engine\SuperRender.EcmaScript.Engine.csproj" />
     <ProjectReference Include="..\SuperRender.EcmaScript.Runtime\SuperRender.EcmaScript.Runtime.csproj" />
     <ProjectReference Include="..\SuperRender.EcmaScript.Compiler\SuperRender.EcmaScript.Compiler.csproj" />
+    <ProjectReference Include="..\..\Analyzer\SuperRender.Analyzer\SuperRender.Analyzer.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ref\**\*" Pack="false" CopyToOutputDirectory="Never" />
