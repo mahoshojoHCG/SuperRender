@@ -1,4 +1,3 @@
-using SuperRender.EcmaScript.Runtime;
 using Xunit;
 
 namespace SuperRender.EcmaScript.NodeSimulator.Tests;

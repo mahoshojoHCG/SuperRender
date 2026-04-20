@@ -14,8 +14,9 @@ if (args.Length == 0)
 if (args[0] is "-e" or "--eval" && args.Length > 1)
 {
     // Evaluate a single expression.
-    var repl = new Repl();
-    repl.ExecuteScript(string.Join(' ', args.Skip(1)));
+    var scriptArgs = args.Length > 2 ? args[2..] : [];
+    var repl = new Repl(scriptArgs);
+    repl.ExecuteScript(string.Join(' ', args.Skip(1).Take(1)));
     return;
 }
 
@@ -41,7 +42,8 @@ if (!File.Exists(filePath))
 }
 
 var script = File.ReadAllText(filePath);
-var runner = new Repl();
+var scriptArgv = args.Length > 1 ? args[1..] : [];
+var runner = new Repl(scriptArgv);
 runner.ExecuteScript(script);
 
 static void PrintBanner()

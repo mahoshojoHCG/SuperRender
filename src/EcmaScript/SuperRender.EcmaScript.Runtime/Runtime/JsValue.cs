@@ -56,12 +56,12 @@ public abstract class JsValue : IDynamicMetaObjectProvider
         }
 
         // object == primitive -> ToPrimitive
-        if (this is JsObject && other is not JsObject)
+        if (this is JsObjectBase && other is not JsObjectBase)
         {
             return ToPrimitive().AbstractEquals(other);
         }
 
-        if (this is not JsObject && other is JsObject)
+        if (this is not JsObjectBase && other is JsObjectBase)
         {
             return AbstractEquals(other.ToPrimitive());
         }
@@ -89,10 +89,10 @@ public abstract class JsValue : IDynamicMetaObjectProvider
 internal sealed class JsValueMetaObject : DynamicMetaObject
 {
     private static readonly MethodInfo _getMethod =
-        typeof(JsObject).GetMethod(nameof(JsObject.Get), [typeof(string)])!;
+        typeof(JsObjectBase).GetMethod(nameof(JsObjectBase.Get), [typeof(string)])!;
 
     private static readonly MethodInfo _setMethod =
-        typeof(JsObject).GetMethod(nameof(JsObject.Set), [typeof(string), typeof(JsValue)])!;
+        typeof(JsObjectBase).GetMethod(nameof(JsObjectBase.Set), [typeof(string), typeof(JsValue)])!;
 
     private static readonly MethodInfo _callMethod =
         typeof(JsFunction).GetMethod(nameof(JsFunction.Call), [typeof(JsValue), typeof(JsValue[])])!;
@@ -104,8 +104,8 @@ internal sealed class JsValueMetaObject : DynamicMetaObject
     {
         var restrictions = BindingRestrictions.GetTypeRestriction(Expression, LimitType);
 
-        var isObj = Expression.TypeIs(Expression, typeof(JsObject));
-        var getSelf = Expression.Convert(Expression, typeof(JsObject));
+        var isObj = Expression.TypeIs(Expression, typeof(JsObjectBase));
+        var getSelf = Expression.Convert(Expression, typeof(JsObjectBase));
         var call = Expression.Call(getSelf, _getMethod, Expression.Constant(binder.Name));
         var undefinedExpr = Expression.Constant(JsValue.Undefined, typeof(JsValue));
         var result = Expression.Condition(isObj, call, undefinedExpr);
@@ -117,7 +117,7 @@ internal sealed class JsValueMetaObject : DynamicMetaObject
     {
         var restrictions = BindingRestrictions.GetTypeRestriction(Expression, LimitType);
 
-        var getSelf = Expression.Convert(Expression, typeof(JsObject));
+        var getSelf = Expression.Convert(Expression, typeof(JsObjectBase));
         var val = Expression.Convert(value.Expression, typeof(JsValue));
         var call = Expression.Call(getSelf, _setMethod, Expression.Constant(binder.Name), val);
         var result = Expression.Block(typeof(JsValue), call, val);

@@ -34,6 +34,9 @@
     <Project Path="src/EcmaScript/SuperRender.EcmaScript.Dom/SuperRender.EcmaScript.Dom.csproj" />
     <Project Path="src/EcmaScript/SuperRender.EcmaScript.NodeSimulator/SuperRender.EcmaScript.NodeSimulator.csproj" />
   </Folder>
+  <Folder Name="/src/Analyzer/">
+    <Project Path="src/Analyzer/SuperRender.Analyzer/SuperRender.Analyzer.csproj" />
+  </Folder>
   <Folder Name="/src/" />
   <Folder Name="/src/Browser/">
     <Project Path="src/Browser/SuperRender.Browser/SuperRender.Browser.csproj" />

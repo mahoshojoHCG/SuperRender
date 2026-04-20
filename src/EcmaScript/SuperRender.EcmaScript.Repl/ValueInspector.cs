@@ -140,7 +140,7 @@ internal static class ValueInspector
         }
 
         // Disable colors when stdout is redirected (piped).
-        if (!System.Console.IsOutputRedirected)
+        if (!Console.IsOutputRedirected)
         {
             return true;
         }

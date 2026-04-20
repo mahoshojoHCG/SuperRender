@@ -539,7 +539,7 @@ public static class RuntimeHelpers
             throw new JsTypeError($"Cannot read properties of {obj.TypeOf} (reading '{name}')", Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
         }
 
-        if (obj is JsObject jsObj)
+        if (obj is JsObjectBase jsObj)
         {
             return jsObj.Get(name);
         }
@@ -606,7 +606,7 @@ public static class RuntimeHelpers
             throw new JsTypeError($"Cannot set properties of {obj.TypeOf} (setting '{name}')", Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
         }
 
-        if (obj is JsObject jsObj)
+        if (obj is JsObjectBase jsObj)
         {
             jsObj.Set(name, value);
         }
@@ -646,7 +646,7 @@ public static class RuntimeHelpers
 
     public static JsValue DeleteMember(JsValue obj, string name)
     {
-        if (obj is JsObject jsObj)
+        if (obj is JsObjectBase jsObj)
         {
             return jsObj.Delete(name) ? JsValue.True : JsValue.False;
         }
@@ -759,7 +759,7 @@ public static class RuntimeHelpers
         }
 
         var keys = new List<string>();
-        var current = jsObj;
+        var current = jsObj as JsDynamicObject;
         while (current is not null)
         {
             foreach (var key in current.OwnPropertyKeys())
@@ -771,7 +771,7 @@ public static class RuntimeHelpers
                 }
             }
 
-            current = current.Prototype;
+            current = current.Prototype as JsDynamicObject;
         }
 
         return [.. keys];

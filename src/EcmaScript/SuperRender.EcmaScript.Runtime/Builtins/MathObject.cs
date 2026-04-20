@@ -2,191 +2,175 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public static class MathObject
+[JsObject]
+public sealed partial class MathObject : JsObjectBase
 {
-    public static void Install(Realm realm)
+    private static readonly JsString ToStringTagValue = new("Math");
+
+    public MathObject(Realm realm)
     {
-        var math = new JsObject { Prototype = realm.ObjectPrototype };
+        Prototype = realm.ObjectPrototype;
+        Extensible = false;
+    }
 
-        // Constants
-        BuiltinHelper.DefineProperty(math, "PI", JsNumber.Create(Math.PI));
-        BuiltinHelper.DefineProperty(math, "E", JsNumber.Create(Math.E));
-        BuiltinHelper.DefineProperty(math, "LN2", JsNumber.Create(Math.Log(2)));
-        BuiltinHelper.DefineProperty(math, "LN10", JsNumber.Create(Math.Log(10)));
-        BuiltinHelper.DefineProperty(math, "LOG2E", JsNumber.Create(Math.Log2(Math.E)));
-        BuiltinHelper.DefineProperty(math, "LOG10E", JsNumber.Create(Math.Log10(Math.E)));
-        BuiltinHelper.DefineProperty(math, "SQRT2", JsNumber.Create(Math.Sqrt(2)));
-        BuiltinHelper.DefineProperty(math, "SQRT1_2", JsNumber.Create(Math.Sqrt(0.5)));
+    public static void Install(Realm realm) => realm.InstallGlobal("Math", new MathObject(realm));
 
-        // Symbol.toStringTag
-        math.DefineSymbolProperty(JsSymbol.ToStringTag,
-            PropertyDescriptor.Data(new JsString("Math"), writable: false, enumerable: false, configurable: true));
-
-        // Single-argument math functions
-        DefineUnary(math, "abs", Math.Abs);
-        DefineUnary(math, "ceil", Math.Ceiling);
-        DefineUnary(math, "floor", Math.Floor);
-        DefineUnary(math, "round", MathRound);
-        DefineUnary(math, "trunc", Math.Truncate);
-        DefineUnary(math, "sqrt", Math.Sqrt);
-        DefineUnary(math, "cbrt", Math.Cbrt);
-        DefineUnary(math, "log", Math.Log);
-        DefineUnary(math, "log2", Math.Log2);
-        DefineUnary(math, "log10", Math.Log10);
-        DefineUnary(math, "exp", Math.Exp);
-        DefineUnary(math, "sign", v => Math.Sign(v));
-        DefineUnary(math, "sin", Math.Sin);
-        DefineUnary(math, "cos", Math.Cos);
-        DefineUnary(math, "tan", Math.Tan);
-        DefineUnary(math, "asin", Math.Asin);
-        DefineUnary(math, "acos", Math.Acos);
-        DefineUnary(math, "atan", Math.Atan);
-
-        // fround: round to nearest float32
-        DefineUnary(math, "fround", v => (double)(float)v);
-
-        // clz32: count leading zeros in 32-bit integer
-        BuiltinHelper.DefineMethod(math, "clz32", (_, args) =>
+    public override bool TryGetSymbolProperty(JsSymbol symbol, out JsValue value)
+    {
+        if (symbol == JsSymbol.ToStringTag)
         {
-            var n = (uint)(int)BuiltinHelper.Arg(args, 0).ToNumber();
-            if (n == 0)
+            value = ToStringTagValue;
+            return true;
+        }
+
+        return base.TryGetSymbolProperty(symbol, out value);
+    }
+
+    [JsProperty("PI")] public static double PI => Math.PI;
+    [JsProperty("E")] public static double E => Math.E;
+    [JsProperty("LN2")] public static double LN2 => Math.Log(2);
+    [JsProperty("LN10")] public static double LN10 => Math.Log(10);
+    [JsProperty("LOG2E")] public static double LOG2E => Math.Log2(Math.E);
+    [JsProperty("LOG10E")] public static double LOG10E => Math.Log10(Math.E);
+    [JsProperty("SQRT2")] public static double SQRT2 => Math.Sqrt(2);
+    [JsProperty("SQRT1_2")] public static double Sqrt1Over2 => Math.Sqrt(0.5);
+
+    [JsMethod("abs")] public static double Abs(double x) => Math.Abs(x);
+    [JsMethod("ceil")] public static double Ceil(double x) => Math.Ceiling(x);
+    [JsMethod("floor")] public static double Floor(double x) => Math.Floor(x);
+    [JsMethod("round")] public static double Round(double x) => RoundImpl(x);
+    [JsMethod("trunc")] public static double Trunc(double x) => Math.Truncate(x);
+    [JsMethod("sqrt")] public static double Sqrt(double x) => Math.Sqrt(x);
+    [JsMethod("cbrt")] public static double Cbrt(double x) => Math.Cbrt(x);
+    [JsMethod("log")] public static double Log(double x) => Math.Log(x);
+    [JsMethod("log2")] public static double Log2(double x) => Math.Log2(x);
+    [JsMethod("log10")] public static double Log10(double x) => Math.Log10(x);
+    [JsMethod("exp")] public static double Exp(double x) => Math.Exp(x);
+    [JsMethod("sign")] public static int Sign(double x) => Math.Sign(x);
+    [JsMethod("sin")] public static double Sin(double x) => Math.Sin(x);
+    [JsMethod("cos")] public static double Cos(double x) => Math.Cos(x);
+    [JsMethod("tan")] public static double Tan(double x) => Math.Tan(x);
+    [JsMethod("asin")] public static double Asin(double x) => Math.Asin(x);
+    [JsMethod("acos")] public static double Acos(double x) => Math.Acos(x);
+    [JsMethod("atan")] public static double Atan(double x) => Math.Atan(x);
+    [JsMethod("fround")] public static double Fround(double x) => (double)(float)x;
+
+    [JsMethod("clz32")]
+    public static int Clz32(double x)
+    {
+        var n = (uint)(int)x;
+        if (n == 0)
+        {
+            return 32;
+        }
+
+        var count = 0;
+        while ((n & 0x80000000) == 0)
+        {
+            count++;
+            n <<= 1;
+        }
+
+        return count;
+    }
+
+    [JsMethod("imul")]
+    public static int Imul(int a, int b) => a * b;
+
+    [JsMethod("atan2")]
+    public static double Atan2(double y, double x) => Math.Atan2(y, x);
+
+    [JsMethod("pow")]
+    public static double Pow(double b, double e) => Math.Pow(b, e);
+
+    [JsMethod("max")]
+    public static JsValue Max(JsValue _, JsValue[] args)
+    {
+        if (args.Length == 0)
+        {
+            return JsNumber.NegativeInfinity;
+        }
+
+        var result = double.NegativeInfinity;
+        foreach (var arg in args)
+        {
+            var n = arg.ToNumber();
+            if (double.IsNaN(n))
             {
-                return JsNumber.Create(32);
+                return JsNumber.NaN;
             }
 
-            var count = 0;
-            while ((n & 0x80000000) == 0)
+            if (n > result || (n == 0 && result == 0 && !double.IsNegative(n)))
             {
-                count++;
-                n <<= 1;
+                result = n;
+            }
+        }
+
+        return JsNumber.Create(result);
+    }
+
+    [JsMethod("min")]
+    public static JsValue Min(JsValue _, JsValue[] args)
+    {
+        if (args.Length == 0)
+        {
+            return JsNumber.PositiveInfinity;
+        }
+
+        var result = double.PositiveInfinity;
+        foreach (var arg in args)
+        {
+            var n = arg.ToNumber();
+            if (double.IsNaN(n))
+            {
+                return JsNumber.NaN;
             }
 
-            return JsNumber.Create(count);
-        }, 1);
-
-        // imul: C-like 32-bit integer multiplication
-        BuiltinHelper.DefineMethod(math, "imul", (_, args) =>
-        {
-            var a = (int)BuiltinHelper.Arg(args, 0).ToNumber();
-            var b = (int)BuiltinHelper.Arg(args, 1).ToNumber();
-            return JsNumber.Create(a * b);
-        }, 2);
-
-        // Two-argument math functions
-        BuiltinHelper.DefineMethod(math, "atan2", (_, args) =>
-        {
-            var y = BuiltinHelper.Arg(args, 0).ToNumber();
-            var x = BuiltinHelper.Arg(args, 1).ToNumber();
-            return JsNumber.Create(Math.Atan2(y, x));
-        }, 2);
-
-        BuiltinHelper.DefineMethod(math, "pow", (_, args) =>
-        {
-            var b = BuiltinHelper.Arg(args, 0).ToNumber();
-            var e = BuiltinHelper.Arg(args, 1).ToNumber();
-            return JsNumber.Create(Math.Pow(b, e));
-        }, 2);
-
-        // Variadic functions
-        BuiltinHelper.DefineMethod(math, "max", (_, args) =>
-        {
-            if (args.Length == 0)
+            if (n < result || (n == 0 && result == 0 && double.IsNegative(n)))
             {
-                return JsNumber.NegativeInfinity;
+                result = n;
             }
+        }
 
-            var result = double.NegativeInfinity;
-            foreach (var arg in args)
-            {
-                var n = arg.ToNumber();
-                if (double.IsNaN(n))
-                {
-                    return JsNumber.NaN;
-                }
+        return JsNumber.Create(result);
+    }
 
-                if (n > result || (n == 0 && result == 0 && !double.IsNegative(n)))
-                {
-                    result = n;
-                }
-            }
-
-            return JsNumber.Create(result);
-        }, 2);
-
-        BuiltinHelper.DefineMethod(math, "min", (_, args) =>
+    [JsMethod("hypot")]
+    public static JsValue Hypot(JsValue _, JsValue[] args)
+    {
+        if (args.Length == 0)
         {
-            if (args.Length == 0)
+            return JsNumber.Zero;
+        }
+
+        var sum = 0.0;
+        foreach (var arg in args)
+        {
+            var n = arg.ToNumber();
+            if (double.IsInfinity(n))
             {
                 return JsNumber.PositiveInfinity;
             }
 
-            var result = double.PositiveInfinity;
-            foreach (var arg in args)
-            {
-                var n = arg.ToNumber();
-                if (double.IsNaN(n))
-                {
-                    return JsNumber.NaN;
-                }
+            sum += n * n;
+        }
 
-                if (n < result || (n == 0 && result == 0 && double.IsNegative(n)))
-                {
-                    result = n;
-                }
-            }
-
-            return JsNumber.Create(result);
-        }, 2);
-
-        BuiltinHelper.DefineMethod(math, "hypot", (_, args) =>
-        {
-            if (args.Length == 0)
-            {
-                return JsNumber.Zero;
-            }
-
-            var sum = 0.0;
-            foreach (var arg in args)
-            {
-                var n = arg.ToNumber();
-                if (double.IsInfinity(n))
-                {
-                    return JsNumber.PositiveInfinity;
-                }
-
-                sum += n * n;
-            }
-
-            return JsNumber.Create(Math.Sqrt(sum));
-        }, 2);
-
-        BuiltinHelper.DefineMethod(math, "random", (_, _) =>
-        {
-            return JsNumber.Create(Random.Shared.NextDouble());
-        }, 0);
-
-        realm.InstallGlobal("Math", math);
+        return JsNumber.Create(Math.Sqrt(sum));
     }
 
-    private static double MathRound(double v)
+    [JsMethod("random")]
+    public static double Random() => System.Random.Shared.NextDouble();
+
+    private static double RoundImpl(double v)
     {
-        // JavaScript Math.round rounds half toward +Infinity
         if (v >= 0)
         {
             return Math.Floor(v + 0.5);
         }
 
-        // ReSharper disable once CompareOfFloatsByEqualityOperator
         var floored = Math.Floor(v);
+#pragma warning disable CA1508 // float equality is intentional here
         return (v - floored == 0.5) ? floored : Math.Floor(v + 0.5);
-    }
-
-    private static void DefineUnary(JsObject math, string name, Func<double, double> fn)
-    {
-        BuiltinHelper.DefineMethod(math, name, (_, args) =>
-        {
-            var n = BuiltinHelper.Arg(args, 0).ToNumber();
-            return JsNumber.Create(fn(n));
-        }, 1);
+#pragma warning restore CA1508
     }
 }

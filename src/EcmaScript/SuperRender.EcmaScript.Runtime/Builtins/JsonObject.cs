@@ -5,85 +5,99 @@ using System.Text;
 using System.Text.Json;
 using SuperRender.EcmaScript.Runtime;
 
-public static class JsonObject
+[JsObject]
+public sealed partial class JsonObject : JsObjectBase
 {
-    public static void Install(Realm realm)
+    private static readonly JsString ToStringTagValue = new("JSON");
+
+    public JsonObject(Realm realm)
     {
-        var json = new JsObject { Prototype = realm.ObjectPrototype };
+        Prototype = realm.ObjectPrototype;
+        Extensible = false;
+    }
 
-        json.DefineSymbolProperty(JsSymbol.ToStringTag,
-            PropertyDescriptor.Data(new JsString("JSON"), writable: false, enumerable: false, configurable: true));
+    public static void Install(Realm realm) => realm.InstallGlobal("JSON", new JsonObject(realm));
 
-        BuiltinHelper.DefineMethod(json, "parse", (_, args) =>
+    public override bool TryGetSymbolProperty(JsSymbol symbol, out JsValue value)
+    {
+        if (symbol == JsSymbol.ToStringTag)
         {
-            var text = BuiltinHelper.Arg(args, 0).ToJsString();
-            var reviver = BuiltinHelper.Arg(args, 1);
+            value = ToStringTagValue;
+            return true;
+        }
 
-            JsValue result;
-            try
-            {
-                using var doc = JsonDocument.Parse(text);
-                result = ConvertElement(doc.RootElement);
-            }
-            catch (JsonException ex)
-            {
-                throw new Errors.JsSyntaxError("JSON.parse: " + ex.Message, ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
-            }
+        return base.TryGetSymbolProperty(symbol, out value);
+    }
 
-            if (reviver is JsFunction reviverFn)
-            {
-                var root = new JsObject();
-                root.Set("", result);
-                return InternalizeJsonValue(root, "", reviverFn);
-            }
+    [JsMethod("parse")]
+    public static JsValue Parse(JsValue _, JsValue[] args)
+    {
+        var text = BuiltinHelper.Arg(args, 0).ToJsString();
+        var reviver = BuiltinHelper.Arg(args, 1);
 
-            return result;
-        }, 2);
-
-        BuiltinHelper.DefineMethod(json, "stringify", (_, args) =>
+        JsValue result;
+        try
         {
-            var value = BuiltinHelper.Arg(args, 0);
-            var replacer = BuiltinHelper.Arg(args, 1);
-            var space = BuiltinHelper.Arg(args, 2);
+            using var doc = JsonDocument.Parse(text);
+            result = ConvertElement(doc.RootElement);
+        }
+        catch (JsonException ex)
+        {
+            throw new Errors.JsSyntaxError("JSON.parse: " + ex.Message, ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
+        }
 
-            JsFunction? replacerFn = replacer as JsFunction;
-            HashSet<string>? propertyList = null;
-            if (replacer is JsArray replacerArr)
+        if (reviver is JsFunction reviverFn)
+        {
+            var root = new JsObject();
+            root.Set("", result);
+            return InternalizeJsonValue(root, "", reviverFn);
+        }
+
+        return result;
+    }
+
+    [JsMethod("stringify")]
+    public static JsValue Stringify(JsValue _, JsValue[] args)
+    {
+        var value = BuiltinHelper.Arg(args, 0);
+        var replacer = BuiltinHelper.Arg(args, 1);
+        var space = BuiltinHelper.Arg(args, 2);
+
+        JsFunction? replacerFn = replacer as JsFunction;
+        HashSet<string>? propertyList = null;
+        if (replacer is JsArray replacerArr)
+        {
+            propertyList = [];
+            for (var i = 0; i < replacerArr.DenseLength; i++)
             {
-                propertyList = [];
-                for (var i = 0; i < replacerArr.DenseLength; i++)
+                var item = replacerArr.GetIndex(i);
+                if (item is JsString s)
                 {
-                    var item = replacerArr.GetIndex(i);
-                    if (item is JsString s)
-                    {
-                        propertyList.Add(s.Value);
-                    }
-                    else if (item is JsNumber)
-                    {
-                        propertyList.Add(item.ToJsString());
-                    }
+                    propertyList.Add(s.Value);
+                }
+                else if (item is JsNumber)
+                {
+                    propertyList.Add(item.ToJsString());
                 }
             }
+        }
 
-            var indent = "";
-            if (space is JsNumber spaceNum)
+        var indent = "";
+        if (space is JsNumber spaceNum)
+        {
+            var count = Math.Min((int)spaceNum.Value, 10);
+            if (count > 0)
             {
-                var count = Math.Min((int)spaceNum.Value, 10);
-                if (count > 0)
-                {
-                    indent = new string(' ', count);
-                }
+                indent = new string(' ', count);
             }
-            else if (space is JsString spaceStr)
-            {
-                indent = spaceStr.Value.Length > 10 ? spaceStr.Value[..10] : spaceStr.Value;
-            }
+        }
+        else if (space is JsString spaceStr)
+        {
+            indent = spaceStr.Value.Length > 10 ? spaceStr.Value[..10] : spaceStr.Value;
+        }
 
-            var result = SerializeValue("", value, replacerFn, propertyList, indent, "");
-            return result is not null ? new JsString(result) : JsValue.Undefined;
-        }, 3);
-
-        realm.InstallGlobal("JSON", json);
+        var result = SerializeValue("", value, replacerFn, propertyList, indent, "");
+        return result is not null ? new JsString(result) : JsValue.Undefined;
     }
 
     private static JsValue ConvertElement(JsonElement element)
@@ -165,7 +179,6 @@ public static class JsonObject
     private static string? SerializeValue(string key, JsValue value, JsFunction? replacerFn,
         HashSet<string>? propertyList, string indent, string currentIndent)
     {
-        // Call toJSON if present
         if (value is JsObject objWithToJson)
         {
             var toJsonFn = objWithToJson.Get("toJSON");
@@ -175,7 +188,6 @@ public static class JsonObject
             }
         }
 
-        // Apply replacer
         if (replacerFn is not null)
         {
             var holder = new JsObject();

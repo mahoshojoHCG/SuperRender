@@ -36,13 +36,13 @@ internal sealed class LineEditor
     public string? ReadLine(string prompt)
     {
         // Fall back to basic ReadLine when stdin is redirected (piped input).
-        if (System.Console.IsInputRedirected)
+        if (Console.IsInputRedirected)
         {
-            System.Console.Write(prompt);
-            return System.Console.ReadLine();
+            Console.Write(prompt);
+            return Console.ReadLine();
         }
 
-        System.Console.Write(prompt);
+        Console.Write(prompt);
 
         var buffer = new List<char>();
         int cursor = 0;
@@ -51,7 +51,7 @@ internal sealed class LineEditor
 
         while (true)
         {
-            var key = System.Console.ReadKey(intercept: true);
+            var key = Console.ReadKey(intercept: true);
 
             // Ctrl modifier shortcuts.
             if (key.Modifiers.HasFlag(ConsoleModifiers.Control))
@@ -74,7 +74,7 @@ internal sealed class LineEditor
                         continue;
 
                     case ConsoleKey.C: // Cancel
-                        System.Console.WriteLine();
+                        Console.WriteLine();
                         return "";
 
                     case ConsoleKey.U: // Clear line
@@ -113,7 +113,7 @@ internal sealed class LineEditor
             switch (key.Key)
             {
                 case ConsoleKey.Enter:
-                    System.Console.WriteLine();
+                    Console.WriteLine();
                     return new string(buffer.ToArray());
 
                 case ConsoleKey.Backspace:
@@ -194,32 +194,32 @@ internal sealed class LineEditor
     private static void RedrawLine(string prompt, List<char> buffer, int cursor)
     {
         // Move to start of line, rewrite prompt + buffer, clear trailing chars.
-        System.Console.CursorLeft = 0;
-        System.Console.Write(prompt);
-        System.Console.Write(buffer.ToArray());
+        Console.CursorLeft = 0;
+        Console.Write(prompt);
+        Console.Write(buffer.ToArray());
         // Clear any leftover characters from a previous longer line.
         int totalLen = prompt.Length + buffer.Count;
-        int consoleWidth = System.Console.BufferWidth;
+        int consoleWidth = Console.BufferWidth;
         int clearCount = consoleWidth - (totalLen % consoleWidth);
         if (clearCount < consoleWidth)
         {
-            System.Console.Write(new string(' ', clearCount));
+            Console.Write(new string(' ', clearCount));
         }
 
-        System.Console.CursorLeft = prompt.Length + cursor;
+        Console.CursorLeft = prompt.Length + cursor;
     }
 
     private static void MoveCursor(ref int cursor, int newPos, int bufferLen, int promptLen)
     {
         cursor = Math.Clamp(newPos, 0, bufferLen);
-        System.Console.CursorLeft = promptLen + cursor;
+        Console.CursorLeft = promptLen + cursor;
     }
 
     private static void ClearDisplayedLine(int promptLen, int bufferLen)
     {
-        System.Console.CursorLeft = 0;
-        System.Console.Write(new string(' ', promptLen + bufferLen));
-        System.Console.CursorLeft = 0;
+        Console.CursorLeft = 0;
+        Console.Write(new string(' ', promptLen + bufferLen));
+        Console.CursorLeft = 0;
     }
 
     private static void EraseToEnd(int cursor, int bufferLen, int promptLen)
@@ -228,9 +228,9 @@ internal sealed class LineEditor
         if (eraseCount > 0)
         {
             int pos = promptLen + cursor;
-            System.Console.CursorLeft = pos;
-            System.Console.Write(new string(' ', eraseCount));
-            System.Console.CursorLeft = pos;
+            Console.CursorLeft = pos;
+            Console.Write(new string(' ', eraseCount));
+            Console.CursorLeft = pos;
         }
     }
 

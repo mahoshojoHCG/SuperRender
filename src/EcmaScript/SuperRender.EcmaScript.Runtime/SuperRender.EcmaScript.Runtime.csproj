@@ -12,9 +12,15 @@
     <RepositoryType>git</RepositoryType>
     <PackageIcon>icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
   </PropertyGroup>
   <ItemGroup>
     <None Include="../../../icon.png" Pack="true" PackagePath="/" />
     <None Include="../../../PACKAGE_README.md" Pack="true" PackagePath="/README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Analyzer/SuperRender.Analyzer/SuperRender.Analyzer.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

@@ -1,5 +1,7 @@
 using SuperRender.EcmaScript.Runtime.Errors;
 using SuperRender.EcmaScript.Engine;
+using SuperRender.EcmaScript.NodeSimulator;
+using SuperRender.EcmaScript.NodeSimulator.Modules;
 using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.Repl;
@@ -15,13 +17,18 @@ internal sealed class Repl
     private const string Reset = "\x1b[0m";
 
     private JsEngine _engine;
+    private NodeRuntime _node;
+    private readonly string[] _argv;
     private readonly LineEditor _editor = new();
     private readonly bool _useColors;
 
-    public Repl()
+    public Repl() : this([]) { }
+
+    public Repl(string[] argv)
     {
-        _engine = CreateEngine();
-        _useColors = !System.Console.IsOutputRedirected
+        _argv = argv;
+        (_engine, _node) = CreateEngine(argv);
+        _useColors = !Console.IsOutputRedirected
                      && System.Environment.GetEnvironmentVariable("NO_COLOR") is null;
     }
 
@@ -36,7 +43,7 @@ internal sealed class Repl
             if (input is null)
             {
                 // EOF (Ctrl+D).
-                System.Console.WriteLine();
+                Console.WriteLine();
                 break;
             }
 
@@ -69,11 +76,16 @@ internal sealed class Repl
         try
         {
             var result = TryExecuteAsExpression(script);
+            DrainEventLoop(waitForPending: true);
             // In non-interactive mode, only print if not undefined.
             if (result is not JsUndefined)
             {
-                System.Console.WriteLine(ValueInspector.Inspect(result));
+                Console.WriteLine(ValueInspector.Inspect(result));
             }
+        }
+        catch (ProcessExitException exit)
+        {
+            System.Environment.ExitCode = exit.ExitCode;
         }
         catch (JsErrorBase ex)
         {
@@ -115,13 +127,52 @@ internal sealed class Repl
         try
         {
             var result = TryExecuteAsExpression(input);
+            DrainEventLoop(waitForPending: false);
             _editor.AddHistory(input);
-            System.Console.WriteLine(ValueInspector.Inspect(result));
+            Console.WriteLine(ValueInspector.Inspect(result));
+        }
+        catch (ProcessExitException exit)
+        {
+            _editor.AddHistory(input);
+            System.Environment.Exit(exit.ExitCode);
         }
         catch (JsErrorBase ex)
         {
             _editor.AddHistory(input);
             PrintError(ex);
+        }
+    }
+
+    /// <summary>
+    /// Drain process.nextTick, microtasks, setImmediate, and any due setTimeout/setInterval
+    /// callbacks. When <paramref name="waitForPending"/> is true, also sleeps between polls
+    /// while timers remain queued — used in batch (script / -e) mode so that scheduled
+    /// callbacks run before the process exits.
+    /// </summary>
+    private void DrainEventLoop(bool waitForPending)
+    {
+        const int batchLimit = 10_000;
+        int iter = 0;
+        while (iter++ < batchLimit)
+        {
+            var fired = _node.DrainOnce();
+            if (!waitForPending)
+            {
+                if (fired == 0) return;
+                continue;
+            }
+
+            if (_node.Timers.PendingTimers == 0 && _node.Timers.PendingImmediates == 0 &&
+                _node.Process.PendingNextTicks.Count == 0)
+            {
+                return;
+            }
+
+            if (fired == 0)
+            {
+                // Nothing due yet but timers still pending — sleep a bit.
+                System.Threading.Thread.Sleep(1);
+            }
         }
     }
 
@@ -162,8 +213,8 @@ internal sealed class Repl
                 return false;
 
             case ".clear":
-                _engine = CreateEngine();
-                System.Console.WriteLine("REPL context cleared.");
+                (_engine, _node) = CreateEngine(_argv);
+                Console.WriteLine("REPL context cleared.");
                 return false;
 
             case ".editor":
@@ -171,22 +222,22 @@ internal sealed class Repl
                 return false;
 
             default:
-                System.Console.WriteLine($"Invalid REPL keyword '{command}'");
+                Console.WriteLine($"Invalid REPL keyword '{command}'");
                 return false;
         }
     }
 
     private static void PrintHelp()
     {
-        System.Console.WriteLine(".clear    Reset the REPL context");
-        System.Console.WriteLine(".editor   Enter editor mode");
-        System.Console.WriteLine(".exit     Exit the REPL");
-        System.Console.WriteLine(".help     Print this help message");
+        Console.WriteLine(".clear    Reset the REPL context");
+        Console.WriteLine(".editor   Enter editor mode");
+        Console.WriteLine(".exit     Exit the REPL");
+        Console.WriteLine(".help     Print this help message");
     }
 
     private void RunEditorMode()
     {
-        System.Console.WriteLine("// Entering editor mode (Ctrl+D to execute, Ctrl+C to cancel)");
+        Console.WriteLine("// Entering editor mode (Ctrl+D to execute, Ctrl+C to cancel)");
         var lines = new List<string>();
         while (true)
         {
@@ -203,7 +254,7 @@ internal sealed class Repl
         if (lines.Count > 0)
         {
             var script = string.Join('\n', lines);
-            System.Console.WriteLine();
+            Console.WriteLine();
             Evaluate(script);
         }
     }
@@ -224,11 +275,11 @@ internal sealed class Repl
         var message = prefix + ": " + ex.Message;
         if (_useColors)
         {
-            System.Console.Error.WriteLine(ErrorColor + message + Reset);
+            Console.Error.WriteLine(ErrorColor + message + Reset);
         }
         else
         {
-            System.Console.Error.WriteLine(message);
+            Console.Error.WriteLine(message);
         }
     }
 
@@ -329,16 +380,11 @@ internal sealed class Repl
                || inSingleQuote || inDoubleQuote || inTemplate || inBlockComment;
     }
 
-    private static JsEngine CreateEngine()
+    private static (JsEngine engine, NodeRuntime node) CreateEngine(string[] argv)
     {
         var engine = new JsEngine();
-        engine.SetConsoleOutput(System.Console.Out, System.Console.Error);
-
-        // Install Node-like global helpers.
-        engine.SetValue("global", engine.GetValue("undefined") is JsUndefined
-            ? engine.Execute("({})")
-            : engine.GetValue("global"));
-
-        return engine;
+        engine.SetConsoleOutput(Console.Out, Console.Error);
+        var node = NodeSimulator.NodeSimulator.Install(engine, argv);
+        return (engine, node);
     }
 }
