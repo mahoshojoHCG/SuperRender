@@ -13,6 +13,8 @@ namespace SuperRender.Analyzer;
 public sealed class JsObjectGenerator : IIncrementalGenerator
 {
     private const string Ns = "SuperRender.EcmaScript.Runtime";
+    private const string InteropNs = "SuperRender.EcmaScript.Runtime.Interop";
+    private const string IJsTypeName = "IJsType";
     private const string JsObjectAttr = "JsObjectAttribute";
     private const string JsMethodAttr = "JsMethodAttribute";
     private const string JsPropertyAttr = "JsPropertyAttribute";
@@ -329,6 +331,32 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         return false;
     }
 
+    private static bool InheritsIJsType(ITypeSymbol t)
+    {
+        if (t.TypeKind != Microsoft.CodeAnalysis.TypeKind.Interface)
+        {
+            return false;
+        }
+
+        if (t is INamedTypeSymbol nts)
+        {
+            if (nts.Name == IJsTypeName && nts.ContainingNamespace?.ToDisplayString() == InteropNs)
+            {
+                return true;
+            }
+
+            foreach (var iface in nts.AllInterfaces)
+            {
+                if (iface.Name == IJsTypeName && iface.ContainingNamespace?.ToDisplayString() == InteropNs)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     private static ParamKind ClassifyParam(ITypeSymbol t, bool isLast)
     {
         if (IsJsValue(t))
@@ -339,6 +367,11 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         if (IsJsObjectBase(t))
         {
             return ParamKind.JsObjectBase;
+        }
+
+        if (InheritsIJsType(t))
+        {
+            return ParamKind.IJsTypeInterface;
         }
 
         if (IsJsValueArray(t) && isLast)
@@ -378,6 +411,11 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             return ReturnKind.JsValue;
         }
 
+        if (InheritsIJsType(t))
+        {
+            return ReturnKind.RIJsTypeInterface;
+        }
+
         return t.SpecialType switch
         {
             SpecialType.System_String => ReturnKind.RString,
@@ -397,7 +435,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         };
     }
 
-    private static string ConvertArg(ParamKind kind, string argExpr, string localName, string memberJsName, int paramIndex)
+    private static string ConvertArg(ParamKind kind, string typeDisplay, string argExpr, string localName, string memberJsName, int paramIndex)
     {
         return kind switch
         {
@@ -409,6 +447,8 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
                 $"\"{Escape(memberJsName)}: argument {paramIndex} must be an object\", " +
                 $"SuperRender.EcmaScript.Runtime.ExecutionContext.CurrentLine, " +
                 $"SuperRender.EcmaScript.Runtime.ExecutionContext.CurrentColumn);",
+            ParamKind.IJsTypeInterface =>
+                $"var {localName} = global::SuperRender.EcmaScript.Runtime.Interop.JsValueExtension.AsInterface<global::{typeDisplay}>({argExpr});",
             ParamKind.PString => $"var {localName} = {argExpr}.ToJsString();",
             ParamKind.PBool => $"var {localName} = {argExpr}.ToBoolean();",
             ParamKind.PDouble => $"var {localName} = {argExpr}.ToNumber();",
@@ -426,11 +466,12 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         };
     }
 
-    private static string WrapReturn(ReturnKind kind, string valueExpr)
+    private static string WrapReturn(ReturnKind kind, string typeDisplay, string valueExpr)
     {
         return kind switch
         {
             ReturnKind.JsValue => valueExpr,
+            ReturnKind.RIJsTypeInterface => $"global::SuperRender.EcmaScript.Runtime.Interop.InteropConversions.UnwrapIJsType({valueExpr})",
             ReturnKind.RString => $"new JsString({valueExpr})",
             ReturnKind.RBool => $"({valueExpr} ? JsValue.True : JsValue.False)",
             ReturnKind.RDouble => $"JsNumber.Create({valueExpr})",
@@ -726,7 +767,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             sb.Append("            case \"").Append(Escape(p.JsName)).AppendLine("\":");
             var target = p.IsStatic ? model.ClassName : "this";
             var access = p.IsCsharpProperty ? $"{target}.{p.CsharpName}" : $"{target}.{p.CsharpName}()";
-            var wrapped = WrapReturn(p.ReturnKind ?? ReturnKind.JsValue, access);
+            var wrapped = WrapReturn(p.ReturnKind ?? ReturnKind.JsValue, p.ValueTypeDisplay, access);
             sb.Append("                return ").Append(wrapped).AppendLine(";");
         }
 
@@ -786,7 +827,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             else
             {
                 var argExpr = $"(__args.Length > {i} ? __args[{i}] : JsValue.Undefined)";
-                var convert = ConvertArg(p.Kind, argExpr, local, m.JsName, i);
+                var convert = ConvertArg(p.Kind, p.TypeDisplay, argExpr, local, m.JsName, i);
                 sb.Append("                        ").AppendLine(convert);
                 callArgs.Add(local);
             }
@@ -800,7 +841,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         }
         else
         {
-            var wrapped = WrapReturn(m.Return.Kind, call);
+            var wrapped = WrapReturn(m.Return.Kind, m.Return.TypeDisplay, call);
             sb.Append("                        return ").Append(wrapped).AppendLine(";");
         }
 
@@ -854,7 +895,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             var target = s.IsStatic ? model.ClassName : "this";
             var kind = s.SetterParamKind ?? ParamKind.JsValue;
             var local = "__v";
-            var convert = ConvertArg(kind, "value", local, s.JsName, 0);
+            var convert = ConvertArg(kind, s.ValueTypeDisplay, "value", local, s.JsName, 0);
             sb.Append("                ").AppendLine(convert);
             sb.Append("                ").Append(target).Append('.').Append(s.CsharpName).Append('(').Append(local).AppendLine(");");
             sb.AppendLine("                return;");
@@ -885,6 +926,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         Unsupported,
         JsValue,
         JsObjectBase,
+        IJsTypeInterface,
         ArgsArray,
         PString,
         PBool,
@@ -906,6 +948,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         Unsupported,
         Void,
         JsValue,
+        RIJsTypeInterface,
         RString,
         RBool,
         RDouble,

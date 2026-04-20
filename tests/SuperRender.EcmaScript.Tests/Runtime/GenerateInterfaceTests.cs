@@ -22,6 +22,40 @@ public sealed partial class FixtureGen : JsObjectBase
     public JsString Label => new("hello");
 }
 
+// IJsType interface used as [JsMethod] parameter/return — user-declared so it's visible
+// to the consumer class's parameter analysis during the same generator pass.
+public interface IBoxThing : IJsType
+{
+    string Name { get; }
+}
+
+public sealed class BoxThing : JsObjectBase, IBoxThing
+{
+    public string Name { get; set; } = "box";
+
+    public override JsValue Get(string name) =>
+        name == "name" ? new JsString(Name) : base.Get(name);
+
+    public override bool HasProperty(string name) =>
+        name == "name" || base.HasProperty(name);
+}
+
+[JsObject]
+public sealed partial class FixtureGenConsumer : JsObjectBase
+{
+    public IBoxThing? Captured { get; private set; }
+
+    [JsMethod("takeBox")]
+    public string TakeBox(IBoxThing box)
+    {
+        Captured = box;
+        return box.Name;
+    }
+
+    [JsMethod("makeBox")]
+    public IBoxThing MakeBox(string name) => new BoxThing { Name = name };
+}
+
 public class GenerateInterfaceTests
 {
     [Fact]
@@ -54,5 +88,42 @@ public class GenerateInterfaceTests
         Assert.Contains("ping(", content);
         Assert.Contains("add(", content);
         Assert.Contains("readonly label:", content);
+    }
+
+    [Fact]
+    public void JsMethod_IJsTypeParameter_CallsAsInterface()
+    {
+        var consumer = new FixtureGenConsumer();
+        var takeBox = consumer.Get("takeBox") as JsFunction;
+        Assert.NotNull(takeBox);
+
+        var box = new BoxThing { Name = "alpha" };
+        var result = takeBox!.Call(consumer, [box]);
+
+        Assert.Equal("alpha", Assert.IsType<JsString>(result).Value);
+        Assert.Same(box, consumer.Captured);
+    }
+
+    [Fact]
+    public void JsMethod_IJsTypeReturn_UnwrapsToJsValue()
+    {
+        var consumer = new FixtureGenConsumer();
+        var makeBox = consumer.Get("makeBox") as JsFunction;
+        Assert.NotNull(makeBox);
+
+        var result = makeBox!.Call(consumer, [new JsString("beta")]);
+        var asBox = Assert.IsType<BoxThing>(result);
+        Assert.Equal("beta", asBox.Name);
+    }
+
+    [Fact]
+    public void JsMethod_IJsTypeParameter_ThrowsOnNonObject()
+    {
+        var consumer = new FixtureGenConsumer();
+        var takeBox = consumer.Get("takeBox") as JsFunction;
+        Assert.NotNull(takeBox);
+
+        Assert.Throws<SuperRender.EcmaScript.Runtime.Errors.JsTypeError>(
+            () => takeBox!.Call(consumer, [new JsString("not-an-object")]));
     }
 }
