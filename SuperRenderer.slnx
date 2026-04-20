@@ -15,6 +15,7 @@
     <File Path="docs/es-2025-todos.md" />
     <File Path="docs/es-2025-dom-todos.md" />
     <File Path="docs/browser-todos.md" />
+    <File Path="docs/node-api-todos.md" />
     <File Path="docs/MANUAL_TESTS_CSS.md" />
   </Folder>
   <Folder Name="/src/Document/">
@@ -31,6 +32,7 @@
     <Project Path="src/EcmaScript/SuperRender.EcmaScript.Engine/SuperRender.EcmaScript.Engine.csproj" />
     <Project Path="src/EcmaScript/SuperRender.EcmaScript.Repl/SuperRender.EcmaScript.Repl.csproj" />
     <Project Path="src/EcmaScript/SuperRender.EcmaScript.Dom/SuperRender.EcmaScript.Dom.csproj" />
+    <Project Path="src/EcmaScript/SuperRender.EcmaScript.NodeSimulator/SuperRender.EcmaScript.NodeSimulator.csproj" />
   </Folder>
   <Folder Name="/src/" />
   <Folder Name="/src/Browser/">

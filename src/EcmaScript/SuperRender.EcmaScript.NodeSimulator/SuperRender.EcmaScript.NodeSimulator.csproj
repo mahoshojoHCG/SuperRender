@@ -1,9 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType>Library</OutputType>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\SuperRender.EcmaScript.Engine\SuperRender.EcmaScript.Engine.csproj" />
-    <ProjectReference Include="..\SuperRender.EcmaScript.NodeSimulator\SuperRender.EcmaScript.NodeSimulator.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ref\**\*" Pack="false" CopyToOutputDirectory="Never" />
   </ItemGroup>
 </Project>

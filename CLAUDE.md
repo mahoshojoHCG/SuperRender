@@ -16,6 +16,7 @@ A complete HTML+CSS rendering engine built with C# (.NET 10), using Silk.NET + V
   - `SuperRender.EcmaScript.Engine/` — JsEngine public API, .NET interop (TypeProxy, ObjectProxy)
   - `SuperRender.EcmaScript.Repl/` — Interactive JS console (Node.js-style REPL)
   - `SuperRender.EcmaScript.Dom/` — JS DOM API bindings: bridges C# DOM to JS runtime (document, element, window, fetch, location, history APIs)
+  - `SuperRender.EcmaScript.NodeSimulator/` — Node.js-compatible runtime surface (process, Buffer, fs, path, etc.) installed onto a JsEngine. `ref/types-node/` pins `@types/node@25.6.0` as the API reference. Priority plan in `docs/node-api-todos.md`.
 - `src/Browser/`
   - `SuperRender.Browser/` — Browser application with tabs, address bar, networking, cookies, storage (SQLite), HTTP caching, CORS, HiDPI, image loading
 - `src/Demo/`
