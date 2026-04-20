@@ -25,7 +25,7 @@ public static class DateConstructor
             },
             ConstructTarget = args =>
             {
-                var dateObj = new JsObject { Prototype = realm.DatePrototype };
+                var dateObj = new JsDynamicObject { Prototype = realm.DatePrototype };
                 double ms;
 
                 if (args.Length == 0)
@@ -244,7 +244,7 @@ public static class DateConstructor
 
     private static double GetDateMs(JsValue thisArg)
     {
-        if (thisArg is JsObject obj)
+        if (thisArg is JsDynamicObject obj)
         {
             var data = obj.GetOwnProperty("[[DateValue]]");
             if (data?.Value is JsNumber num)

@@ -8,7 +8,7 @@ public static class TemporalObject
 {
     public static void Install(Realm realm)
     {
-        var temporal = new JsObject { Prototype = realm.ObjectPrototype };
+        var temporal = new JsDynamicObject { Prototype = realm.ObjectPrototype };
 
         // Symbol.toStringTag
         temporal.DefineSymbolProperty(JsSymbol.ToStringTag,
@@ -24,9 +24,9 @@ public static class TemporalObject
         realm.InstallGlobal("Temporal", temporal);
     }
 
-    private static JsObject CreatePlainDateObject(DateOnly date, JsObject proto)
+    private static JsDynamicObject CreatePlainDateObject(DateOnly date, JsDynamicObject proto)
     {
-        var obj = new JsObject { Prototype = proto };
+        var obj = new JsDynamicObject { Prototype = proto };
         obj.Set("[[Date]]", new JsString(date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)));
         BuiltinHelper.DefineGetter(obj, "year", (self, _) =>
         {
@@ -45,7 +45,7 @@ public static class TemporalObject
         });
         BuiltinHelper.DefineMethod(obj, "toString", (self, _) =>
         {
-            if (self is JsObject o)
+            if (self is JsDynamicObject o)
             {
                 var val = o.Get("[[Date]]");
                 if (val is JsString s) return s;
@@ -56,7 +56,7 @@ public static class TemporalObject
         {
             var d1 = ParseDateFromSelf(self);
             var other = BuiltinHelper.Arg(args, 0);
-            if (other is JsObject otherObj)
+            if (other is JsDynamicObject otherObj)
             {
                 var d2 = ParseDateFromSelf(otherObj);
                 return d1 == d2 ? JsValue.True : JsValue.False;
@@ -67,7 +67,7 @@ public static class TemporalObject
         {
             var d = ParseDateFromSelf(self);
             var dur = BuiltinHelper.Arg(args, 0);
-            if (dur is JsObject durObj)
+            if (dur is JsDynamicObject durObj)
             {
                 var years = (int)GetNumericProp(durObj, "years");
                 var months = (int)GetNumericProp(durObj, "months");
@@ -80,7 +80,7 @@ public static class TemporalObject
         {
             var d = ParseDateFromSelf(self);
             var dur = BuiltinHelper.Arg(args, 0);
-            if (dur is JsObject durObj)
+            if (dur is JsDynamicObject durObj)
             {
                 var years = (int)GetNumericProp(durObj, "years");
                 var months = (int)GetNumericProp(durObj, "months");
@@ -92,9 +92,9 @@ public static class TemporalObject
         return obj;
     }
 
-    private static void InstallPlainDate(JsObject temporal, Realm realm)
+    private static void InstallPlainDate(JsDynamicObject temporal, Realm realm)
     {
-        var proto = new JsObject { Prototype = realm.ObjectPrototype };
+        var proto = new JsDynamicObject { Prototype = realm.ObjectPrototype };
 
         var ctor = new JsFunction
         {
@@ -131,9 +131,9 @@ public static class TemporalObject
         temporal.Set("PlainDate", ctor);
     }
 
-    private static JsObject CreatePlainTimeObject(TimeOnly time, JsObject proto)
+    private static JsDynamicObject CreatePlainTimeObject(TimeOnly time, JsDynamicObject proto)
     {
-        var obj = new JsObject { Prototype = proto };
+        var obj = new JsDynamicObject { Prototype = proto };
         obj.Set("[[Time]]", new JsString(time.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture)));
         BuiltinHelper.DefineGetter(obj, "hour", (self, _) =>
         {
@@ -163,9 +163,9 @@ public static class TemporalObject
         return obj;
     }
 
-    private static void InstallPlainTime(JsObject temporal, Realm realm)
+    private static void InstallPlainTime(JsDynamicObject temporal, Realm realm)
     {
-        var proto = new JsObject { Prototype = realm.ObjectPrototype };
+        var proto = new JsDynamicObject { Prototype = realm.ObjectPrototype };
 
         var ctor = new JsFunction
         {
@@ -203,9 +203,9 @@ public static class TemporalObject
         temporal.Set("PlainTime", ctor);
     }
 
-    private static JsObject CreatePlainDateTimeObject(DateTime dt, JsObject proto)
+    private static JsDynamicObject CreatePlainDateTimeObject(DateTime dt, JsDynamicObject proto)
     {
-        var obj = new JsObject { Prototype = proto };
+        var obj = new JsDynamicObject { Prototype = proto };
         obj.Set("[[DateTime]]", new JsString(dt.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture)));
         BuiltinHelper.DefineGetter(obj, "year", (self, _) => JsNumber.Create(ParseDateTimeFromSelf(self).Year));
         BuiltinHelper.DefineGetter(obj, "month", (self, _) => JsNumber.Create(ParseDateTimeFromSelf(self).Month));
@@ -221,9 +221,9 @@ public static class TemporalObject
         return obj;
     }
 
-    private static void InstallPlainDateTime(JsObject temporal, Realm realm)
+    private static void InstallPlainDateTime(JsDynamicObject temporal, Realm realm)
     {
-        var proto = new JsObject { Prototype = realm.ObjectPrototype };
+        var proto = new JsDynamicObject { Prototype = realm.ObjectPrototype };
 
         var ctor = new JsFunction
         {
@@ -263,20 +263,20 @@ public static class TemporalObject
         temporal.Set("PlainDateTime", ctor);
     }
 
-    private static void InstallInstant(JsObject temporal, Realm realm)
+    private static void InstallInstant(JsDynamicObject temporal, Realm realm)
     {
-        var proto = new JsObject { Prototype = realm.ObjectPrototype };
-        var instant = new JsObject { Prototype = realm.ObjectPrototype };
+        var proto = new JsDynamicObject { Prototype = realm.ObjectPrototype };
+        var instant = new JsDynamicObject { Prototype = realm.ObjectPrototype };
 
         BuiltinHelper.DefineMethod(instant, "fromEpochMilliseconds", (_, args) =>
         {
             var ms = BuiltinHelper.Arg(args, 0).ToNumber();
-            var obj = new JsObject { Prototype = proto };
+            var obj = new JsDynamicObject { Prototype = proto };
             obj.Set("epochMilliseconds", JsNumber.Create(ms));
             obj.Set("epochNanoseconds", JsNumber.Create(ms * 1_000_000));
             BuiltinHelper.DefineMethod(obj, "toString", (self, _) =>
             {
-                if (self is JsObject o)
+                if (self is JsDynamicObject o)
                 {
                     var epoch = o.Get("epochMilliseconds").ToNumber();
                     var dto = DateTimeOffset.FromUnixTimeMilliseconds((long)epoch);
@@ -290,12 +290,12 @@ public static class TemporalObject
         BuiltinHelper.DefineMethod(instant, "fromEpochSeconds", (_, args) =>
         {
             var s = BuiltinHelper.Arg(args, 0).ToNumber();
-            var obj = new JsObject { Prototype = proto };
+            var obj = new JsDynamicObject { Prototype = proto };
             obj.Set("epochMilliseconds", JsNumber.Create(s * 1000));
             obj.Set("epochNanoseconds", JsNumber.Create(s * 1_000_000_000));
             BuiltinHelper.DefineMethod(obj, "toString", (self, _) =>
             {
-                if (self is JsObject o)
+                if (self is JsDynamicObject o)
                 {
                     var epoch = o.Get("epochMilliseconds").ToNumber();
                     var dto = DateTimeOffset.FromUnixTimeMilliseconds((long)epoch);
@@ -309,10 +309,10 @@ public static class TemporalObject
         temporal.Set("Instant", instant);
     }
 
-    private static void InstallDuration(JsObject temporal, Realm realm)
+    private static void InstallDuration(JsDynamicObject temporal, Realm realm)
     {
-        var proto = new JsObject { Prototype = realm.ObjectPrototype };
-        var durationNs = new JsObject { Prototype = realm.ObjectPrototype };
+        var proto = new JsDynamicObject { Prototype = realm.ObjectPrototype };
+        var durationNs = new JsDynamicObject { Prototype = realm.ObjectPrototype };
 
         BuiltinHelper.DefineMethod(durationNs, "from", (_, args) =>
         {
@@ -321,9 +321,9 @@ public static class TemporalObject
             {
                 return ParseIsoDuration(str.Value, proto);
             }
-            if (arg is JsObject obj)
+            if (arg is JsDynamicObject obj)
             {
-                var dur = new JsObject { Prototype = proto };
+                var dur = new JsDynamicObject { Prototype = proto };
                 dur.Set("years", JsNumber.Create(GetNumericProp(obj, "years")));
                 dur.Set("months", JsNumber.Create(GetNumericProp(obj, "months")));
                 dur.Set("days", JsNumber.Create(GetNumericProp(obj, "days")));
@@ -338,14 +338,14 @@ public static class TemporalObject
         temporal.Set("Duration", durationNs);
     }
 
-    private static void InstallNow(JsObject temporal, Realm realm)
+    private static void InstallNow(JsDynamicObject temporal, Realm realm)
     {
-        var now = new JsObject { Prototype = realm.ObjectPrototype };
+        var now = new JsDynamicObject { Prototype = realm.ObjectPrototype };
 
         BuiltinHelper.DefineMethod(now, "instant", (_, _) =>
         {
             var ms = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            var obj = new JsObject { Prototype = realm.ObjectPrototype };
+            var obj = new JsDynamicObject { Prototype = realm.ObjectPrototype };
             obj.Set("epochMilliseconds", JsNumber.Create(ms));
             obj.Set("epochNanoseconds", JsNumber.Create((double)ms * 1_000_000));
             return obj;
@@ -354,7 +354,7 @@ public static class TemporalObject
         BuiltinHelper.DefineMethod(now, "plainDateISO", (_, _) =>
         {
             var today = DateTime.UtcNow;
-            var obj = new JsObject { Prototype = realm.ObjectPrototype };
+            var obj = new JsDynamicObject { Prototype = realm.ObjectPrototype };
             obj.Set("year", JsNumber.Create(today.Year));
             obj.Set("month", JsNumber.Create(today.Month));
             obj.Set("day", JsNumber.Create(today.Day));
@@ -366,7 +366,7 @@ public static class TemporalObject
         BuiltinHelper.DefineMethod(now, "plainTimeISO", (_, _) =>
         {
             var n = DateTime.UtcNow;
-            var obj = new JsObject { Prototype = realm.ObjectPrototype };
+            var obj = new JsDynamicObject { Prototype = realm.ObjectPrototype };
             obj.Set("hour", JsNumber.Create(n.Hour));
             obj.Set("minute", JsNumber.Create(n.Minute));
             obj.Set("second", JsNumber.Create(n.Second));
@@ -379,7 +379,7 @@ public static class TemporalObject
         BuiltinHelper.DefineMethod(now, "plainDateTimeISO", (_, _) =>
         {
             var n = DateTime.UtcNow;
-            var obj = new JsObject { Prototype = realm.ObjectPrototype };
+            var obj = new JsDynamicObject { Prototype = realm.ObjectPrototype };
             obj.Set("year", JsNumber.Create(n.Year));
             obj.Set("month", JsNumber.Create(n.Month));
             obj.Set("day", JsNumber.Create(n.Day));
@@ -400,7 +400,7 @@ public static class TemporalObject
 
     private static DateOnly ParseDateFromSelf(JsValue self)
     {
-        if (self is JsObject obj)
+        if (self is JsDynamicObject obj)
         {
             var val = obj.Get("[[Date]]");
             if (val is JsString s)
@@ -413,7 +413,7 @@ public static class TemporalObject
 
     private static TimeOnly ParseTimeFromSelf(JsValue self)
     {
-        if (self is JsObject obj)
+        if (self is JsDynamicObject obj)
         {
             var val = obj.Get("[[Time]]");
             if (val is JsString s)
@@ -426,7 +426,7 @@ public static class TemporalObject
 
     private static DateTime ParseDateTimeFromSelf(JsValue self)
     {
-        if (self is JsObject obj)
+        if (self is JsDynamicObject obj)
         {
             var val = obj.Get("[[DateTime]]");
             if (val is JsString s)
@@ -437,17 +437,17 @@ public static class TemporalObject
         return DateTime.UtcNow;
     }
 
-    private static double GetNumericProp(JsObject obj, string name)
+    private static double GetNumericProp(JsDynamicObject obj, string name)
     {
         var val = obj.Get(name);
         if (val is JsNumber n) return n.Value;
         return 0;
     }
 
-    private static JsObject ParseIsoDuration(string iso, JsObject proto)
+    private static JsDynamicObject ParseIsoDuration(string iso, JsDynamicObject proto)
     {
         // Parse ISO 8601 duration: P[nY][nM][nD][T[nH][nM][nS]]
-        var dur = new JsObject { Prototype = proto };
+        var dur = new JsDynamicObject { Prototype = proto };
         int years = 0, months = 0, days = 0, hours = 0, minutes = 0, seconds = 0;
 
         var match = Regex.Match(iso, @"^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$",
@@ -472,7 +472,7 @@ public static class TemporalObject
 
         BuiltinHelper.DefineMethod(dur, "toString", (self, _) =>
         {
-            if (self is not JsObject o) return new JsString("PT0S");
+            if (self is not JsDynamicObject o) return new JsString("PT0S");
             var y = (int)GetNumericProp(o, "years");
             var mo = (int)GetNumericProp(o, "months");
             var d = (int)GetNumericProp(o, "days");

@@ -6,7 +6,7 @@ namespace SuperRender.EcmaScript.Dom;
 /// <summary>
 /// JS wrapper for a DomEvent, exposing event properties to JavaScript.
 /// </summary>
-internal sealed class JsEventWrapper : JsObject
+internal sealed class JsEventWrapper : JsDynamicObject
 {
     public JsEventWrapper(DomEvent evt, NodeWrapperCache cache, Realm realm)
     {

@@ -22,10 +22,10 @@ public static class IteratorConstructor
             var obj = BuiltinHelper.Arg(args, 0);
 
             // If obj already has Symbol.iterator, get iterator from it
-            if (obj is JsObject jsObj && jsObj.TryGetSymbolProperty(JsSymbol.Iterator, out var iterFn) && iterFn is JsFunction fn)
+            if (obj is JsDynamicObject jsObj && jsObj.TryGetSymbolProperty(JsSymbol.Iterator, out var iterFn) && iterFn is JsFunction fn)
             {
                 var iter = fn.Call(obj, []);
-                if (iter is JsObject iterObj)
+                if (iter is JsDynamicObject iterObj)
                 {
                     // If it already inherits from IteratorPrototype, return as-is
                     if (HasPrototypeInChain(iterObj, iterProto))
@@ -37,7 +37,7 @@ public static class IteratorConstructor
             }
 
             // If obj itself looks like an iterator (has .next()), wrap it
-            if (obj is JsObject candidate)
+            if (obj is JsDynamicObject candidate)
             {
                 var nextProp = candidate.Get("next");
                 if (nextProp is JsFunction)
@@ -140,7 +140,7 @@ public static class IteratorConstructor
                     var mapped = mapper.Call(JsValue.Undefined, [value, JsNumber.Create(counter++)]);
 
                     // If mapped is iterable, iterate it
-                    if (mapped is JsObject mappedObj && mappedObj.TryGetSymbolProperty(JsSymbol.Iterator, out var iterFn) && iterFn is JsFunction fn)
+                    if (mapped is JsDynamicObject mappedObj && mappedObj.TryGetSymbolProperty(JsSymbol.Iterator, out var iterFn) && iterFn is JsFunction fn)
                     {
                         innerIterator = fn.Call(mapped, []);
                         continue;
@@ -250,22 +250,22 @@ public static class IteratorConstructor
         realm.InstallGlobal("Iterator", ctor);
     }
 
-    private static JsObject CallNext(JsValue iterator)
+    private static JsDynamicObject CallNext(JsValue iterator)
     {
-        if (iterator is not JsObject obj) throw new Errors.JsTypeError("Iterator is not an object");
+        if (iterator is not JsDynamicObject obj) throw new Errors.JsTypeError("Iterator is not an object");
         var nextFn = obj.Get("next");
         if (nextFn is not JsFunction fn) throw new Errors.JsTypeError("Iterator.next is not a function");
         var result = fn.Call(iterator, []);
-        if (result is not JsObject resultObj) throw new Errors.JsTypeError("Iterator result is not an object");
+        if (result is not JsDynamicObject resultObj) throw new Errors.JsTypeError("Iterator result is not an object");
         return resultObj;
     }
 
-    private static bool IsDone(JsObject result)
+    private static bool IsDone(JsDynamicObject result)
     {
         return result.Get("done").ToBoolean();
     }
 
-    private static JsValue GetValue(JsObject result)
+    private static JsValue GetValue(JsDynamicObject result)
     {
         return result.Get("value");
     }
@@ -276,7 +276,7 @@ public static class IteratorConstructor
         throw new Errors.JsTypeError("callback must be a function", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 
-    private static bool HasPrototypeInChain(JsObject obj, JsObject proto)
+    private static bool HasPrototypeInChain(JsDynamicObject obj, JsDynamicObject proto)
     {
         var current = obj.Prototype;
         while (current is not null)
@@ -288,9 +288,9 @@ public static class IteratorConstructor
         return false;
     }
 
-    private static JsObject WrapIterator(JsObject source, Realm realm)
+    private static JsDynamicObject WrapIterator(JsDynamicObject source, Realm realm)
     {
-        var wrapper = new JsObject { Prototype = realm.IteratorPrototype };
+        var wrapper = new JsDynamicObject { Prototype = realm.IteratorPrototype };
         BuiltinHelper.DefineMethod(wrapper, "next", (_, args) =>
         {
             var nextFn = source.Get("next");
@@ -301,9 +301,9 @@ public static class IteratorConstructor
         return wrapper;
     }
 
-    private static JsObject CreateHelperIterator(JsValue source, Realm realm, Func<JsObject> nextFn)
+    private static JsDynamicObject CreateHelperIterator(JsValue source, Realm realm, Func<JsDynamicObject> nextFn)
     {
-        var iterator = new JsObject { Prototype = realm.IteratorPrototype };
+        var iterator = new JsDynamicObject { Prototype = realm.IteratorPrototype };
         BuiltinHelper.DefineMethod(iterator, "next", (_, _) => nextFn(), 0);
         return iterator;
     }

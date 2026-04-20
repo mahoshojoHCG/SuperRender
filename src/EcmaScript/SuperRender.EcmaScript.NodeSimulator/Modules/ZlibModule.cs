@@ -15,9 +15,9 @@ public static class ZlibModule
     private static PropertyDescriptor MethodDesc(string name, Func<JsValue, JsValue[], JsValue> impl, int length) =>
         PropertyDescriptor.Data(JsFunction.CreateNative(name, impl, length), writable: true, enumerable: false, configurable: true);
 
-    public static JsObject Create(Realm realm)
+    public static JsDynamicObject Create(Realm realm)
     {
-        var obj = new JsObject();
+        var obj = new JsDynamicObject();
 
         void DefineSync(string name, Kind kind, bool compress)
         {
@@ -70,7 +70,7 @@ public static class ZlibModule
         DefineAsync("brotliDecompress", Kind.Brotli, compress: false);
 
         // promises namespace
-        var promises = new JsObject();
+        var promises = new JsDynamicObject();
         foreach (var (name, kind, compress) in new (string, Kind, bool)[]
         {
             ("gzip", Kind.Gzip, true), ("gunzip", Kind.Gzip, false),
@@ -98,7 +98,7 @@ public static class ZlibModule
         }
         obj.DefineOwnProperty("promises", PropertyDescriptor.Data(promises));
 
-        var constants = new JsObject();
+        var constants = new JsDynamicObject();
         constants.DefineOwnProperty("Z_NO_COMPRESSION", PropertyDescriptor.Data(JsNumber.Create(0)));
         constants.DefineOwnProperty("Z_BEST_SPEED", PropertyDescriptor.Data(JsNumber.Create(1)));
         constants.DefineOwnProperty("Z_BEST_COMPRESSION", PropertyDescriptor.Data(JsNumber.Create(9)));

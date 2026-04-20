@@ -413,13 +413,13 @@ public class JsValueTests
     }
 
     // ═══════════════════════════════════════════
-    //  JsObject
+    //  JsDynamicObject
     // ═══════════════════════════════════════════
 
     [Fact]
     public void JsObject_GetSet_BasicProperty()
     {
-        var obj = new JsObject();
+        var obj = new JsDynamicObject();
         obj.Set("name", new JsString("test"));
         var result = obj.Get("name");
         Assert.IsType<JsString>(result);
@@ -429,27 +429,27 @@ public class JsValueTests
     [Fact]
     public void JsObject_Get_MissingProperty_ReturnsUndefined()
     {
-        var obj = new JsObject();
+        var obj = new JsDynamicObject();
         Assert.Same(JsValue.Undefined, obj.Get("missing"));
     }
 
     [Fact]
     public void JsObject_TypeOf_ReturnsObject()
     {
-        Assert.Equal("object", new JsObject().TypeOf);
+        Assert.Equal("object", new JsDynamicObject().TypeOf);
     }
 
     [Fact]
     public void JsObject_ToBoolean_ReturnsTrue()
     {
         // All objects are truthy in JS
-        Assert.True(new JsObject().ToBoolean());
+        Assert.True(new JsDynamicObject().ToBoolean());
     }
 
     [Fact]
     public void JsObject_HasProperty_ReturnsTrueForExisting()
     {
-        var obj = new JsObject();
+        var obj = new JsDynamicObject();
         obj.Set("key", JsNumber.Create(1));
         Assert.True(obj.HasProperty("key"));
     }
@@ -457,17 +457,17 @@ public class JsValueTests
     [Fact]
     public void JsObject_HasProperty_ReturnsFalseForMissing()
     {
-        var obj = new JsObject();
+        var obj = new JsDynamicObject();
         Assert.False(obj.HasProperty("missing"));
     }
 
     [Fact]
     public void JsObject_PrototypeChain_InheritsProperties()
     {
-        var parent = new JsObject();
+        var parent = new JsDynamicObject();
         parent.Set("inherited", new JsString("from parent"));
 
-        var child = new JsObject { Prototype = parent };
+        var child = new JsDynamicObject { Prototype = parent };
         var result = child.Get("inherited");
         Assert.IsType<JsString>(result);
         Assert.Equal("from parent", ((JsString)result).Value);
@@ -476,10 +476,10 @@ public class JsValueTests
     [Fact]
     public void JsObject_PrototypeChain_OwnPropertyShadowsInherited()
     {
-        var parent = new JsObject();
+        var parent = new JsDynamicObject();
         parent.Set("x", JsNumber.Create(1));
 
-        var child = new JsObject { Prototype = parent };
+        var child = new JsDynamicObject { Prototype = parent };
         child.Set("x", JsNumber.Create(2));
 
         var result = child.Get("x");
@@ -489,7 +489,7 @@ public class JsValueTests
     [Fact]
     public void JsObject_Delete_RemovesProperty()
     {
-        var obj = new JsObject();
+        var obj = new JsDynamicObject();
         obj.Set("key", JsNumber.Create(1));
         obj.Delete("key");
         Assert.False(obj.HasProperty("key"));
@@ -498,7 +498,7 @@ public class JsValueTests
     [Fact]
     public void JsObject_OwnPropertyKeys_ReturnsInsertionOrder()
     {
-        var obj = new JsObject();
+        var obj = new JsDynamicObject();
         obj.Set("b", JsNumber.Create(2));
         obj.Set("a", JsNumber.Create(1));
         obj.Set("c", JsNumber.Create(3));

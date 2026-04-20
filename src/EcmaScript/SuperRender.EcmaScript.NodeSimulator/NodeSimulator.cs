@@ -63,8 +63,8 @@ public static class NodeSimulator
         realm.InstallGlobal("globalThis", realm.GlobalObject);
 
         // Cached module singletons
-        JsObject? pathMod = null, osMod = null, utilMod = null, eventsMod = null, assertMod = null, fsMod = null;
-        JsObject? qsMod = null, urlMod = null, strDecMod = null, cryptoMod = null, zlibMod = null, streamMod = null;
+        JsDynamicObject? pathMod = null, osMod = null, utilMod = null, eventsMod = null, assertMod = null, fsMod = null;
+        JsDynamicObject? qsMod = null, urlMod = null, strDecMod = null, cryptoMod = null, zlibMod = null, streamMod = null;
         var modules = new Dictionary<string, Func<JsValue>>(StringComparer.Ordinal)
         {
             ["path"] = () => pathMod ??= PathModule.CreateDefault(),
@@ -76,7 +76,7 @@ public static class NodeSimulator
             ["assert"] = () => assertMod ??= AssertModule.Create(),
             ["assert/strict"] = () => assertMod ??= AssertModule.Create(),
             ["fs"] = () => fsMod ??= FsModule.Create(realm),
-            ["fs/promises"] = () => (fsMod ??= FsModule.Create(realm)).Get("promises") is JsObject o ? o : new JsObject(),
+            ["fs/promises"] = () => (fsMod ??= FsModule.Create(realm)).Get("promises") is JsDynamicObject o ? o : new JsDynamicObject(),
             ["querystring"] = () => qsMod ??= QueryStringModule.Create(),
             ["url"] = () => urlMod ??= UrlModule.Create(realm),
             ["string_decoder"] = () => strDecMod ??= StringDecoderModule.Create(realm),
@@ -86,20 +86,20 @@ public static class NodeSimulator
             ["stream/promises"] = () =>
             {
                 var s = streamMod ??= StreamModule.Create(realm);
-                var p = new JsObject();
+                var p = new JsDynamicObject();
                 if (s.Get("pipeline") is JsFunction pl) p.DefineOwnProperty("pipeline", PropertyDescriptor.Data(pl));
                 if (s.Get("finished") is JsFunction fi) p.DefineOwnProperty("finished", PropertyDescriptor.Data(fi));
                 return p;
             },
             ["buffer"] = () =>
             {
-                var m = new JsObject();
+                var m = new JsDynamicObject();
                 m.DefineOwnProperty("Buffer", PropertyDescriptor.Data(realm.GlobalObject.Get("Buffer")));
                 return m;
             },
             ["timers"] = () =>
             {
-                var m = new JsObject();
+                var m = new JsDynamicObject();
                 m.DefineOwnProperty("setTimeout", PropertyDescriptor.Data(realm.GlobalObject.Get("setTimeout")));
                 m.DefineOwnProperty("setInterval", PropertyDescriptor.Data(realm.GlobalObject.Get("setInterval")));
                 m.DefineOwnProperty("setImmediate", PropertyDescriptor.Data(realm.GlobalObject.Get("setImmediate")));

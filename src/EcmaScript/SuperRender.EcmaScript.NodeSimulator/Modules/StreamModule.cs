@@ -13,9 +13,9 @@ public static class StreamModule
     private static PropertyDescriptor MethodDesc(string name, Func<JsValue, JsValue[], JsValue> impl, int length) =>
         PropertyDescriptor.Data(JsFunction.CreateNative(name, impl, length), writable: true, enumerable: false, configurable: true);
 
-    public static JsObject Create(Realm realm)
+    public static JsDynamicObject Create(Realm realm)
     {
-        var module = new JsObject();
+        var module = new JsDynamicObject();
 
         var readableCtor = BuildReadableCtor(realm);
         var writableCtor = BuildWritableCtor(realm);
@@ -40,7 +40,7 @@ public static class StreamModule
 
     private static JsFunction BuildReadableCtor(Realm realm)
     {
-        var proto = new JsObject { Prototype = realm.ObjectPrototype };
+        var proto = new JsDynamicObject { Prototype = realm.ObjectPrototype };
         InstallEmitterMethods(proto);
 
         proto.DefineOwnProperty("push", MethodDesc("push", (thisArg, args) =>
@@ -67,7 +67,7 @@ public static class StreamModule
 
         proto.DefineOwnProperty("pipe", MethodDesc("pipe", (thisArg, args) =>
         {
-            if (thisArg is not ReadableStream r || args.Length == 0 || args[0] is not JsObject dest)
+            if (thisArg is not ReadableStream r || args.Length == 0 || args[0] is not JsDynamicObject dest)
                 return args.Length > 0 ? args[0] : JsValue.Undefined;
             r.Pipes.Add(dest);
             // Flush whatever is already buffered
@@ -127,7 +127,7 @@ public static class StreamModule
 
     private static void ApplyReadOpts(ReadableStream r, JsValue[] args)
     {
-        if (args.Length > 0 && args[0] is JsObject opts)
+        if (args.Length > 0 && args[0] is JsDynamicObject opts)
         {
             r.ReadFn = opts.Get("read") as JsFunction;
         }
@@ -158,7 +158,7 @@ public static class StreamModule
         }
     }
 
-    private static void FlushToDest(ReadableStream r, JsObject dest)
+    private static void FlushToDest(ReadableStream r, JsDynamicObject dest)
     {
         while (r.Buffer.Count > 0 && dest.Get("write") is JsFunction write)
         {
@@ -171,7 +171,7 @@ public static class StreamModule
 
     private static JsFunction BuildWritableCtor(Realm realm)
     {
-        var proto = new JsObject { Prototype = realm.ObjectPrototype };
+        var proto = new JsDynamicObject { Prototype = realm.ObjectPrototype };
         InstallEmitterMethods(proto);
 
         proto.DefineOwnProperty("write", MethodDesc("write", (thisArg, args) =>
@@ -228,7 +228,7 @@ public static class StreamModule
 
     private static void ApplyWriteOpts(WritableStream w, JsValue[] args)
     {
-        if (args.Length > 0 && args[0] is JsObject opts)
+        if (args.Length > 0 && args[0] is JsDynamicObject opts)
         {
             w.WriteFn = opts.Get("write") as JsFunction;
         }
@@ -238,7 +238,7 @@ public static class StreamModule
 
     private static JsFunction BuildTransformCtor(Realm realm, JsFunction readableCtor, JsFunction writableCtor)
     {
-        var proto = new JsObject { Prototype = realm.ObjectPrototype };
+        var proto = new JsDynamicObject { Prototype = realm.ObjectPrototype };
         InstallEmitterMethods(proto);
 
         proto.DefineOwnProperty("push", MethodDesc("push", (thisArg, args) =>
@@ -320,7 +320,7 @@ public static class StreamModule
 
     private static void ApplyTransformOpts(TransformStream t, JsValue[] args)
     {
-        if (args.Length > 0 && args[0] is JsObject opts)
+        if (args.Length > 0 && args[0] is JsDynamicObject opts)
         {
             t.TransformFn = opts.Get("transform") as JsFunction;
             t.FlushFn = opts.Get("flush") as JsFunction;
@@ -331,7 +331,7 @@ public static class StreamModule
 
     private static JsFunction BuildPassThroughCtor(Realm realm, JsFunction transformCtor)
     {
-        var proto = new JsObject { Prototype = transformCtor.PrototypeObject };
+        var proto = new JsDynamicObject { Prototype = transformCtor.PrototypeObject };
         var ctor = new JsFunction
         {
             Name = "PassThrough",
@@ -366,12 +366,12 @@ public static class StreamModule
         {
             for (int i = 0; i < steps.Length - 1; i++)
             {
-                if (steps[i] is JsObject src && steps[i + 1] is JsObject dst && src.Get("pipe") is JsFunction pipe)
+                if (steps[i] is JsDynamicObject src && steps[i + 1] is JsDynamicObject dst && src.Get("pipe") is JsFunction pipe)
                 {
                     pipe.Call(src, new JsValue[] { dst });
                 }
             }
-            if (steps.Length > 0 && steps[^1] is JsObject last)
+            if (steps.Length > 0 && steps[^1] is JsDynamicObject last)
             {
                 if (last.Get("on") is JsFunction on)
                 {
@@ -396,7 +396,7 @@ public static class StreamModule
 
     private static JsValue Finished(JsValue[] args, Realm realm)
     {
-        if (args.Length < 2 || args[0] is not JsObject stream || args[^1] is not JsFunction cb)
+        if (args.Length < 2 || args[0] is not JsDynamicObject stream || args[^1] is not JsFunction cb)
             throw new Runtime.Errors.JsTypeError("finished(stream, callback)");
         if (stream.Get("on") is JsFunction on)
         {
@@ -414,7 +414,7 @@ public static class StreamModule
 
     // ─── EventEmitter core (trimmed) ───────────────────────────────────────────
 
-    private static void InstallEmitterMethods(JsObject proto)
+    private static void InstallEmitterMethods(JsDynamicObject proto)
     {
         proto.DefineOwnProperty("on", MethodDesc("on", (thisArg, args) => AddListener(thisArg, args), 2));
         proto.DefineOwnProperty("once", MethodDesc("once", (thisArg, args) =>
@@ -423,7 +423,7 @@ public static class StreamModule
             JsFunction? wrap = null;
             wrap = JsFunction.CreateNative("", (self, a) =>
             {
-                if (thisArg is JsObject em && em.Get("off") is JsFunction off && wrap is not null)
+                if (thisArg is JsDynamicObject em && em.Get("off") is JsFunction off && wrap is not null)
                     off.Call(em, new JsValue[] { args[0], wrap });
                 return orig.Call(self, a);
             }, orig.Length);
@@ -483,7 +483,7 @@ public static class StreamModule
 }
 
 /// <summary>Base class carrying event-listener state for stream subclasses.</summary>
-public abstract class StreamBase : JsObject
+public abstract class StreamBase : JsDynamicObject
 {
     public Dictionary<string, List<JsFunction>> Listeners { get; } = new(StringComparer.Ordinal);
 }
@@ -494,7 +494,7 @@ public sealed class ReadableStream : StreamBase
     public bool Ended { get; set; }
     public bool EndEmitted { get; set; }
     public bool Flowing { get; set; }
-    public List<JsObject> Pipes { get; } = new();
+    public List<JsDynamicObject> Pipes { get; } = new();
     public JsFunction? ReadFn { get; set; }
 
     public void Enqueue(JsValue value) => Buffer.Enqueue(value);

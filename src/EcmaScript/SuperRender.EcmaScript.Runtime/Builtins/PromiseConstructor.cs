@@ -146,7 +146,7 @@ public static class PromiseConstructor
                 return JsValue.Undefined;
             }, 1);
 
-            var result = new JsObject { Prototype = realm.ObjectPrototype };
+            var result = new JsDynamicObject { Prototype = realm.ObjectPrototype };
             result.Set("promise", promise);
             result.Set("resolve", resolveFn);
             result.Set("reject", rejectFn);
@@ -277,7 +277,7 @@ public static class PromiseConstructor
                     PromiseThen(itemPromise,
                         JsFunction.CreateNative("", (_, resolveArgs) =>
                         {
-                            var result = new JsObject();
+                            var result = new JsDynamicObject();
                             result.Set("status", new JsString("fulfilled"));
                             result.Set("value", BuiltinHelper.Arg(resolveArgs, 0));
                             results[index] = result;
@@ -291,7 +291,7 @@ public static class PromiseConstructor
                         }, 1),
                         JsFunction.CreateNative("", (_, rejectArgs) =>
                         {
-                            var result = new JsObject();
+                            var result = new JsDynamicObject();
                             result.Set("status", new JsString("rejected"));
                             result.Set("reason", BuiltinHelper.Arg(rejectArgs, 0));
                             results[index] = result;
@@ -307,7 +307,7 @@ public static class PromiseConstructor
                 }
                 else
                 {
-                    var result = new JsObject();
+                    var result = new JsDynamicObject();
                     result.Set("status", new JsString("fulfilled"));
                     result.Set("value", item);
                     results[index] = result;
@@ -336,7 +336,7 @@ public static class PromiseConstructor
 
             if (remaining == 0)
             {
-                var aggError = new JsObject { Prototype = realm.ErrorPrototype };
+                var aggError = new JsDynamicObject { Prototype = realm.ErrorPrototype };
                 aggError.Set("message", new JsString("All promises were rejected"));
                 aggError.Set("errors", new JsArray(errors) { Prototype = realm.ArrayPrototype });
                 RejectPromise(resultPromise, aggError);
@@ -362,7 +362,7 @@ public static class PromiseConstructor
                             remaining--;
                             if (remaining == 0)
                             {
-                                var aggError = new JsObject { Prototype = realm.ErrorPrototype };
+                                var aggError = new JsDynamicObject { Prototype = realm.ErrorPrototype };
                                 aggError.Set("message", new JsString("All promises were rejected"));
                                 aggError.Set("errors", new JsArray(errors) { Prototype = realm.ArrayPrototype });
                                 RejectPromise(resultPromise, aggError);
@@ -507,7 +507,7 @@ public static class PromiseConstructor
         Realm Realm);
 }
 
-public sealed class JsPromiseObject : JsObject
+public sealed class JsPromiseObject : JsDynamicObject
 {
     public enum PromiseState
     {

@@ -30,7 +30,7 @@ public class UtilTests
     [Fact]
     public void Inspect_Object_ProducesBraces()
     {
-        var o = new JsObject();
+        var o = new JsDynamicObject();
         o.DefineOwnProperty("a", PropertyDescriptor.Data(JsNumber.Create(1)));
         Assert.Contains("a: 1", UtilModule.Inspect(o, 2), System.StringComparison.Ordinal);
     }

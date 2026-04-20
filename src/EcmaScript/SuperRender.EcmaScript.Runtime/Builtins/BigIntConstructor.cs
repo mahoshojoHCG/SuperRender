@@ -172,7 +172,7 @@ public static class BigIntConstructor
             return bi;
         }
 
-        if (thisArg is JsObject obj)
+        if (thisArg is JsDynamicObject obj)
         {
             var data = obj.GetOwnProperty("[[BigIntData]]");
             if (data?.Value is JsBigInt biData)

@@ -6,7 +6,7 @@ public static class AtomicsObject
 {
     public static void Install(Realm realm)
     {
-        var atomics = new JsObject { Prototype = realm.ObjectPrototype };
+        var atomics = new JsDynamicObject { Prototype = realm.ObjectPrototype };
 
         // Symbol.toStringTag
         atomics.DefineSymbolProperty(JsSymbol.ToStringTag,
@@ -127,11 +127,11 @@ public static class AtomicsObject
         {
             // Return a promise that resolves to "not-equal"
             var promise = new JsPromiseObject { Prototype = realm.PromisePrototype };
-            var result = new JsObject { Prototype = realm.ObjectPrototype };
+            var result = new JsDynamicObject { Prototype = realm.ObjectPrototype };
             result.Set("value", new JsString("not-equal"));
             PromiseConstructor.ResolvePromise(promise, result, realm);
 
-            var wrapper = new JsObject { Prototype = realm.ObjectPrototype };
+            var wrapper = new JsDynamicObject { Prototype = realm.ObjectPrototype };
             wrapper.Set("async", JsValue.True);
             wrapper.Set("value", promise);
             return wrapper;
@@ -157,27 +157,27 @@ public static class AtomicsObject
         }
     }
 
-    private static JsObject RequireTypedArray(JsValue[] args, int index)
+    private static JsDynamicObject RequireTypedArray(JsValue[] args, int index)
     {
         var arg = BuiltinHelper.Arg(args, index);
         if (arg is JsTypedArrayObject ta)
             return ta;
-        if (arg is JsObject obj && obj.Get("buffer") is JsObject)
+        if (arg is JsDynamicObject obj && obj.Get("buffer") is JsDynamicObject)
             return obj;
         throw new Errors.JsTypeError("Atomics operation requires a typed array", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 
-    private static void ValidateIndex(JsObject ta, int index)
+    private static void ValidateIndex(JsDynamicObject ta, int index)
     {
         var length = (int)ta.Get("length").ToNumber();
         if (index < 0 || index >= length)
             throw new Errors.JsRangeError("Invalid atomic access index", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 
-    private static byte[] GetBytes(JsObject ta)
+    private static byte[] GetBytes(JsDynamicObject ta)
     {
         var buffer = ta.Get("buffer");
-        if (buffer is JsObject bufObj)
+        if (buffer is JsDynamicObject bufObj)
         {
             var bytes = ArrayBufferConstructor.GetByteArray(bufObj);
             if (bytes is not null) return bytes;
@@ -185,7 +185,7 @@ public static class AtomicsObject
         throw new Errors.JsTypeError("Detached buffer", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 
-    private static (Func<byte[], int, double> getter, Action<byte[], int, double> setter, int bytesPerElement, int byteOffset) GetAccessors(JsObject ta)
+    private static (Func<byte[], int, double> getter, Action<byte[], int, double> setter, int bytesPerElement, int byteOffset) GetAccessors(JsDynamicObject ta)
     {
         var byteOffset = (int)ta.Get("byteOffset").ToNumber();
 

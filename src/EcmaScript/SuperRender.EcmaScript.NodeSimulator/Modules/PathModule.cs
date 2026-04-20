@@ -10,9 +10,9 @@ public static class PathModule
     private static PropertyDescriptor MethodDesc(string name, Func<JsValue, JsValue[], JsValue> impl, int length) =>
         PropertyDescriptor.Data(JsFunction.CreateNative(name, impl, length), writable: true, enumerable: false, configurable: true);
 
-    public static JsObject Create(bool win32)
+    public static JsDynamicObject Create(bool win32)
     {
-        var obj = new JsObject();
+        var obj = new JsDynamicObject();
         char sep = win32 ? '\\' : '/';
         string sepStr = sep.ToString();
         string delimiter = win32 ? ";" : ":";
@@ -42,7 +42,7 @@ public static class PathModule
         obj.DefineOwnProperty("parse", MethodDesc("parse", (_, args) => Parse(RequireString(args, 0, "path"), win32), 1));
         obj.DefineOwnProperty("format", MethodDesc("format", (_, args) =>
         {
-            if (args.Length == 0 || args[0] is not JsObject o) throw new Runtime.Errors.JsTypeError("path.format requires an object");
+            if (args.Length == 0 || args[0] is not JsDynamicObject o) throw new Runtime.Errors.JsTypeError("path.format requires an object");
             return new JsString(Format(o, win32));
         }, 1));
         obj.DefineOwnProperty("toNamespacedPath", MethodDesc("toNamespacedPath",
@@ -50,7 +50,7 @@ public static class PathModule
         return obj;
     }
 
-    public static JsObject CreateDefault()
+    public static JsDynamicObject CreateDefault()
     {
         var isWin = OperatingSystem.IsWindows();
         var obj = Create(isWin);
@@ -222,9 +222,9 @@ public static class PathModule
         return result;
     }
 
-    internal static JsObject Parse(string path, bool win32)
+    internal static JsDynamicObject Parse(string path, bool win32)
     {
-        var obj = new JsObject();
+        var obj = new JsDynamicObject();
         var root = "";
         var sep = win32 ? '\\' : '/';
         var normalized = path.Replace(win32 ? '/' : '\\', sep);
@@ -248,7 +248,7 @@ public static class PathModule
         return obj;
     }
 
-    internal static string Format(JsObject o, bool win32)
+    internal static string Format(JsDynamicObject o, bool win32)
     {
         var sep = win32 ? '\\' : '/';
         string dir = o.Get("dir").ToJsString();

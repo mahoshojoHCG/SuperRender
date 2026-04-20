@@ -6,13 +6,13 @@ namespace SuperRender.EcmaScript.Runtime;
 /// The generator body is deferred — it does not execute until the first next() call,
 /// matching the ECMAScript specification.
 /// </summary>
-public sealed class JsGeneratorObject : JsObject
+public sealed class JsGeneratorObject : JsDynamicObject
 {
     private readonly GeneratorCoroutine _coroutine;
     private readonly Action? _startAction;
     private bool _started;
 
-    public JsGeneratorObject(GeneratorCoroutine coroutine, Action startAction, JsObject generatorPrototype)
+    public JsGeneratorObject(GeneratorCoroutine coroutine, Action startAction, JsDynamicObject generatorPrototype)
     {
         _coroutine = coroutine;
         _startAction = startAction;
@@ -60,9 +60,9 @@ public sealed class JsGeneratorObject : JsObject
         return CreateIterResult(v, d);
     }
 
-    internal static JsObject CreateIterResult(JsValue value, bool done)
+    internal static JsDynamicObject CreateIterResult(JsValue value, bool done)
     {
-        var result = new JsObject();
+        var result = new JsDynamicObject();
         result.DefineOwnProperty("value", PropertyDescriptor.Data(value));
         result.DefineOwnProperty("done", PropertyDescriptor.Data(done ? JsValue.True : JsValue.False));
         return result;

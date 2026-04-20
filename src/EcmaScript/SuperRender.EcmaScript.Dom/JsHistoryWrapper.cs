@@ -6,7 +6,7 @@ namespace SuperRender.EcmaScript.Dom;
 /// JS wrapper for window.history. Provides pushState/replaceState/back/forward/go.
 /// Uses delegates so the EcmaScript.Dom project remains dependency-free.
 /// </summary>
-internal sealed class JsHistoryWrapper : JsObject
+internal sealed class JsHistoryWrapper : JsDynamicObject
 {
     private readonly List<HistoryEntry> _entries = [];
     private int _currentIndex = -1;

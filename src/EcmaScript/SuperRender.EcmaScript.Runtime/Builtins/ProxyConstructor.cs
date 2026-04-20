@@ -17,12 +17,12 @@ public static class ProxyConstructor
                 var target = BuiltinHelper.Arg(args, 0);
                 var handler = BuiltinHelper.Arg(args, 1);
 
-                if (target is not JsObject targetObj)
+                if (target is not JsDynamicObject targetObj)
                 {
                     throw new Errors.JsTypeError("Cannot create proxy with a non-object as target", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                 }
 
-                if (handler is not JsObject handlerObj)
+                if (handler is not JsDynamicObject handlerObj)
                 {
                     throw new Errors.JsTypeError("Cannot create proxy with a non-object as handler", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                 }
@@ -41,19 +41,19 @@ public static class ProxyConstructor
             var target = BuiltinHelper.Arg(args, 0);
             var handler = BuiltinHelper.Arg(args, 1);
 
-            if (target is not JsObject targetObj)
+            if (target is not JsDynamicObject targetObj)
             {
                 throw new Errors.JsTypeError("Cannot create proxy with a non-object as target", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
-            if (handler is not JsObject handlerObj)
+            if (handler is not JsDynamicObject handlerObj)
             {
                 throw new Errors.JsTypeError("Cannot create proxy with a non-object as handler", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             var proxy = new JsProxyObject(targetObj, handlerObj);
 
-            var result = new JsObject { Prototype = realm.ObjectPrototype };
+            var result = new JsDynamicObject { Prototype = realm.ObjectPrototype };
             result.Set("proxy", proxy);
             result.Set("revoke", JsFunction.CreateNative("revoke", (_, _) =>
             {
@@ -68,12 +68,12 @@ public static class ProxyConstructor
     }
 }
 
-internal sealed class JsProxyObject : JsObject
+internal sealed class JsProxyObject : JsDynamicObject
 {
-    private JsObject? _target;
-    private JsObject? _handler;
+    private JsDynamicObject? _target;
+    private JsDynamicObject? _handler;
 
-    internal JsProxyObject(JsObject target, JsObject handler)
+    internal JsProxyObject(JsDynamicObject target, JsDynamicObject handler)
     {
         _target = target;
         _handler = handler;

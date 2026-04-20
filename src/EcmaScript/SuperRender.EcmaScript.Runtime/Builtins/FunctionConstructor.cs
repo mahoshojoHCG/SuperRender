@@ -45,7 +45,7 @@ public static class FunctionConstructor
                     callArgs[i] = arr.GetIndex(i);
                 }
             }
-            else if (argArray is JsObject obj)
+            else if (argArray is JsDynamicObject obj)
             {
                 var len = BuiltinHelper.GetLength(obj);
                 callArgs = new JsValue[len];
@@ -123,7 +123,7 @@ public static class FunctionConstructor
                 }
 
                 var target = BuiltinHelper.Arg(args, 0);
-                if (target is not JsObject obj)
+                if (target is not JsDynamicObject obj)
                 {
                     return JsValue.False;
                 }

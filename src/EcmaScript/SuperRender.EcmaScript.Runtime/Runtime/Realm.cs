@@ -2,31 +2,31 @@ namespace SuperRender.EcmaScript.Runtime;
 
 public sealed class Realm
 {
-    public JsObject GlobalObject { get; }
+    public JsDynamicObject GlobalObject { get; }
     public Environment GlobalEnvironment { get; }
 
     // Intrinsic prototypes
-    public JsObject ObjectPrototype { get; private set; } = null!;
+    public JsDynamicObject ObjectPrototype { get; private set; } = null!;
     public JsFunction ObjectConstructorFn { get; private set; } = null!;
-    public JsObject FunctionPrototype { get; private set; } = null!;
-    public JsObject ArrayPrototype { get; private set; } = null!;
-    public JsObject StringPrototype { get; private set; } = null!;
-    public JsObject NumberPrototype { get; private set; } = null!;
-    public JsObject BooleanPrototype { get; private set; } = null!;
-    public JsObject RegExpPrototype { get; private set; } = null!;
-    public JsObject DatePrototype { get; private set; } = null!;
-    public JsObject ErrorPrototype { get; private set; } = null!;
-    public JsObject SymbolPrototype { get; private set; } = null!;
-    public JsObject MapPrototype { get; private set; } = null!;
-    public JsObject SetPrototype { get; private set; } = null!;
-    public JsObject PromisePrototype { get; private set; } = null!;
-    public JsObject IteratorPrototype { get; private set; } = null!;
-    public JsObject GeneratorPrototype { get; private set; } = null!;
-    public JsObject BigIntPrototype { get; private set; } = null!;
-    public JsObject WeakRefPrototype { get; private set; } = null!;
-    public JsObject FinalizationRegistryPrototype { get; private set; } = null!;
-    public JsObject ArrayBufferPrototype { get; private set; } = null!;
-    public JsObject SharedArrayBufferPrototype { get; private set; } = null!;
+    public JsDynamicObject FunctionPrototype { get; private set; } = null!;
+    public JsDynamicObject ArrayPrototype { get; private set; } = null!;
+    public JsDynamicObject StringPrototype { get; private set; } = null!;
+    public JsDynamicObject NumberPrototype { get; private set; } = null!;
+    public JsDynamicObject BooleanPrototype { get; private set; } = null!;
+    public JsDynamicObject RegExpPrototype { get; private set; } = null!;
+    public JsDynamicObject DatePrototype { get; private set; } = null!;
+    public JsDynamicObject ErrorPrototype { get; private set; } = null!;
+    public JsDynamicObject SymbolPrototype { get; private set; } = null!;
+    public JsDynamicObject MapPrototype { get; private set; } = null!;
+    public JsDynamicObject SetPrototype { get; private set; } = null!;
+    public JsDynamicObject PromisePrototype { get; private set; } = null!;
+    public JsDynamicObject IteratorPrototype { get; private set; } = null!;
+    public JsDynamicObject GeneratorPrototype { get; private set; } = null!;
+    public JsDynamicObject BigIntPrototype { get; private set; } = null!;
+    public JsDynamicObject WeakRefPrototype { get; private set; } = null!;
+    public JsDynamicObject FinalizationRegistryPrototype { get; private set; } = null!;
+    public JsDynamicObject ArrayBufferPrototype { get; private set; } = null!;
+    public JsDynamicObject SharedArrayBufferPrototype { get; private set; } = null!;
 
     /// <summary>
     /// Factory for dynamic Function() construction. Set by JsEngine.
@@ -42,7 +42,7 @@ public sealed class Realm
 
     public Realm()
     {
-        GlobalObject = new JsObject();
+        GlobalObject = new JsDynamicObject();
         GlobalEnvironment = new Environment();
         InitializeIntrinsics();
     }
@@ -50,26 +50,26 @@ public sealed class Realm
     private void InitializeIntrinsics()
     {
         // Create the fundamental prototypes first
-        ObjectPrototype = new JsObject { Prototype = null };
-        FunctionPrototype = new JsObject { Prototype = ObjectPrototype };
-        ArrayPrototype = new JsObject { Prototype = ObjectPrototype };
-        StringPrototype = new JsObject { Prototype = ObjectPrototype };
-        NumberPrototype = new JsObject { Prototype = ObjectPrototype };
-        BooleanPrototype = new JsObject { Prototype = ObjectPrototype };
-        RegExpPrototype = new JsObject { Prototype = ObjectPrototype };
-        DatePrototype = new JsObject { Prototype = ObjectPrototype };
-        ErrorPrototype = new JsObject { Prototype = ObjectPrototype };
-        SymbolPrototype = new JsObject { Prototype = ObjectPrototype };
-        MapPrototype = new JsObject { Prototype = ObjectPrototype };
-        SetPrototype = new JsObject { Prototype = ObjectPrototype };
-        PromisePrototype = new JsObject { Prototype = ObjectPrototype };
-        IteratorPrototype = new JsObject { Prototype = ObjectPrototype };
-        GeneratorPrototype = new JsObject { Prototype = IteratorPrototype };
-        BigIntPrototype = new JsObject { Prototype = ObjectPrototype };
-        WeakRefPrototype = new JsObject { Prototype = ObjectPrototype };
-        FinalizationRegistryPrototype = new JsObject { Prototype = ObjectPrototype };
-        ArrayBufferPrototype = new JsObject { Prototype = ObjectPrototype };
-        SharedArrayBufferPrototype = new JsObject { Prototype = ObjectPrototype };
+        ObjectPrototype = new JsDynamicObject { Prototype = null };
+        FunctionPrototype = new JsDynamicObject { Prototype = ObjectPrototype };
+        ArrayPrototype = new JsDynamicObject { Prototype = ObjectPrototype };
+        StringPrototype = new JsDynamicObject { Prototype = ObjectPrototype };
+        NumberPrototype = new JsDynamicObject { Prototype = ObjectPrototype };
+        BooleanPrototype = new JsDynamicObject { Prototype = ObjectPrototype };
+        RegExpPrototype = new JsDynamicObject { Prototype = ObjectPrototype };
+        DatePrototype = new JsDynamicObject { Prototype = ObjectPrototype };
+        ErrorPrototype = new JsDynamicObject { Prototype = ObjectPrototype };
+        SymbolPrototype = new JsDynamicObject { Prototype = ObjectPrototype };
+        MapPrototype = new JsDynamicObject { Prototype = ObjectPrototype };
+        SetPrototype = new JsDynamicObject { Prototype = ObjectPrototype };
+        PromisePrototype = new JsDynamicObject { Prototype = ObjectPrototype };
+        IteratorPrototype = new JsDynamicObject { Prototype = ObjectPrototype };
+        GeneratorPrototype = new JsDynamicObject { Prototype = IteratorPrototype };
+        BigIntPrototype = new JsDynamicObject { Prototype = ObjectPrototype };
+        WeakRefPrototype = new JsDynamicObject { Prototype = ObjectPrototype };
+        FinalizationRegistryPrototype = new JsDynamicObject { Prototype = ObjectPrototype };
+        ArrayBufferPrototype = new JsDynamicObject { Prototype = ObjectPrototype };
+        SharedArrayBufferPrototype = new JsDynamicObject { Prototype = ObjectPrototype };
 
         // Generator prototype methods: next, return, throw
         GeneratorPrototype.DefineOwnProperty("next", PropertyDescriptor.Data(
@@ -115,7 +115,7 @@ public sealed class Realm
         {
             if (args.Length == 0 || args[0] is JsNull or JsUndefined)
             {
-                return new JsObject { Prototype = ObjectPrototype };
+                return new JsDynamicObject { Prototype = ObjectPrototype };
             }
 
             return args[0];

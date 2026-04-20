@@ -15,9 +15,9 @@ public static class UtilModule
 
     private static JsValue Arg(JsValue[] args, int index) => index < args.Length ? args[index] : JsValue.Undefined;
 
-    public static JsObject Create(Realm realm)
+    public static JsDynamicObject Create(Realm realm)
     {
-        var o = new JsObject();
+        var o = new JsDynamicObject();
         o.DefineOwnProperty("format", MethodDesc("format", (_, args) => new JsString(Format(args)), 0));
         o.DefineOwnProperty("formatWithOptions", MethodDesc("formatWithOptions", (_, args) =>
         {
@@ -68,7 +68,7 @@ public static class UtilModule
                     throw new Runtime.Errors.JsTypeError("last argument must be a callback");
                 var rest = cbArgs[..^1];
                 var result = fn.Call(thisArg, rest);
-                if (result is JsObject p && p.Get("then") is JsFunction thenFn)
+                if (result is JsDynamicObject p && p.Get("then") is JsFunction thenFn)
                 {
                     thenFn.Call(result, [
                         JsFunction.CreateNative("onResolved", (_, r) => { cb.Call(JsValue.Undefined, [JsValue.Null, Arg(r, 0)]); return JsValue.Undefined; }, 1),
@@ -90,18 +90,18 @@ public static class UtilModule
         }, 2));
 
         // util.types
-        var types = new JsObject();
+        var types = new JsDynamicObject();
         types.DefineOwnProperty("isDate", MethodDesc("isDate", (_, args) =>
-            (Arg(args, 0) is JsObject o2 && o2.Prototype == realm.DatePrototype) ? JsValue.True : JsValue.False, 1));
+            (Arg(args, 0) is JsDynamicObject o2 && o2.Prototype == realm.DatePrototype) ? JsValue.True : JsValue.False, 1));
         types.DefineOwnProperty("isRegExp", MethodDesc("isRegExp", (_, args) => Arg(args, 0) is JsRegExp ? JsValue.True : JsValue.False, 1));
         types.DefineOwnProperty("isPromise", MethodDesc("isPromise", (_, args) =>
-            (Arg(args, 0) is JsObject o2 && o2.Prototype == realm.PromisePrototype) ? JsValue.True : JsValue.False, 1));
+            (Arg(args, 0) is JsDynamicObject o2 && o2.Prototype == realm.PromisePrototype) ? JsValue.True : JsValue.False, 1));
         types.DefineOwnProperty("isMap", MethodDesc("isMap", (_, args) =>
-            (Arg(args, 0) is JsObject o2 && o2.Prototype == realm.MapPrototype) ? JsValue.True : JsValue.False, 1));
+            (Arg(args, 0) is JsDynamicObject o2 && o2.Prototype == realm.MapPrototype) ? JsValue.True : JsValue.False, 1));
         types.DefineOwnProperty("isSet", MethodDesc("isSet", (_, args) =>
-            (Arg(args, 0) is JsObject o2 && o2.Prototype == realm.SetPrototype) ? JsValue.True : JsValue.False, 1));
+            (Arg(args, 0) is JsDynamicObject o2 && o2.Prototype == realm.SetPrototype) ? JsValue.True : JsValue.False, 1));
         types.DefineOwnProperty("isNativeError", MethodDesc("isNativeError", (_, args) =>
-            Arg(args, 0) is JsObject e && IsError(e, realm) ? JsValue.True : JsValue.False, 1));
+            Arg(args, 0) is JsDynamicObject e && IsError(e, realm) ? JsValue.True : JsValue.False, 1));
         o.DefineOwnProperty("types", PropertyDescriptor.Data(types));
 
         o.DefineOwnProperty("TextEncoder", PropertyDescriptor.Data(realm.GlobalObject.Get("TextEncoder")));
@@ -110,7 +110,7 @@ public static class UtilModule
         return o;
     }
 
-    private static bool IsError(JsObject o, Realm realm)
+    private static bool IsError(JsDynamicObject o, Realm realm)
     {
         var proto = o.Prototype;
         while (proto is not null)
@@ -161,9 +161,9 @@ public static class UtilModule
         return sb.ToString();
     }
 
-    public static string Inspect(JsValue value, int depth) => Inspect(value, depth, new HashSet<JsObject>());
+    public static string Inspect(JsValue value, int depth) => Inspect(value, depth, new HashSet<JsDynamicObject>());
 
-    private static string Inspect(JsValue value, int depth, HashSet<JsObject> seen)
+    private static string Inspect(JsValue value, int depth, HashSet<JsDynamicObject> seen)
     {
         switch (value)
         {
@@ -184,7 +184,7 @@ public static class UtilModule
                     return "[ " + string.Join(", ", parts) + " ]";
                 }
                 finally { seen.Remove(arr); }
-            case JsObject o:
+            case JsDynamicObject o:
                 if (depth < 0) return "[Object]";
                 if (!seen.Add(o)) return "[Circular]";
                 try
@@ -215,7 +215,7 @@ public static class UtilModule
     public static bool DeepEqual(JsValue a, JsValue b, bool strict)
     {
         if (ReferenceEquals(a, b)) return true;
-        if (a is JsObject oa && b is JsObject ob)
+        if (a is JsDynamicObject oa && b is JsDynamicObject ob)
         {
             if (a is JsArray aa && b is JsArray ba)
             {

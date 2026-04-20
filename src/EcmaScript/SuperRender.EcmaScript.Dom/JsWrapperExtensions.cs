@@ -11,7 +11,7 @@ internal static class JsWrapperExtensions
     /// <summary>
     /// Define a native method property: DefineOwnProperty(name, Data(CreateNative(name, handler, argCount))).
     /// </summary>
-    internal static void DefineMethod(this JsObject obj, string name, int argCount, Func<JsValue[], JsValue> handler)
+    internal static void DefineMethod(this JsDynamicObject obj, string name, int argCount, Func<JsValue[], JsValue> handler)
     {
         obj.DefineOwnProperty(name, PropertyDescriptor.Data(
             JsFunction.CreateNative(name, (_, args) => handler(args), argCount)));
@@ -20,7 +20,7 @@ internal static class JsWrapperExtensions
     /// <summary>
     /// Define a read-only accessor property with a getter.
     /// </summary>
-    internal static void DefineGetter(this JsObject obj, string name, Func<JsValue> getter)
+    internal static void DefineGetter(this JsDynamicObject obj, string name, Func<JsValue> getter)
     {
         obj.DefineOwnProperty(name, PropertyDescriptor.Accessor(
             JsFunction.CreateNative($"get {name}", (_, _) => getter(), 0),
@@ -30,7 +30,7 @@ internal static class JsWrapperExtensions
     /// <summary>
     /// Define a read-write accessor property with getter and setter.
     /// </summary>
-    internal static void DefineGetterSetter(this JsObject obj, string name, Func<JsValue> getter, Action<JsValue> setter)
+    internal static void DefineGetterSetter(this JsDynamicObject obj, string name, Func<JsValue> getter, Action<JsValue> setter)
     {
         obj.DefineOwnProperty(name, PropertyDescriptor.Accessor(
             JsFunction.CreateNative($"get {name}", (_, _) => getter(), 0),

@@ -28,7 +28,7 @@ public static class ConsoleObject
 
     public static void Install(Realm realm)
     {
-        var console = new JsObject { Prototype = realm.ObjectPrototype };
+        var console = new JsDynamicObject { Prototype = realm.ObjectPrototype };
 
         BuiltinHelper.DefineMethod(console, "log", (_, args) =>
         {
@@ -161,7 +161,7 @@ public static class ConsoleObject
             return "[Function: " + fn.Name + "]";
         }
 
-        if (value is JsObject)
+        if (value is JsDynamicObject)
         {
             return Inspect(value, 1);
         }
@@ -184,7 +184,7 @@ public static class ConsoleObject
 
     private static string Inspect(JsValue value, int depth)
     {
-        if (depth <= 0 || value is not JsObject obj)
+        if (depth <= 0 || value is not JsDynamicObject obj)
         {
             return value.ToJsString();
         }

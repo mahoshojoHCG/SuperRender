@@ -13,9 +13,9 @@ public static class StringDecoderModule
     private static PropertyDescriptor MethodDesc(string name, Func<JsValue, JsValue[], JsValue> impl, int length) =>
         PropertyDescriptor.Data(JsFunction.CreateNative(name, impl, length), writable: true, enumerable: false, configurable: true);
 
-    public static JsObject Create(Realm realm)
+    public static JsDynamicObject Create(Realm realm)
     {
-        var proto = new JsObject { Prototype = realm.ObjectPrototype };
+        var proto = new JsDynamicObject { Prototype = realm.ObjectPrototype };
         InstallMethods(proto);
 
         var ctor = new JsFunction
@@ -40,12 +40,12 @@ public static class StringDecoderModule
         };
         proto.DefineOwnProperty("constructor", PropertyDescriptor.Data(ctor, writable: true, enumerable: false, configurable: true));
 
-        var module = new JsObject();
+        var module = new JsDynamicObject();
         module.DefineOwnProperty("StringDecoder", PropertyDescriptor.Data(ctor));
         return module;
     }
 
-    private static void InstallMethods(JsObject proto)
+    private static void InstallMethods(JsDynamicObject proto)
     {
         proto.DefineOwnProperty("write", MethodDesc("write", (thisArg, args) =>
         {
@@ -91,7 +91,7 @@ public static class StringDecoderModule
 }
 
 /// <summary>Decoder instance holding per-call partial-byte state.</summary>
-public sealed class StringDecoderInstance : JsObject
+public sealed class StringDecoderInstance : JsDynamicObject
 {
     public string Encoding { get; }
     private readonly byte[] _tail = new byte[4];

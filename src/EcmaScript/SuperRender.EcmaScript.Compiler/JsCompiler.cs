@@ -500,7 +500,7 @@ public static class RuntimeHelpers
             return JsValue.False;
         }
 
-        if (obj is not JsObject jsObj)
+        if (obj is not JsDynamicObject jsObj)
         {
             return JsValue.False;
         }
@@ -521,7 +521,7 @@ public static class RuntimeHelpers
 
     public static JsValue In(JsValue key, JsValue obj)
     {
-        if (obj is not JsObject jsObj)
+        if (obj is not JsDynamicObject jsObj)
         {
             throw new JsTypeError("Cannot use 'in' operator to search for '" +
                 key.ToJsString() + "' in " + obj.ToJsString(), Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
@@ -661,9 +661,9 @@ public static class RuntimeHelpers
 
     // ───────────────────────── Object/Array helpers ─────────────────────────
 
-    public static void ObjectSpread(JsObject target, JsValue source)
+    public static void ObjectSpread(JsDynamicObject target, JsValue source)
     {
-        if (source is not JsObject srcObj)
+        if (source is not JsDynamicObject srcObj)
         {
             return;
         }
@@ -694,7 +694,7 @@ public static class RuntimeHelpers
                 target.Push(new JsString(c.ToString()));
             }
         }
-        else if (source is JsObject obj
+        else if (source is JsDynamicObject obj
             && obj.TryGetSymbolProperty(JsSymbol.Iterator, out var iterFn)
             && iterFn is JsFunction fn)
         {
@@ -707,7 +707,7 @@ public static class RuntimeHelpers
                 target.Push(GetMember(result, "value"));
             }
         }
-        else if (source is JsObject genObj)
+        else if (source is JsDynamicObject genObj)
         {
             // Fallback: iterate using numeric keys
             for (int i = 0; ; i++)
@@ -735,7 +735,7 @@ public static class RuntimeHelpers
                 list.Add(new JsString(c.ToString()));
             }
         }
-        else if (source is JsObject obj
+        else if (source is JsDynamicObject obj
             && obj.TryGetSymbolProperty(JsSymbol.Iterator, out var iterFn)
             && iterFn is JsFunction fn)
         {
@@ -753,7 +753,7 @@ public static class RuntimeHelpers
 
     public static string[] GetForInKeys(JsValue obj)
     {
-        if (obj is not JsObject jsObj)
+        if (obj is not JsDynamicObject jsObj)
         {
             return [];
         }
@@ -829,7 +829,7 @@ public static class RuntimeHelpers
 
     // ───────────────────────── Rest/Arguments ─────────────────────────
 
-    public static JsValue CreateRestArray(JsValue[] args, int startIndex, JsObject arrayPrototype)
+    public static JsValue CreateRestArray(JsValue[] args, int startIndex, JsDynamicObject arrayPrototype)
     {
         var arr = new JsArray();
         arr.Prototype = arrayPrototype;
@@ -841,9 +841,9 @@ public static class RuntimeHelpers
         return arr;
     }
 
-    public static JsValue CreateArgumentsObject(JsValue[] args, JsObject arrayPrototype)
+    public static JsValue CreateArgumentsObject(JsValue[] args, JsDynamicObject arrayPrototype)
     {
-        var obj = new JsObject();
+        var obj = new JsDynamicObject();
         for (int i = 0; i < args.Length; i++)
         {
             obj.Set(i.ToString(CultureInfo.InvariantCulture), args[i]);
@@ -859,8 +859,8 @@ public static class RuntimeHelpers
 
     public static JsValue ObjectRestProperties(JsValue source, string[] excludeKeys)
     {
-        var result = new JsObject();
-        if (source is not JsObject srcObj)
+        var result = new JsDynamicObject();
+        if (source is not JsDynamicObject srcObj)
         {
             return result;
         }
@@ -881,7 +881,7 @@ public static class RuntimeHelpers
         return result;
     }
 
-    public static JsValue ArraySliceFrom(JsValue source, int startIndex, JsObject arrayPrototype)
+    public static JsValue ArraySliceFrom(JsValue source, int startIndex, JsDynamicObject arrayPrototype)
     {
         var arr = new JsArray();
         arr.Prototype = arrayPrototype;
@@ -929,7 +929,7 @@ public static class RuntimeHelpers
         return fn;
     }
 
-    public static void SetupInheritance(JsFunction ctor, JsObject proto, JsValue superClass)
+    public static void SetupInheritance(JsFunction ctor, JsDynamicObject proto, JsValue superClass)
     {
         if (superClass is not JsFunction superFn)
         {
@@ -937,10 +937,10 @@ public static class RuntimeHelpers
         }
 
         proto.Prototype = superFn.PrototypeObject;
-        ctor.Prototype = superFn as JsObject;
+        ctor.Prototype = superFn as JsDynamicObject;
     }
 
-    public static void DefineGetter(JsObject obj, string name, JsValue getter)
+    public static void DefineGetter(JsDynamicObject obj, string name, JsValue getter)
     {
         var existing = obj.GetOwnProperty(name);
         if (existing is not null && existing.IsAccessorDescriptor)
@@ -953,7 +953,7 @@ public static class RuntimeHelpers
         }
     }
 
-    public static void DefineSetter(JsObject obj, string name, JsValue setter)
+    public static void DefineSetter(JsDynamicObject obj, string name, JsValue setter)
     {
         var existing = obj.GetOwnProperty(name);
         if (existing is not null && existing.IsAccessorDescriptor)
@@ -975,7 +975,7 @@ public static class RuntimeHelpers
             return new JsTypeError(str.Value, Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
         }
 
-        if (value is JsObject obj)
+        if (value is JsDynamicObject obj)
         {
             var msg = obj.Get("message");
             return new JsTypeError(msg is JsString s ? s.Value : value.ToJsString(), Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
@@ -993,7 +993,7 @@ public static class RuntimeHelpers
 
         if (ex is JsErrorBase jsErr)
         {
-            var errObj = new JsObject();
+            var errObj = new JsDynamicObject();
             if (CurrentRealm?.ErrorPrototype is not null)
             {
                 errObj.Prototype = CurrentRealm.ErrorPrototype;
@@ -1011,7 +1011,7 @@ public static class RuntimeHelpers
             return errObj;
         }
 
-        var obj = new JsObject();
+        var obj = new JsDynamicObject();
         if (CurrentRealm?.ErrorPrototype is not null)
         {
             obj.Prototype = CurrentRealm.ErrorPrototype;
@@ -1055,7 +1055,7 @@ public static class RuntimeHelpers
         Func<JsValue, JsValue[], GeneratorCoroutine, JsValue> body,
         JsValue thisArg,
         JsValue[] args,
-        JsObject generatorPrototype)
+        JsDynamicObject generatorPrototype)
     {
         var coroutine = new GeneratorCoroutine();
         // Defer starting the body until the first next() call
@@ -1067,7 +1067,7 @@ public static class RuntimeHelpers
         Func<JsValue, JsValue[], GeneratorCoroutine, JsValue> body,
         JsValue thisArg,
         JsValue[] args,
-        JsObject promisePrototype,
+        JsDynamicObject promisePrototype,
         Realm realm)
     {
         var outerPromise = new JsPromiseObject { Prototype = promisePrototype };
@@ -1184,13 +1184,13 @@ public static class RuntimeHelpers
             throw new JsTypeError($"Cannot read properties of {obj.TypeOf}", Runtime.ExecutionContext.CurrentLine, Runtime.ExecutionContext.CurrentColumn);
         }
 
-        // Check for Symbol.iterator on JsObject (includes arrays, generators, etc.)
-        if (obj is JsObject jsObj
+        // Check for Symbol.iterator on JsDynamicObject (includes arrays, generators, etc.)
+        if (obj is JsDynamicObject jsObj
             && jsObj.TryGetSymbolProperty(JsSymbol.Iterator, out var iterFn)
             && iterFn is JsFunction fn)
         {
             var iterator = fn.Call(obj, []);
-            if (iterator is JsObject)
+            if (iterator is JsDynamicObject)
             {
                 return iterator;
             }
@@ -1199,7 +1199,7 @@ public static class RuntimeHelpers
         }
 
         // Autoboxing for primitives: check prototype for Symbol.iterator
-        JsObject? proto = null;
+        JsDynamicObject? proto = null;
         if (obj is JsString)
         {
             proto = CurrentRealm?.StringPrototype;
@@ -1210,7 +1210,7 @@ public static class RuntimeHelpers
             && primIterFn is JsFunction primFn)
         {
             var iterator = primFn.Call(obj, []);
-            if (iterator is JsObject)
+            if (iterator is JsDynamicObject)
             {
                 return iterator;
             }

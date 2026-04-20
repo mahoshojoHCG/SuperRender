@@ -13,9 +13,9 @@ public static class CryptoModule
     private static PropertyDescriptor MethodDesc(string name, Func<JsValue, JsValue[], JsValue> impl, int length) =>
         PropertyDescriptor.Data(JsFunction.CreateNative(name, impl, length), writable: true, enumerable: false, configurable: true);
 
-    public static JsObject Create(Realm realm)
+    public static JsDynamicObject Create(Realm realm)
     {
-        var obj = new JsObject();
+        var obj = new JsDynamicObject();
 
         obj.DefineOwnProperty("randomUUID", MethodDesc("randomUUID", (_, _) =>
             new JsString(Guid.NewGuid().ToString("D")), 0));
@@ -147,7 +147,7 @@ public static class CryptoModule
 }
 
 /// <summary>Incremental hash object (`crypto.createHash().update().digest()`).</summary>
-public sealed class HashObject : JsObject
+public sealed class HashObject : JsDynamicObject
 {
     private readonly IncrementalHash _hash;
     private bool _finalized;
@@ -187,7 +187,7 @@ public sealed class HashObject : JsObject
 }
 
 /// <summary>Incremental HMAC object.</summary>
-public sealed class HmacObject : JsObject
+public sealed class HmacObject : JsDynamicObject
 {
     private readonly HMAC _hmac;
     private bool _finalized;

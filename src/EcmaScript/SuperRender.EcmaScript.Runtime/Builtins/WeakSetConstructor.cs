@@ -7,7 +7,7 @@ public static class WeakSetConstructor
 {
     public static void Install(Realm realm)
     {
-        var proto = new JsObject { Prototype = realm.ObjectPrototype };
+        var proto = new JsDynamicObject { Prototype = realm.ObjectPrototype };
 
         var ctor = new JsFunction
         {
@@ -25,7 +25,7 @@ public static class WeakSetConstructor
                     for (var i = 0; i < arr.DenseLength; i++)
                     {
                         var val = arr.GetIndex(i);
-                        if (val is not JsObject objVal)
+                        if (val is not JsDynamicObject objVal)
                         {
                             throw new Errors.JsTypeError("Invalid value used in weak set", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                         }
@@ -48,7 +48,7 @@ public static class WeakSetConstructor
         {
             var weakSet = RequireWeakSet(thisArg);
             var val = BuiltinHelper.Arg(args, 0);
-            if (val is not JsObject objVal)
+            if (val is not JsDynamicObject objVal)
             {
                 throw new Errors.JsTypeError("Invalid value used in weak set", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
@@ -61,7 +61,7 @@ public static class WeakSetConstructor
         {
             var weakSet = RequireWeakSet(thisArg);
             var val = BuiltinHelper.Arg(args, 0);
-            if (val is not JsObject objVal)
+            if (val is not JsDynamicObject objVal)
             {
                 return JsValue.False;
             }
@@ -73,7 +73,7 @@ public static class WeakSetConstructor
         {
             var weakSet = RequireWeakSet(thisArg);
             var val = BuiltinHelper.Arg(args, 0);
-            if (val is not JsObject objVal)
+            if (val is not JsDynamicObject objVal)
             {
                 return JsValue.False;
             }
@@ -99,23 +99,23 @@ public static class WeakSetConstructor
     }
 }
 
-internal sealed class JsWeakSetObject : JsObject
+internal sealed class JsWeakSetObject : JsDynamicObject
 {
     // Using ConditionalWeakTable with a sentinel value since we only need key presence
-    private readonly ConditionalWeakTable<JsObject, JsObject> _table = new();
-    private static readonly JsObject Sentinel = new();
+    private readonly ConditionalWeakTable<JsDynamicObject, JsDynamicObject> _table = new();
+    private static readonly JsDynamicObject Sentinel = new();
 
-    public void WeakSetAdd(JsObject value)
+    public void WeakSetAdd(JsDynamicObject value)
     {
         _table.AddOrUpdate(value, Sentinel);
     }
 
-    public bool WeakSetHas(JsObject value)
+    public bool WeakSetHas(JsDynamicObject value)
     {
         return _table.TryGetValue(value, out _);
     }
 
-    public bool WeakSetDelete(JsObject value)
+    public bool WeakSetDelete(JsDynamicObject value)
     {
         return _table.Remove(value);
     }

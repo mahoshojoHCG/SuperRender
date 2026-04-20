@@ -2,7 +2,7 @@ namespace SuperRender.EcmaScript.Runtime;
 
 using System.Text.RegularExpressions;
 
-public sealed class JsRegExp : JsObject
+public sealed class JsRegExp : JsDynamicObject
 {
     private readonly Regex _regex;
 
@@ -131,9 +131,9 @@ public sealed class JsRegExp : JsObject
         return array;
     }
 
-    private static JsObject? BuildNamedGroups(Match match)
+    private static JsDynamicObject? BuildNamedGroups(Match match)
     {
-        JsObject? groupsObj = null;
+        JsDynamicObject? groupsObj = null;
 
         foreach (Group group in match.Groups)
         {
@@ -143,7 +143,7 @@ public sealed class JsRegExp : JsObject
                 continue;
             }
 
-            groupsObj ??= new JsObject { Prototype = null };
+            groupsObj ??= new JsDynamicObject { Prototype = null };
             groupsObj.DefineOwnProperty(group.Name, PropertyDescriptor.Data(
                 group.Success ? new JsString(group.Value) : Undefined,
                 writable: true, enumerable: true, configurable: true));
@@ -155,7 +155,7 @@ public sealed class JsRegExp : JsObject
     private static JsArray BuildIndices(Match match)
     {
         var indices = new JsArray();
-        JsObject? namedIndices = null;
+        JsDynamicObject? namedIndices = null;
 
         for (int i = 0; i < match.Groups.Count; i++)
         {
@@ -176,7 +176,7 @@ public sealed class JsRegExp : JsObject
             var name = group.Name;
             if (!int.TryParse(name, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _))
             {
-                namedIndices ??= new JsObject { Prototype = null };
+                namedIndices ??= new JsDynamicObject { Prototype = null };
                 if (group.Success)
                 {
                     var pair = new JsArray();

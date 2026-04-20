@@ -6,7 +6,7 @@ namespace SuperRender.EcmaScript.Engine;
 /// Wraps a .NET object instance as a JavaScript object.
 /// Only members of the registered type are accessible.
 /// </summary>
-public sealed class ObjectProxy : JsObject
+public sealed class ObjectProxy : JsDynamicObject
 {
     public object Target { get; }
     private readonly TypeProxy? _typeProxy;

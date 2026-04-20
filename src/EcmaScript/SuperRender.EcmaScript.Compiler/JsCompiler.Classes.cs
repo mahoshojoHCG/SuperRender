@@ -43,7 +43,7 @@ public sealed partial class JsCompiler
     private Expr CompileClassBody(string? className, SyntaxNode? superClass, ClassBody body)
     {
         var ctorVar = Expr.Parameter(typeof(JsFunction), "classCtor");
-        var protoVar = Expr.Parameter(typeof(JsObject), "classProto");
+        var protoVar = Expr.Parameter(typeof(JsDynamicObject), "classProto");
         var exprs = new List<Expr>();
 
         // Find constructor method
@@ -97,7 +97,7 @@ public sealed partial class JsCompiler
         }
 
         // Create prototype
-        exprs.Add(Expr.Assign(protoVar, Expr.New(typeof(JsObject))));
+        exprs.Add(Expr.Assign(protoVar, Expr.New(typeof(JsDynamicObject))));
 
         // Set up inheritance
         if (superClass is not null)
@@ -112,8 +112,8 @@ public sealed partial class JsCompiler
         else
         {
             exprs.Add(Expr.Assign(
-                Expr.Property(protoVar, nameof(JsObject.Prototype)),
-                Expr.Constant(_realm.ObjectPrototype, typeof(JsObject))));
+                Expr.Property(protoVar, nameof(JsDynamicObject.Prototype)),
+                Expr.Constant(_realm.ObjectPrototype, typeof(JsDynamicObject))));
         }
 
         // Link constructor and prototype
@@ -122,8 +122,8 @@ public sealed partial class JsCompiler
             protoVar));
 
         exprs.Add(Expr.Call(
-            Expr.Convert(protoVar, typeof(JsObject)),
-            typeof(JsObject).GetMethod(nameof(JsObject.Set), [typeof(string), typeof(JsValue)])!,
+            Expr.Convert(protoVar, typeof(JsDynamicObject)),
+            typeof(JsDynamicObject).GetMethod(nameof(JsDynamicObject.Set), [typeof(string), typeof(JsValue)])!,
             Expr.Constant("constructor"),
             Expr.Convert(ctorVar, typeof(JsValue))));
 
@@ -164,7 +164,7 @@ public sealed partial class JsCompiler
                 {
                     exprs.Add(Expr.Call(
                         typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.DefineGetter))!,
-                        Expr.Convert(target, typeof(JsObject)),
+                        Expr.Convert(target, typeof(JsDynamicObject)),
                         keyExpr,
                         EnsureJsValue(fnExpr)));
                 }
@@ -172,15 +172,15 @@ public sealed partial class JsCompiler
                 {
                     exprs.Add(Expr.Call(
                         typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.DefineSetter))!,
-                        Expr.Convert(target, typeof(JsObject)),
+                        Expr.Convert(target, typeof(JsDynamicObject)),
                         keyExpr,
                         EnsureJsValue(fnExpr)));
                 }
                 else
                 {
                     exprs.Add(Expr.Call(
-                        Expr.Convert(target, typeof(JsObject)),
-                        typeof(JsObject).GetMethod(nameof(JsObject.Set), [typeof(string), typeof(JsValue)])!,
+                        Expr.Convert(target, typeof(JsDynamicObject)),
+                        typeof(JsDynamicObject).GetMethod(nameof(JsDynamicObject.Set), [typeof(string), typeof(JsValue)])!,
                         keyExpr,
                         EnsureJsValue(fnExpr)));
                 }
@@ -208,8 +208,8 @@ public sealed partial class JsCompiler
 
                     var val = CompileNode(pd.Value);
                     exprs.Add(Expr.Call(
-                        Expr.Convert(ctorVar, typeof(JsObject)),
-                        typeof(JsObject).GetMethod(nameof(JsObject.Set), [typeof(string), typeof(JsValue)])!,
+                        Expr.Convert(ctorVar, typeof(JsDynamicObject)),
+                        typeof(JsDynamicObject).GetMethod(nameof(JsDynamicObject.Set), [typeof(string), typeof(JsValue)])!,
                         keyExpr,
                         EnsureJsValue(val)));
                 }

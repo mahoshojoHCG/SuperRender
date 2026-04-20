@@ -6,7 +6,7 @@ public static class ReflectObject
 {
     public static void Install(Realm realm)
     {
-        var reflect = new JsObject { Prototype = realm.ObjectPrototype };
+        var reflect = new JsDynamicObject { Prototype = realm.ObjectPrototype };
 
         reflect.DefineSymbolProperty(JsSymbol.ToStringTag,
             PropertyDescriptor.Data(new JsString("Reflect"), writable: false, enumerable: false, configurable: true));
@@ -147,7 +147,7 @@ public static class ReflectObject
             {
                 target.Prototype = null;
             }
-            else if (proto is JsObject protoObj)
+            else if (proto is JsDynamicObject protoObj)
             {
                 target.Prototype = protoObj;
             }
@@ -206,9 +206,9 @@ public static class ReflectObject
         realm.InstallGlobal("Reflect", reflect);
     }
 
-    private static JsObject RequireObject(JsValue value)
+    private static JsDynamicObject RequireObject(JsValue value)
     {
-        if (value is JsObject obj)
+        if (value is JsDynamicObject obj)
         {
             return obj;
         }
@@ -216,7 +216,7 @@ public static class ReflectObject
         throw new Errors.JsTypeError("Reflect method requires an object as the first argument", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 
-    private static PropertyDescriptor ToPropertyDescriptor(JsObject desc)
+    private static PropertyDescriptor ToPropertyDescriptor(JsDynamicObject desc)
     {
         var hasGet = desc.HasProperty("get");
         var hasSet = desc.HasProperty("set");
@@ -244,9 +244,9 @@ public static class ReflectObject
         return PropertyDescriptor.Data(value, writable, isEnumerable, isConfigurable);
     }
 
-    private static JsObject FromPropertyDescriptor(PropertyDescriptor desc)
+    private static JsDynamicObject FromPropertyDescriptor(PropertyDescriptor desc)
     {
-        var obj = new JsObject();
+        var obj = new JsDynamicObject();
         if (desc.IsAccessorDescriptor)
         {
             if (desc.Get is not null) obj.Set("get", desc.Get);

@@ -25,7 +25,7 @@ public static class StringConstructor
             ConstructTarget = args =>
             {
                 var val = args.Length == 0 ? "" : args[0].ToJsString();
-                var wrapper = new JsObject { Prototype = realm.StringPrototype };
+                var wrapper = new JsDynamicObject { Prototype = realm.StringPrototype };
                 wrapper.DefineOwnProperty("[[StringData]]",
                     PropertyDescriptor.Data(new JsString(val), writable: false, enumerable: false, configurable: false));
                 return wrapper;
@@ -460,7 +460,7 @@ public static class StringConstructor
             {
                 var str = GetStringValue(thisArg);
                 var index = 0;
-                var iterator = new JsObject { Prototype = realm.IteratorPrototype };
+                var iterator = new JsDynamicObject { Prototype = realm.IteratorPrototype };
                 BuiltinHelper.DefineMethod(iterator, "next", (_, _) =>
                 {
                     if (index < str.Length)
@@ -495,7 +495,7 @@ public static class StringConstructor
     private static string GetStringValue(JsValue thisArg)
     {
         if (thisArg is JsString s) return s.Value;
-        if (thisArg is JsObject obj)
+        if (thisArg is JsDynamicObject obj)
         {
             var data = obj.GetOwnProperty("[[StringData]]");
             if (data?.Value is JsString strData) return strData.Value;
@@ -523,7 +523,7 @@ public static class StringConstructor
 
             var matchArr = (JsArray)match;
             var matchStr = matchArr.GetIndex(0).ToJsString();
-            var matchIndex = (int)((JsObject)match).Get("index").ToNumber();
+            var matchIndex = (int)((JsDynamicObject)match).Get("index").ToNumber();
 
             sb.Append(str, lastIndex, matchIndex - lastIndex);
 

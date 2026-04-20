@@ -144,7 +144,7 @@ public sealed partial class JsCompiler
                                 typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CreateRestArray))!,
                                 fnArgsParam,
                                 Expr.Constant(i),
-                                Expr.Constant(_realm.ArrayPrototype, typeof(JsObject)))));
+                                Expr.Constant(_realm.ArrayPrototype, typeof(JsDynamicObject)))));
                     }
                 }
                 else if (param is ObjectPattern or ArrayPattern)
@@ -168,7 +168,7 @@ public sealed partial class JsCompiler
                     Expr.Call(
                         typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.CreateArgumentsObject))!,
                         fnArgsParam,
-                        Expr.Constant(_realm.ArrayPrototype, typeof(JsObject)))));
+                        Expr.Constant(_realm.ArrayPrototype, typeof(JsDynamicObject)))));
             }
 
             // Compile function body
@@ -243,7 +243,7 @@ public sealed partial class JsCompiler
                         innerLambda,
                         wrapperThis,
                         wrapperArgs,
-                        Expr.Constant(_realm.GeneratorPrototype, typeof(JsObject)));
+                        Expr.Constant(_realm.GeneratorPrototype, typeof(JsDynamicObject)));
                 }
                 else
                 {
@@ -252,7 +252,7 @@ public sealed partial class JsCompiler
                         innerLambda,
                         wrapperThis,
                         wrapperArgs,
-                        Expr.Constant(_realm.PromisePrototype, typeof(JsObject)),
+                        Expr.Constant(_realm.PromisePrototype, typeof(JsDynamicObject)),
                         Expr.Constant(_realm, typeof(Realm)));
                 }
 
@@ -275,19 +275,19 @@ public sealed partial class JsCompiler
                 Expr.Assign(Expr.Property(fnVar, nameof(JsFunction.CallTarget)), callTarget),
                 Expr.Assign(Expr.Property(fnVar, nameof(JsFunction.ClosureScope)), closureEnvCapture),
                 Expr.Assign(
-                    Expr.Property(fnVar, nameof(JsObject.Prototype)),
-                    Expr.Constant(_realm.FunctionPrototype, typeof(JsObject)))
+                    Expr.Property(fnVar, nameof(JsDynamicObject.Prototype)),
+                    Expr.Constant(_realm.FunctionPrototype, typeof(JsDynamicObject)))
             };
 
             if (!isArrow && !isGenerator && !isAsync)
             {
                 // Non-arrow, non-generator, non-async functions get a prototype object for construction
-                var protoObj = Expr.Parameter(typeof(JsObject), "fnProto");
+                var protoObj = Expr.Parameter(typeof(JsDynamicObject), "fnProto");
                 createFn.Add(Expr.Block(typeof(void), [protoObj],
-                    Expr.Assign(protoObj, Expr.New(typeof(JsObject))),
+                    Expr.Assign(protoObj, Expr.New(typeof(JsDynamicObject))),
                     Expr.Assign(
-                        Expr.Property(protoObj, nameof(JsObject.Prototype)),
-                        Expr.Constant(_realm.ObjectPrototype, typeof(JsObject))),
+                        Expr.Property(protoObj, nameof(JsDynamicObject.Prototype)),
+                        Expr.Constant(_realm.ObjectPrototype, typeof(JsDynamicObject))),
                     Expr.Assign(Expr.Property(fnVar, nameof(JsFunction.PrototypeObject)), protoObj)));
             }
 

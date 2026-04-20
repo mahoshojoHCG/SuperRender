@@ -7,7 +7,7 @@ namespace SuperRender.EcmaScript.Dom;
 /// Wraps a WebStorage-like interface using delegates, so the EcmaScript.Dom project
 /// remains dependency-free (no direct reference to Browser's WebStorage class).
 /// </summary>
-internal sealed class JsStorageWrapper : JsObject
+internal sealed class JsStorageWrapper : JsDynamicObject
 {
     public JsStorageWrapper(
         Func<string, string?> getItem,

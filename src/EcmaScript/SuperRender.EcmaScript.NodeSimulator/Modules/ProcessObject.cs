@@ -7,7 +7,7 @@ namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 /// Node.js `process` global. Exposes argv, env, platform/arch, versions, pid, cwd/chdir,
 /// exit/exitCode, stdout/stderr write, hrtime, nextTick, and basic event-emitter-style on().
 /// </summary>
-public sealed class ProcessObject : JsObject
+public sealed class ProcessObject : JsDynamicObject
 {
     private readonly Stopwatch _startTime = Stopwatch.StartNew();
     private readonly Queue<JsFunction> _nextTickQueue = new();
@@ -39,7 +39,7 @@ public sealed class ProcessObject : JsObject
         DefineData("version", new JsString("v25.6.0"));
         DefineData("title", new JsString("node"));
 
-        var versions = new JsObject();
+        var versions = new JsDynamicObject();
         versions.DefineOwnProperty("node", PropertyDescriptor.Data(new JsString("25.6.0")));
         versions.DefineOwnProperty("ecmascript", PropertyDescriptor.Data(new JsString("2025")));
         DefineData("versions", versions);
@@ -77,7 +77,7 @@ public sealed class ProcessObject : JsObject
         DefineMethod("uptime", 0, (_, _) => JsNumber.Create(_startTime.Elapsed.TotalSeconds));
         DefineMethod("memoryUsage", 0, (_, _) =>
         {
-            var obj = new JsObject();
+            var obj = new JsDynamicObject();
             var total = GC.GetTotalMemory(forceFullCollection: false);
             obj.DefineOwnProperty("rss", PropertyDescriptor.Data(JsNumber.Create(total)));
             obj.DefineOwnProperty("heapTotal", PropertyDescriptor.Data(JsNumber.Create(total)));
@@ -169,18 +169,18 @@ public sealed class ProcessObject : JsObject
         }
     }
 
-    private static JsObject MakeRelease()
+    private static JsDynamicObject MakeRelease()
     {
-        var r = new JsObject();
+        var r = new JsDynamicObject();
         r.DefineOwnProperty("name", PropertyDescriptor.Data(new JsString("node")));
         r.DefineOwnProperty("sourceUrl", PropertyDescriptor.Data(new JsString("")));
         r.DefineOwnProperty("headersUrl", PropertyDescriptor.Data(new JsString("")));
         return r;
     }
 
-    private static JsObject BuildEnv()
+    private static JsDynamicObject BuildEnv()
     {
-        var env = new JsObject();
+        var env = new JsDynamicObject();
         foreach (System.Collections.DictionaryEntry entry in System.Environment.GetEnvironmentVariables())
         {
             var key = entry.Key?.ToString();
@@ -191,9 +191,9 @@ public sealed class ProcessObject : JsObject
         return env;
     }
 
-    private static JsObject MakeWriteStream(string name, Func<TextWriter> getWriter)
+    private static JsDynamicObject MakeWriteStream(string name, Func<TextWriter> getWriter)
     {
-        var s = new JsObject();
+        var s = new JsDynamicObject();
         s.DefineOwnProperty("writable", PropertyDescriptor.Data(True));
         s.DefineOwnProperty("isTTY", PropertyDescriptor.Data(False));
         s.DefineOwnProperty("fd", PropertyDescriptor.Data(JsNumber.Create(name == "stdout" ? 1 : 2)));
@@ -213,9 +213,9 @@ public sealed class ProcessObject : JsObject
         return s;
     }
 
-    private static JsObject MakeReadStream()
+    private static JsDynamicObject MakeReadStream()
     {
-        var s = new JsObject();
+        var s = new JsDynamicObject();
         s.DefineOwnProperty("readable", PropertyDescriptor.Data(True));
         s.DefineOwnProperty("isTTY", PropertyDescriptor.Data(False));
         s.DefineOwnProperty("fd", PropertyDescriptor.Data(JsNumber.Create(0)));

@@ -42,13 +42,13 @@ public static class FinalizationRegistryConstructor
             }
 
             var target = BuiltinHelper.Arg(args, 0);
-            if (target is not JsObject targetObj)
+            if (target is not JsDynamicObject targetObj)
             {
                 throw new Errors.JsTypeError("FinalizationRegistry target must be an object", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
             var heldValue = BuiltinHelper.Arg(args, 1);
-            var unregisterToken = args.Length > 2 ? args[2] as JsObject : null;
+            var unregisterToken = args.Length > 2 ? args[2] as JsDynamicObject : null;
             registry.Register(targetObj, heldValue, unregisterToken);
             return JsValue.Undefined;
         }, 2);
@@ -61,7 +61,7 @@ public static class FinalizationRegistryConstructor
             }
 
             var token = BuiltinHelper.Arg(args, 0);
-            if (token is not JsObject tokenObj)
+            if (token is not JsDynamicObject tokenObj)
             {
                 throw new Errors.JsTypeError("unregister token must be an object", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
@@ -76,7 +76,7 @@ public static class FinalizationRegistryConstructor
     }
 }
 
-internal sealed class JsFinalizationRegistryObject : JsObject
+internal sealed class JsFinalizationRegistryObject : JsDynamicObject
 {
     private readonly JsFunction _callback;
     private readonly List<Registration> _registrations = [];
@@ -86,12 +86,12 @@ internal sealed class JsFinalizationRegistryObject : JsObject
         _callback = callback;
     }
 
-    public void Register(JsObject target, JsValue heldValue, JsObject? unregisterToken)
+    public void Register(JsDynamicObject target, JsValue heldValue, JsDynamicObject? unregisterToken)
     {
-        _registrations.Add(new Registration(new WeakReference<JsObject>(target), heldValue, unregisterToken));
+        _registrations.Add(new Registration(new WeakReference<JsDynamicObject>(target), heldValue, unregisterToken));
     }
 
-    public bool Unregister(JsObject token)
+    public bool Unregister(JsDynamicObject token)
     {
         var removed = false;
         for (var i = _registrations.Count - 1; i >= 0; i--)
@@ -130,5 +130,5 @@ internal sealed class JsFinalizationRegistryObject : JsObject
         }
     }
 
-    private sealed record Registration(WeakReference<JsObject> Target, JsValue HeldValue, JsObject? UnregisterToken);
+    private sealed record Registration(WeakReference<JsDynamicObject> Target, JsValue HeldValue, JsDynamicObject? UnregisterToken);
 }

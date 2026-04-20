@@ -49,7 +49,7 @@ public static class ArrayConstructor
                     result.Push(mapFn is not null ? mapFn.Call(JsValue.Undefined, [val, JsNumber.Create(i)]) : val);
                 }
             }
-            else if (arrayLike is JsObject obj)
+            else if (arrayLike is JsDynamicObject obj)
             {
                 var len = BuiltinHelper.GetLength(obj);
                 for (var i = 0; i < len; i++)
@@ -93,7 +93,7 @@ public static class ArrayConstructor
                         result.Push(mapFn is not null ? mapFn.Call(JsValue.Undefined, [val, JsNumber.Create(i)]) : val);
                     }
                 }
-                else if (items is JsObject obj)
+                else if (items is JsDynamicObject obj)
                 {
                     var len = BuiltinHelper.GetLength(obj);
                     for (var i = 0; i < len; i++)
@@ -644,7 +644,7 @@ public static class ArrayConstructor
 
         BuiltinHelper.DefineMethod(proto, "toString", (thisArg, _) =>
         {
-            if (thisArg is not JsObject obj)
+            if (thisArg is not JsDynamicObject obj)
             {
                 return new JsString("[object Undefined]");
             }

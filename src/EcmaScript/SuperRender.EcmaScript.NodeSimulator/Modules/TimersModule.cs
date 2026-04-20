@@ -166,7 +166,7 @@ public static class TimersModule
             if (args.Length == 0 || args[0] is not JsFunction fn)
                 throw new Runtime.Errors.JsTypeError("callback must be a function");
             var id = queue.SetImmediate(fn);
-            var obj = new JsObject();
+            var obj = new JsDynamicObject();
             obj.DefineOwnProperty("_id", PropertyDescriptor.Data(JsNumber.Create(id)));
             obj.DefineOwnProperty("_immediate", PropertyDescriptor.Data(JsValue.True));
             obj.DefineOwnProperty("ref", PropertyDescriptor.Data(JsFunction.CreateNative("ref", (t, _) => t, 0), writable: true, enumerable: false, configurable: true));
@@ -206,9 +206,9 @@ public static class TimersModule
         return queue;
     }
 
-    private static JsObject MakeTimeout(long id, TimerQueue queue)
+    private static JsDynamicObject MakeTimeout(long id, TimerQueue queue)
     {
-        var obj = new JsObject();
+        var obj = new JsDynamicObject();
         obj.DefineOwnProperty("_id", PropertyDescriptor.Data(JsNumber.Create(id)));
         obj.DefineOwnProperty("ref", PropertyDescriptor.Data(JsFunction.CreateNative("ref", (t, _) => t, 0), writable: true, enumerable: false, configurable: true));
         obj.DefineOwnProperty("unref", PropertyDescriptor.Data(JsFunction.CreateNative("unref", (t, _) => t, 0), writable: true, enumerable: false, configurable: true));
@@ -221,7 +221,7 @@ public static class TimersModule
     private static long? ExtractId(JsValue v)
     {
         if (v is JsNumber n) return (long)n.Value;
-        if (v is JsObject o && o.Get("_id") is JsNumber on) return (long)on.Value;
+        if (v is JsDynamicObject o && o.Get("_id") is JsNumber on) return (long)on.Value;
         return null;
     }
 }

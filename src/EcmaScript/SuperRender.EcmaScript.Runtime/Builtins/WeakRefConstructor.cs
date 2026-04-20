@@ -18,7 +18,7 @@ public static class WeakRefConstructor
             ConstructTarget = args =>
             {
                 var target = BuiltinHelper.Arg(args, 0);
-                if (target is not JsObject targetObj)
+                if (target is not JsDynamicObject targetObj)
                 {
                     throw new Errors.JsTypeError("WeakRef target must be an object", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                 }
@@ -51,13 +51,13 @@ public static class WeakRefConstructor
     }
 }
 
-internal sealed class JsWeakRefObject : JsObject
+internal sealed class JsWeakRefObject : JsDynamicObject
 {
-    private readonly WeakReference<JsObject> _target;
+    private readonly WeakReference<JsDynamicObject> _target;
 
-    public JsWeakRefObject(JsObject target)
+    public JsWeakRefObject(JsDynamicObject target)
     {
-        _target = new WeakReference<JsObject>(target);
+        _target = new WeakReference<JsDynamicObject>(target);
     }
 
     public JsValue Deref()

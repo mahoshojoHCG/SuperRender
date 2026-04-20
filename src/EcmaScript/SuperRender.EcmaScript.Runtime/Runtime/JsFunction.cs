@@ -1,13 +1,13 @@
 namespace SuperRender.EcmaScript.Runtime;
 
-public class JsFunction : JsObject
+public class JsFunction : JsDynamicObject
 {
     public Func<JsValue, JsValue[], JsValue>? CallTarget { get; set; }
     public Func<JsValue[], JsValue>? ConstructTarget { get; set; }
     public Environment? ClosureScope { get; set; }
     public string Name { get; set; } = "";
     public int Length { get; init; }
-    public JsObject? PrototypeObject { get; set; }
+    public JsDynamicObject? PrototypeObject { get; set; }
     public bool IsConstructor { get; init; }
 
     public override string TypeOf => "function";
@@ -34,7 +34,7 @@ public class JsFunction : JsObject
             throw new Errors.JsTypeError($"{Name} is not a constructor", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
         }
 
-        var newObj = new JsObject
+        var newObj = new JsDynamicObject
         {
             Prototype = PrototypeObject ?? Prototype
         };
@@ -42,7 +42,7 @@ public class JsFunction : JsObject
         var result = CallTarget(newObj, arguments);
 
         // If the constructor returned an object, use that; otherwise use newObj
-        if (result is JsObject returnedObj)
+        if (result is JsDynamicObject returnedObj)
         {
             return returnedObj;
         }

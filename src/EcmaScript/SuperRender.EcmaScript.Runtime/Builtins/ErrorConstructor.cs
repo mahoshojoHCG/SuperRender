@@ -14,7 +14,7 @@ public static class ErrorConstructor
 
         BuiltinHelper.DefineMethod(errorProto, "toString", (thisArg, _) =>
         {
-            if (thisArg is not JsObject obj)
+            if (thisArg is not JsDynamicObject obj)
             {
                 throw new Errors.JsTypeError("Error.prototype.toString called on non-object", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
@@ -40,42 +40,42 @@ public static class ErrorConstructor
         realm.InstallGlobal("Error", errorCtor);
 
         // TypeError
-        var typeErrorProto = new JsObject { Prototype = errorProto };
+        var typeErrorProto = new JsDynamicObject { Prototype = errorProto };
         typeErrorProto.DefineOwnProperty("name", PropertyDescriptor.Data(new JsString("TypeError"), writable: true, enumerable: false, configurable: true));
         typeErrorProto.DefineOwnProperty("message", PropertyDescriptor.Data(JsString.Empty, writable: true, enumerable: false, configurable: true));
         var typeErrorCtor = CreateErrorConstructor(realm, "TypeError", typeErrorProto, errorCtor);
         realm.InstallGlobal("TypeError", typeErrorCtor);
 
         // RangeError
-        var rangeErrorProto = new JsObject { Prototype = errorProto };
+        var rangeErrorProto = new JsDynamicObject { Prototype = errorProto };
         rangeErrorProto.DefineOwnProperty("name", PropertyDescriptor.Data(new JsString("RangeError"), writable: true, enumerable: false, configurable: true));
         rangeErrorProto.DefineOwnProperty("message", PropertyDescriptor.Data(JsString.Empty, writable: true, enumerable: false, configurable: true));
         var rangeErrorCtor = CreateErrorConstructor(realm, "RangeError", rangeErrorProto, errorCtor);
         realm.InstallGlobal("RangeError", rangeErrorCtor);
 
         // ReferenceError
-        var refErrorProto = new JsObject { Prototype = errorProto };
+        var refErrorProto = new JsDynamicObject { Prototype = errorProto };
         refErrorProto.DefineOwnProperty("name", PropertyDescriptor.Data(new JsString("ReferenceError"), writable: true, enumerable: false, configurable: true));
         refErrorProto.DefineOwnProperty("message", PropertyDescriptor.Data(JsString.Empty, writable: true, enumerable: false, configurable: true));
         var refErrorCtor = CreateErrorConstructor(realm, "ReferenceError", refErrorProto, errorCtor);
         realm.InstallGlobal("ReferenceError", refErrorCtor);
 
         // SyntaxError
-        var syntaxErrorProto = new JsObject { Prototype = errorProto };
+        var syntaxErrorProto = new JsDynamicObject { Prototype = errorProto };
         syntaxErrorProto.DefineOwnProperty("name", PropertyDescriptor.Data(new JsString("SyntaxError"), writable: true, enumerable: false, configurable: true));
         syntaxErrorProto.DefineOwnProperty("message", PropertyDescriptor.Data(JsString.Empty, writable: true, enumerable: false, configurable: true));
         var syntaxErrorCtor = CreateErrorConstructor(realm, "SyntaxError", syntaxErrorProto, errorCtor);
         realm.InstallGlobal("SyntaxError", syntaxErrorCtor);
 
         // URIError
-        var uriErrorProto = new JsObject { Prototype = errorProto };
+        var uriErrorProto = new JsDynamicObject { Prototype = errorProto };
         uriErrorProto.DefineOwnProperty("name", PropertyDescriptor.Data(new JsString("URIError"), writable: true, enumerable: false, configurable: true));
         uriErrorProto.DefineOwnProperty("message", PropertyDescriptor.Data(JsString.Empty, writable: true, enumerable: false, configurable: true));
         var uriErrorCtor = CreateErrorConstructor(realm, "URIError", uriErrorProto, errorCtor);
         realm.InstallGlobal("URIError", uriErrorCtor);
     }
 
-    private static JsFunction CreateErrorConstructor(Realm realm, string name, JsObject proto, JsFunction? parent)
+    private static JsFunction CreateErrorConstructor(Realm realm, string name, JsDynamicObject proto, JsFunction? parent)
     {
         var ctor = new JsFunction
         {
@@ -86,7 +86,7 @@ public static class ErrorConstructor
             PrototypeObject = proto,
             ConstructTarget = args =>
             {
-                var obj = new JsObject { Prototype = proto };
+                var obj = new JsDynamicObject { Prototype = proto };
                 var message = BuiltinHelper.Arg(args, 0);
                 if (message is not JsUndefined)
                 {
@@ -103,7 +103,7 @@ public static class ErrorConstructor
             CallTarget = (_, args) =>
             {
                 // Calling Error() without new should still create an error object
-                var obj = new JsObject { Prototype = proto };
+                var obj = new JsDynamicObject { Prototype = proto };
                 var message = BuiltinHelper.Arg(args, 0);
                 if (message is not JsUndefined)
                 {

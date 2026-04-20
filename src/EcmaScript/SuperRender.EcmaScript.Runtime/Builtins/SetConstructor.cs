@@ -233,7 +233,7 @@ public static class SetConstructor
 /// <summary>
 /// Internal Set storage that uses SameValueZero comparison and preserves insertion order.
 /// </summary>
-internal sealed class JsSetObject : JsObject
+internal sealed class JsSetObject : JsDynamicObject
 {
     private readonly List<JsValue> _values = [];
 

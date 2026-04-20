@@ -6,7 +6,7 @@ namespace SuperRender.EcmaScript.Compiler;
 
 /// <summary>
 /// DLR binder for property get access on JS values.
-/// Delegates to <see cref="JsObject.Get(string)"/> when the target is a JsObject;
+/// Delegates to <see cref="JsDynamicObject.Get(string)"/> when the target is a JsDynamicObject;
 /// otherwise returns <see cref="JsValue.Undefined"/>.
 /// </summary>
 public sealed class JsGetMemberBinder : GetMemberBinder
@@ -24,18 +24,18 @@ public sealed class JsGetMemberBinder : GetMemberBinder
         var restrictions = BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType);
 
         Expr result;
-        if (typeof(JsObject).IsAssignableFrom(target.LimitType))
+        if (typeof(JsDynamicObject).IsAssignableFrom(target.LimitType))
         {
-            // Target is a JsObject — call Get(name)
-            var self = Expr.Convert(target.Expression, typeof(JsObject));
+            // Target is a JsDynamicObject — call Get(name)
+            var self = Expr.Convert(target.Expression, typeof(JsDynamicObject));
             result = Expr.Call(
                 self,
-                typeof(JsObject).GetMethod(nameof(JsObject.Get), [typeof(string)])!,
+                typeof(JsDynamicObject).GetMethod(nameof(JsDynamicObject.Get), [typeof(string)])!,
                 Expr.Constant(Name));
         }
         else
         {
-            // Not a JsObject — return undefined
+            // Not a JsDynamicObject — return undefined
             result = Expr.Constant(JsValue.Undefined, typeof(JsValue));
         }
 

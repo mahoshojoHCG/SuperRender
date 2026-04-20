@@ -7,7 +7,7 @@ namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 /// <see cref="FileSystemWatcher"/>. Emits Node-style "change"/"rename" events
 /// via optional listener callback and own `on(event, fn)` API.
 /// </summary>
-public sealed class FsWatcherObject : JsObject, IDisposable
+public sealed class FsWatcherObject : JsDynamicObject, IDisposable
 {
     private readonly FileSystemWatcher _watcher;
     private readonly Dictionary<string, List<JsFunction>> _listeners = new(StringComparer.Ordinal);

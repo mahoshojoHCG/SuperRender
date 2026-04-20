@@ -22,14 +22,14 @@ public static class AssertModule
         throw new Runtime.Errors.JsTypeError($"The \"{param}\" argument must be of type string");
     }
 
-    private static void DefineMethod(JsObject obj, string name, int length, Func<JsValue, JsValue[], JsValue> impl)
+    private static void DefineMethod(JsDynamicObject obj, string name, int length, Func<JsValue, JsValue[], JsValue> impl)
     {
         obj.DefineOwnProperty(name, PropertyDescriptor.Data(
             JsFunction.CreateNative(name, impl, length),
             writable: true, enumerable: false, configurable: true));
     }
 
-    public static JsObject Create()
+    public static JsDynamicObject Create()
     {
         // The assert function itself is callable (behaves as assert.ok)
         var fn = new JsFunction

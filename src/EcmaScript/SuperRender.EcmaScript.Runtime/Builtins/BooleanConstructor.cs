@@ -23,7 +23,7 @@ public static class BooleanConstructor
             ConstructTarget = args =>
             {
                 var val = BuiltinHelper.Arg(args, 0);
-                var wrapper = new JsObject { Prototype = realm.BooleanPrototype };
+                var wrapper = new JsDynamicObject { Prototype = realm.BooleanPrototype };
                 wrapper.DefineOwnProperty("[[BooleanData]]",
                     PropertyDescriptor.Data(val.ToBoolean() ? JsValue.True : JsValue.False, writable: false, enumerable: false, configurable: false));
                 return wrapper;
@@ -54,7 +54,7 @@ public static class BooleanConstructor
             return b.Value;
         }
 
-        if (thisArg is JsObject obj)
+        if (thisArg is JsDynamicObject obj)
         {
             var data = obj.GetOwnProperty("[[BooleanData]]");
             if (data?.Value is JsBoolean boolData)

@@ -7,7 +7,7 @@ public static class WeakMapConstructor
 {
     public static void Install(Realm realm)
     {
-        var proto = new JsObject { Prototype = realm.ObjectPrototype };
+        var proto = new JsDynamicObject { Prototype = realm.ObjectPrototype };
 
         var ctor = new JsFunction
         {
@@ -31,7 +31,7 @@ public static class WeakMapConstructor
                         }
 
                         var key = pair.GetIndex(0);
-                        if (key is not JsObject keyObj)
+                        if (key is not JsDynamicObject keyObj)
                         {
                             throw new Errors.JsTypeError("Invalid value used as weak map key", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                         }
@@ -54,7 +54,7 @@ public static class WeakMapConstructor
         {
             var weakMap = RequireWeakMap(thisArg);
             var key = BuiltinHelper.Arg(args, 0);
-            if (key is not JsObject keyObj)
+            if (key is not JsDynamicObject keyObj)
             {
                 return JsValue.Undefined;
             }
@@ -66,7 +66,7 @@ public static class WeakMapConstructor
         {
             var weakMap = RequireWeakMap(thisArg);
             var key = BuiltinHelper.Arg(args, 0);
-            if (key is not JsObject keyObj)
+            if (key is not JsDynamicObject keyObj)
             {
                 throw new Errors.JsTypeError("Invalid value used as weak map key", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
@@ -79,7 +79,7 @@ public static class WeakMapConstructor
         {
             var weakMap = RequireWeakMap(thisArg);
             var key = BuiltinHelper.Arg(args, 0);
-            if (key is not JsObject keyObj)
+            if (key is not JsDynamicObject keyObj)
             {
                 return JsValue.False;
             }
@@ -91,7 +91,7 @@ public static class WeakMapConstructor
         {
             var weakMap = RequireWeakMap(thisArg);
             var key = BuiltinHelper.Arg(args, 0);
-            if (key is not JsObject keyObj)
+            if (key is not JsDynamicObject keyObj)
             {
                 return JsValue.False;
             }
@@ -117,26 +117,26 @@ public static class WeakMapConstructor
     }
 }
 
-internal sealed class JsWeakMapObject : JsObject
+internal sealed class JsWeakMapObject : JsDynamicObject
 {
-    private readonly ConditionalWeakTable<JsObject, JsValue> _table = new();
+    private readonly ConditionalWeakTable<JsDynamicObject, JsValue> _table = new();
 
-    public JsValue WeakMapGet(JsObject key)
+    public JsValue WeakMapGet(JsDynamicObject key)
     {
         return _table.TryGetValue(key, out var value) ? value : Undefined;
     }
 
-    public void WeakMapSet(JsObject key, JsValue value)
+    public void WeakMapSet(JsDynamicObject key, JsValue value)
     {
         _table.AddOrUpdate(key, value);
     }
 
-    public bool WeakMapHas(JsObject key)
+    public bool WeakMapHas(JsDynamicObject key)
     {
         return _table.TryGetValue(key, out _);
     }
 
-    public bool WeakMapDelete(JsObject key)
+    public bool WeakMapDelete(JsDynamicObject key)
     {
         return _table.Remove(key);
     }

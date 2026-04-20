@@ -9,14 +9,14 @@ public static class StructuredCloneHelper
         var cloneFn = JsFunction.CreateNative("structuredClone", (_, args) =>
         {
             var value = BuiltinHelper.Arg(args, 0);
-            var seen = new Dictionary<JsObject, JsObject>(ReferenceEqualityComparer.Instance);
+            var seen = new Dictionary<JsDynamicObject, JsDynamicObject>(ReferenceEqualityComparer.Instance);
             return Clone(value, realm, seen);
         }, 1);
 
         realm.InstallGlobal("structuredClone", cloneFn);
     }
 
-    private static JsValue Clone(JsValue value, Realm realm, Dictionary<JsObject, JsObject> seen)
+    private static JsValue Clone(JsValue value, Realm realm, Dictionary<JsDynamicObject, JsDynamicObject> seen)
     {
         // Primitives pass through
         if (value is JsUndefined or JsNull or JsBoolean or JsNumber or JsString)
@@ -28,7 +28,7 @@ public static class StructuredCloneHelper
         if (value is JsSymbol)
             throw new Errors.JsTypeError("Cannot clone a Symbol", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
 
-        if (value is not JsObject obj)
+        if (value is not JsDynamicObject obj)
             return value;
 
         // Circular reference check
@@ -83,10 +83,10 @@ public static class StructuredCloneHelper
         }
 
         // Clone Date
-        if (obj is JsObject dateObj && dateObj.HasProperty("[[DateValue]]"))
+        if (obj is JsDynamicObject dateObj && dateObj.HasProperty("[[DateValue]]"))
         {
             var dateValue = dateObj.Get("[[DateValue]]");
-            var cloneDate = new JsObject { Prototype = realm.DatePrototype };
+            var cloneDate = new JsDynamicObject { Prototype = realm.DatePrototype };
             cloneDate.DefineOwnProperty("[[DateValue]]",
                 PropertyDescriptor.Data(dateValue, writable: false, enumerable: false, configurable: false));
             seen[obj] = cloneDate;
@@ -94,7 +94,7 @@ public static class StructuredCloneHelper
         }
 
         // Clone plain objects
-        var clone = new JsObject { Prototype = realm.ObjectPrototype };
+        var clone = new JsDynamicObject { Prototype = realm.ObjectPrototype };
         seen[obj] = clone;
         foreach (var key in obj.OwnPropertyKeys())
         {
@@ -108,10 +108,10 @@ public static class StructuredCloneHelper
         return clone;
     }
 
-    private sealed class ReferenceEqualityComparer : IEqualityComparer<JsObject>
+    private sealed class ReferenceEqualityComparer : IEqualityComparer<JsDynamicObject>
     {
         public static readonly ReferenceEqualityComparer Instance = new();
-        public bool Equals(JsObject? x, JsObject? y) => ReferenceEquals(x, y);
-        public int GetHashCode(JsObject obj) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);
+        public bool Equals(JsDynamicObject? x, JsDynamicObject? y) => ReferenceEquals(x, y);
+        public int GetHashCode(JsDynamicObject obj) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);
     }
 }

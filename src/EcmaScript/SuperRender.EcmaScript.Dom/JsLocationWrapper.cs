@@ -6,7 +6,7 @@ namespace SuperRender.EcmaScript.Dom;
 /// JS wrapper for window.location. Provides URL property access and navigation methods.
 /// Uses delegates for navigation so the EcmaScript.Dom project remains dependency-free.
 /// </summary>
-internal sealed class JsLocationWrapper : JsObject
+internal sealed class JsLocationWrapper : JsDynamicObject
 {
     private readonly Func<Uri?> _getCurrentUri;
     private readonly Action<string> _navigate;

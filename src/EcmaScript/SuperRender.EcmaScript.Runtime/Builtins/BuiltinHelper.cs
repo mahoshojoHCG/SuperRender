@@ -4,18 +4,18 @@ using SuperRender.EcmaScript.Runtime;
 
 internal static class BuiltinHelper
 {
-    internal static void DefineMethod(JsObject target, string name, Func<JsValue, JsValue[], JsValue> impl, int length)
+    internal static void DefineMethod(JsDynamicObject target, string name, Func<JsValue, JsValue[], JsValue> impl, int length)
     {
         var fn = JsFunction.CreateNative(name, impl, length);
         target.DefineOwnProperty(name, PropertyDescriptor.Data(fn, writable: true, enumerable: false, configurable: true));
     }
 
-    internal static void DefineProperty(JsObject target, string name, JsValue value)
+    internal static void DefineProperty(JsDynamicObject target, string name, JsValue value)
     {
         target.DefineOwnProperty(name, PropertyDescriptor.Data(value, writable: false, enumerable: false, configurable: false));
     }
 
-    internal static void DefineGetter(JsObject target, string name, Func<JsValue, JsValue[], JsValue> getter)
+    internal static void DefineGetter(JsDynamicObject target, string name, Func<JsValue, JsValue[], JsValue> getter)
     {
         var fn = JsFunction.CreateNative("get " + name, getter, 0);
         target.DefineOwnProperty(name, PropertyDescriptor.Accessor(fn, null, enumerable: false, configurable: true));
@@ -26,23 +26,23 @@ internal static class BuiltinHelper
         return index < args.Length ? args[index] : JsValue.Undefined;
     }
 
-    internal static int GetLength(JsObject obj)
+    internal static int GetLength(JsDynamicObject obj)
     {
         return (int)obj.Get("length").ToNumber();
     }
 
-    internal static JsObject CreateIteratorResult(JsValue value, bool done)
+    internal static JsDynamicObject CreateIteratorResult(JsValue value, bool done)
     {
-        var result = new JsObject();
+        var result = new JsDynamicObject();
         result.DefineOwnProperty("value", PropertyDescriptor.Data(value, writable: true, enumerable: true, configurable: true));
         result.DefineOwnProperty("done", PropertyDescriptor.Data(done ? JsValue.True : JsValue.False, writable: true, enumerable: true, configurable: true));
         return result;
     }
 
-    internal static JsObject CreateListIterator(IReadOnlyList<JsValue> items, Realm realm)
+    internal static JsDynamicObject CreateListIterator(IReadOnlyList<JsValue> items, Realm realm)
     {
         var index = 0;
-        var iterator = new JsObject { Prototype = realm.IteratorPrototype };
+        var iterator = new JsDynamicObject { Prototype = realm.IteratorPrototype };
 
         DefineMethod(iterator, "next", (_, _) =>
         {

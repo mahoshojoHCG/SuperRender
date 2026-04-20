@@ -58,7 +58,7 @@ public sealed class TypeProxy : JsFunction
         }
 
         // Set up prototype object with instance methods
-        PrototypeObject = new JsObject { Prototype = realm.ObjectPrototype };
+        PrototypeObject = new JsDynamicObject { Prototype = realm.ObjectPrototype };
 
         foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
         {

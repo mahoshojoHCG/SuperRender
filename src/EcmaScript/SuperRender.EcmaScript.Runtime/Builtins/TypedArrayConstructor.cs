@@ -31,7 +31,7 @@ public static class TypedArrayConstructor
     private static void InstallTypedArray(Realm realm, string name, int bytesPerElement,
         Func<byte[], int, double> getter, Action<byte[], int, double> setter)
     {
-        var proto = new JsObject { Prototype = realm.ObjectPrototype };
+        var proto = new JsDynamicObject { Prototype = realm.ObjectPrototype };
 
         var ctor = new JsFunction
         {
@@ -44,7 +44,7 @@ public static class TypedArrayConstructor
             {
                 var arg = BuiltinHelper.Arg(args, 0);
 
-                JsObject buffer;
+                JsDynamicObject buffer;
                 int byteOffset = 0;
                 int length;
 
@@ -56,7 +56,7 @@ public static class TypedArrayConstructor
                         throw new Errors.JsRangeError("Invalid typed array length", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                     buffer = ArrayBufferConstructor.CreateArrayBuffer(length * bytesPerElement, realm.ArrayBufferPrototype, isShared: false);
                 }
-                else if (arg is JsObject argObj && argObj.Get("[[BackingStore]]") is JsByteArrayWrapper)
+                else if (arg is JsDynamicObject argObj && argObj.Get("[[BackingStore]]") is JsByteArrayWrapper)
                 {
                     // new TypedArray(buffer[, byteOffset[, length]])
                     buffer = argObj;
@@ -98,7 +98,7 @@ public static class TypedArrayConstructor
         // Prototype methods
         BuiltinHelper.DefineMethod(proto, "set", (self, args) =>
         {
-            if (self is not JsObject selfObj)
+            if (self is not JsDynamicObject selfObj)
                 throw new Errors.JsTypeError("TypedArray.prototype.set called on non-typed-array", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             var source = BuiltinHelper.Arg(args, 0);
             var offset = args.Length > 1 ? (int)args[1].ToNumber() : 0;
@@ -121,7 +121,7 @@ public static class TypedArrayConstructor
 
         BuiltinHelper.DefineMethod(proto, "slice", (self, args) =>
         {
-            if (self is not JsObject selfObj) return JsValue.Undefined;
+            if (self is not JsDynamicObject selfObj) return JsValue.Undefined;
             var len = (int)selfObj.Get("length").ToNumber();
             var begin = args.Length > 0 ? NormalizeIndex((int)args[0].ToNumber(), len) : 0;
             var end = args.Length > 1 && args[1] is not JsUndefined ? NormalizeIndex((int)args[1].ToNumber(), len) : len;
@@ -144,7 +144,7 @@ public static class TypedArrayConstructor
         proto.DefineSymbolProperty(JsSymbol.Iterator,
             PropertyDescriptor.Data(JsFunction.CreateNative("[Symbol.iterator]", (self, _) =>
             {
-                if (self is not JsObject selfObj) return JsValue.Undefined;
+                if (self is not JsDynamicObject selfObj) return JsValue.Undefined;
                 var len = (int)selfObj.Get("length").ToNumber();
                 var items = new List<JsValue>();
                 var bytes = GetTypedArrayBytes(selfObj);
@@ -162,8 +162,8 @@ public static class TypedArrayConstructor
         realm.InstallGlobal(name, ctor);
     }
 
-    private static JsObject CreateTypedArray(JsObject buffer, int byteOffset, int length,
-        int bytesPerElement, JsObject proto, string typeName,
+    private static JsDynamicObject CreateTypedArray(JsDynamicObject buffer, int byteOffset, int length,
+        int bytesPerElement, JsDynamicObject proto, string typeName,
         Func<byte[], int, double> getter, Action<byte[], int, double> setter, Realm realm)
     {
         var ta = new JsTypedArrayObject(buffer, byteOffset, length, bytesPerElement, getter, setter)
@@ -177,10 +177,10 @@ public static class TypedArrayConstructor
         return ta;
     }
 
-    private static byte[]? GetTypedArrayBytes(JsObject ta)
+    private static byte[]? GetTypedArrayBytes(JsDynamicObject ta)
     {
         var buffer = ta.Get("buffer");
-        if (buffer is JsObject bufObj)
+        if (buffer is JsDynamicObject bufObj)
         {
             return ArrayBufferConstructor.GetByteArray(bufObj);
         }
@@ -197,16 +197,16 @@ public static class TypedArrayConstructor
 /// <summary>
 /// Typed array object with indexed property access for element read/write.
 /// </summary>
-internal sealed class JsTypedArrayObject : JsObject
+internal sealed class JsTypedArrayObject : JsDynamicObject
 {
-    private readonly JsObject _buffer;
+    private readonly JsDynamicObject _buffer;
     private readonly int _byteOffset;
     private readonly int _length;
     private readonly int _bytesPerElement;
     private readonly Func<byte[], int, double> _getter;
     private readonly Action<byte[], int, double> _setter;
 
-    public JsTypedArrayObject(JsObject buffer, int byteOffset, int length, int bytesPerElement,
+    public JsTypedArrayObject(JsDynamicObject buffer, int byteOffset, int length, int bytesPerElement,
         Func<byte[], int, double> getter, Action<byte[], int, double> setter)
     {
         _buffer = buffer;

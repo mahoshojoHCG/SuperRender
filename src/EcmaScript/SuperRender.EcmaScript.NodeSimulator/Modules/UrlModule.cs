@@ -11,9 +11,9 @@ public static class UrlModule
     private static PropertyDescriptor MethodDesc(string name, Func<JsValue, JsValue[], JsValue> impl, int length) =>
         PropertyDescriptor.Data(JsFunction.CreateNative(name, impl, length), writable: true, enumerable: false, configurable: true);
 
-    public static JsObject Create(Realm realm)
+    public static JsDynamicObject Create(Realm realm)
     {
-        var obj = new JsObject();
+        var obj = new JsDynamicObject();
 
         if (realm.GlobalObject.Get("URL") is JsFunction urlCtor)
             obj.DefineOwnProperty("URL", PropertyDescriptor.Data(urlCtor));
@@ -31,7 +31,7 @@ public static class UrlModule
         {
             if (args.Length == 0) return new JsString("");
             if (args[0] is JsString s) return new JsString(s.Value);
-            if (args[0] is JsObject o) return new JsString(LegacyFormat(o));
+            if (args[0] is JsDynamicObject o) return new JsString(LegacyFormat(o));
             throw new Runtime.Errors.JsTypeError("url.format requires a string or object");
         }, 1));
 
@@ -46,7 +46,7 @@ public static class UrlModule
         {
             var arg = args.Length > 0 ? args[0] : JsValue.Undefined;
             string url = arg is JsString js ? js.Value
-                : arg is JsObject jo && jo.Get("href") is JsString hs ? hs.Value
+                : arg is JsDynamicObject jo && jo.Get("href") is JsString hs ? hs.Value
                 : throw new Runtime.Errors.JsTypeError("fileURLToPath requires a URL");
             return new JsString(FileUrlToPath(url));
         }, 1));
@@ -57,14 +57,14 @@ public static class UrlModule
             var href = PathToFileUrl(path);
             if (realm.GlobalObject.Get("URL") is JsFunction ctor)
                 return ctor.Construct([new JsString(href)]);
-            var stub = new JsObject();
+            var stub = new JsDynamicObject();
             stub.DefineOwnProperty("href", PropertyDescriptor.Data(new JsString(href)));
             return stub;
         }, 1));
 
         obj.DefineOwnProperty("urlToHttpOptions", MethodDesc("urlToHttpOptions", (_, args) =>
         {
-            if (args.Length == 0 || args[0] is not JsObject u)
+            if (args.Length == 0 || args[0] is not JsDynamicObject u)
                 throw new Runtime.Errors.JsTypeError("urlToHttpOptions requires a URL object");
             return UrlToHttpOptions(u);
         }, 1));
@@ -93,9 +93,9 @@ public static class UrlModule
         throw new Runtime.Errors.JsTypeError($"The \"{param}\" argument must be of type string");
     }
 
-    internal static JsObject LegacyParse(string input, bool parseQuery)
+    internal static JsDynamicObject LegacyParse(string input, bool parseQuery)
     {
-        var obj = new JsObject();
+        var obj = new JsDynamicObject();
         string? protocol = null, host = null, hostname = null, port = null, pathname = null, search = null, hash = null, auth = null;
 
         int hashIdx = input.IndexOf('#', StringComparison.Ordinal);
@@ -149,7 +149,7 @@ public static class UrlModule
         }
         else if (parseQuery)
         {
-            query = new JsObject();
+            query = new JsDynamicObject();
         }
         obj.DefineOwnProperty("query", PropertyDescriptor.Data(query));
 
@@ -172,7 +172,7 @@ public static class UrlModule
         return sb.ToString();
     }
 
-    internal static string LegacyFormat(JsObject o)
+    internal static string LegacyFormat(JsDynamicObject o)
     {
         string? Get(string k) => o.Get(k) is JsString s ? s.Value : null;
         var protocol = Get("protocol");
@@ -188,7 +188,7 @@ public static class UrlModule
         }
         var pathname = Get("pathname");
         string? search = Get("search");
-        if (search is null && o.Get("query") is JsObject qo) search = "?" + QueryStringModule.Stringify(qo, "&", "=");
+        if (search is null && o.Get("query") is JsDynamicObject qo) search = "?" + QueryStringModule.Stringify(qo, "&", "=");
         else if (search is null && o.Get("query") is JsString qs) search = "?" + qs.Value;
         if (search is not null && search.Length > 0 && search[0] != '?') search = "?" + search;
         var hash = Get("hash");
@@ -279,9 +279,9 @@ public static class UrlModule
         return sb.ToString();
     }
 
-    internal static JsObject UrlToHttpOptions(JsObject url)
+    internal static JsDynamicObject UrlToHttpOptions(JsDynamicObject url)
     {
-        var opts = new JsObject();
+        var opts = new JsDynamicObject();
         void Copy(string src, string dst)
         {
             var v = url.Get(src);

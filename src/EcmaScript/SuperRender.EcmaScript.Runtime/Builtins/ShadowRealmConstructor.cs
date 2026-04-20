@@ -6,7 +6,7 @@ public static class ShadowRealmConstructor
 {
     public static void Install(Realm realm)
     {
-        var proto = new JsObject { Prototype = realm.ObjectPrototype };
+        var proto = new JsDynamicObject { Prototype = realm.ObjectPrototype };
 
         var ctor = new JsFunction
         {
@@ -41,7 +41,7 @@ public static class ShadowRealmConstructor
                 PromiseConstructor.Install(shadowRealm);
                 ConsoleObject.Install(shadowRealm);
 
-                var srObj = new JsObject { Prototype = proto };
+                var srObj = new JsDynamicObject { Prototype = proto };
                 srObj.Set("[[ShadowRealm]]", new JsShadowRealmData(shadowRealm));
 
                 return srObj;
@@ -54,7 +54,7 @@ public static class ShadowRealmConstructor
 
         BuiltinHelper.DefineMethod(proto, "evaluate", (self, args) =>
         {
-            if (self is not JsObject selfObj)
+            if (self is not JsDynamicObject selfObj)
                 throw new Errors.JsTypeError("ShadowRealm.prototype.evaluate called on non-ShadowRealm", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
 
             var srData = selfObj.Get("[[ShadowRealm]]");
@@ -72,7 +72,7 @@ public static class ShadowRealmConstructor
             var result = evalFn(codeStr.Value, data.ShadowRealm);
 
             // Only primitive values can cross the boundary
-            if (result is JsObject and not JsFunction)
+            if (result is JsDynamicObject and not JsFunction)
             {
                 throw new Errors.JsTypeError("ShadowRealm.prototype.evaluate can only return primitive values or callables", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }

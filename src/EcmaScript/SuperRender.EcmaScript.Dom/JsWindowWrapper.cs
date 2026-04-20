@@ -5,15 +5,15 @@ namespace SuperRender.EcmaScript.Dom;
 /// <summary>
 /// The 'window' global object exposed to JavaScript.
 /// </summary>
-internal sealed class JsWindowWrapper : JsObject
+internal sealed class JsWindowWrapper : JsDynamicObject
 {
-    private readonly JsObject _documentWrapper;
+    private readonly JsDynamicObject _documentWrapper;
     private readonly TimerScheduler _timerQueue;
     private float _innerWidth;
     private float _innerHeight;
     private float _devicePixelRatio = 1.0f;
 
-    public JsWindowWrapper(JsObject documentWrapper, Realm realm, TimerScheduler timerQueue)
+    public JsWindowWrapper(JsDynamicObject documentWrapper, Realm realm, TimerScheduler timerQueue)
     {
         _documentWrapper = documentWrapper;
         _timerQueue = timerQueue;
@@ -31,7 +31,7 @@ internal sealed class JsWindowWrapper : JsObject
     /// <summary>
     /// Install a storage object (localStorage or sessionStorage) as a window property.
     /// </summary>
-    public void InstallStorage(string name, JsObject storageWrapper)
+    public void InstallStorage(string name, JsDynamicObject storageWrapper)
     {
         DefineOwnProperty(name, PropertyDescriptor.Data(storageWrapper));
     }
@@ -39,7 +39,7 @@ internal sealed class JsWindowWrapper : JsObject
     /// <summary>
     /// Install the location object as a window property.
     /// </summary>
-    public void InstallLocation(JsObject locationWrapper)
+    public void InstallLocation(JsDynamicObject locationWrapper)
     {
         DefineOwnProperty("location", PropertyDescriptor.Data(locationWrapper));
     }
@@ -47,7 +47,7 @@ internal sealed class JsWindowWrapper : JsObject
     /// <summary>
     /// Install the history object as a window property.
     /// </summary>
-    public void InstallHistory(JsObject historyWrapper)
+    public void InstallHistory(JsDynamicObject historyWrapper)
     {
         DefineOwnProperty("history", PropertyDescriptor.Data(historyWrapper));
     }

@@ -518,16 +518,16 @@ public sealed partial class JsCompiler
 
     private Expr CompileObject(ObjectExpression node)
     {
-        var objVar = Expr.Parameter(typeof(JsObject), "newObj");
+        var objVar = Expr.Parameter(typeof(JsDynamicObject), "newObj");
         var exprs = new List<Expr>
         {
-            Expr.Assign(objVar, Expr.New(typeof(JsObject)))
+            Expr.Assign(objVar, Expr.New(typeof(JsDynamicObject)))
         };
 
         // Set prototype from realm
         exprs.Add(Expr.Assign(
-            Expr.Property(objVar, nameof(JsObject.Prototype)),
-            Expr.Constant(_realm.ObjectPrototype, typeof(JsObject))));
+            Expr.Property(objVar, nameof(JsDynamicObject.Prototype)),
+            Expr.Constant(_realm.ObjectPrototype, typeof(JsDynamicObject))));
 
         foreach (var prop in node.Properties)
         {
@@ -588,8 +588,8 @@ public sealed partial class JsCompiler
                 // Normal or shorthand property
                 var value = CompileNode(p.Value);
                 exprs.Add(Expr.Call(
-                    Expr.Convert(objVar, typeof(JsObject)),
-                    typeof(JsObject).GetMethod(nameof(JsObject.Set), [typeof(string), typeof(JsValue)])!,
+                    Expr.Convert(objVar, typeof(JsDynamicObject)),
+                    typeof(JsDynamicObject).GetMethod(nameof(JsDynamicObject.Set), [typeof(string), typeof(JsValue)])!,
                     keyExpr,
                     EnsureJsValue(value)));
             }
@@ -609,8 +609,8 @@ public sealed partial class JsCompiler
 
         // Set prototype from realm
         exprs.Add(Expr.Assign(
-            Expr.Property(arrVar, nameof(JsObject.Prototype)),
-            Expr.Constant(_realm.ArrayPrototype, typeof(JsObject))));
+            Expr.Property(arrVar, nameof(JsDynamicObject.Prototype)),
+            Expr.Constant(_realm.ArrayPrototype, typeof(JsDynamicObject))));
 
         foreach (var element in node.Elements)
         {

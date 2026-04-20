@@ -8,7 +8,7 @@ namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 /// Minimal Node.js Buffer implementation backed by a byte array.
 /// Supports utf8, ascii, latin1, hex, base64, base64url, utf16le encodings.
 /// </summary>
-public sealed class BufferObject : JsObject
+public sealed class BufferObject : JsDynamicObject
 {
     public byte[] Bytes { get; }
     public int Offset { get; }

@@ -29,7 +29,7 @@ internal static class JsFetchApi
             List<KeyValuePair<string, string>>? headers = null;
 
             // Parse options object
-            if (args.Length > 1 && args[1] is JsObject options)
+            if (args.Length > 1 && args[1] is JsDynamicObject options)
             {
                 var methodVal = options.Get("method");
                 if (methodVal is not JsUndefined)
@@ -40,7 +40,7 @@ internal static class JsFetchApi
                     body = bodyVal.ToJsString();
 
                 var headersVal = options.Get("headers");
-                if (headersVal is JsObject headersObj)
+                if (headersVal is JsDynamicObject headersObj)
                 {
                     headers = [];
                     foreach (var key in headersObj.OwnPropertyKeys())
@@ -70,7 +70,7 @@ internal static class JsFetchApi
                 {
                     enqueueMainThread(() =>
                     {
-                        var errorObj = new JsObject { Prototype = realm.ErrorPrototype };
+                        var errorObj = new JsDynamicObject { Prototype = realm.ErrorPrototype };
                         errorObj.Set("message", new JsString(ex.Message));
                         errorObj.Set("name", new JsString("TypeError"));
                         PromiseConstructor.RejectPromise(promise, errorObj);
@@ -98,7 +98,7 @@ public sealed class FetchResult
 /// <summary>
 /// JS Response object for the fetch API.
 /// </summary>
-internal sealed class JsResponseWrapper : JsObject
+internal sealed class JsResponseWrapper : JsDynamicObject
 {
     private readonly FetchResult _result;
     private readonly Realm _realm;
@@ -120,7 +120,7 @@ internal sealed class JsResponseWrapper : JsObject
             _result.Status >= 200 && _result.Status < 300 ? True : False));
 
         // headers object
-        var headersObj = new JsObject { Prototype = _realm.ObjectPrototype };
+        var headersObj = new JsDynamicObject { Prototype = _realm.ObjectPrototype };
         foreach (var h in _result.Headers)
             headersObj.Set(h.Key, new JsString(h.Value));
         DefineOwnProperty("headers", PropertyDescriptor.Data(headersObj));
@@ -146,7 +146,7 @@ internal sealed class JsResponseWrapper : JsObject
                 }
                 catch (Exception ex)
                 {
-                    var jsonErr = new JsObject { Prototype = _realm.ErrorPrototype };
+                    var jsonErr = new JsDynamicObject { Prototype = _realm.ErrorPrototype };
                     jsonErr.Set("message", new JsString(ex.Message));
                     PromiseConstructor.RejectPromise(p, jsonErr);
                 }
@@ -183,9 +183,9 @@ internal sealed class JsResponseWrapper : JsObject
         return arr;
     }
 
-    private static JsObject ConvertObject(JsonElement element)
+    private static JsDynamicObject ConvertObject(JsonElement element)
     {
-        var obj = new JsObject();
+        var obj = new JsDynamicObject();
         foreach (var prop in element.EnumerateObject())
             obj.Set(prop.Name, ConvertElement(prop.Value));
         return obj;

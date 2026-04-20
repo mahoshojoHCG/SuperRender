@@ -12,9 +12,9 @@ public static class QueryStringModule
     private static PropertyDescriptor MethodDesc(string name, Func<JsValue, JsValue[], JsValue> impl, int length) =>
         PropertyDescriptor.Data(JsFunction.CreateNative(name, impl, length), writable: true, enumerable: false, configurable: true);
 
-    public static JsObject Create()
+    public static JsDynamicObject Create()
     {
-        var obj = new JsObject();
+        var obj = new JsDynamicObject();
         obj.DefineOwnProperty("parse", MethodDesc("parse", (_, args) =>
         {
             var input = args.Length > 0 && args[0] is JsString s ? s.Value : "";
@@ -25,7 +25,7 @@ public static class QueryStringModule
 
         obj.DefineOwnProperty("stringify", MethodDesc("stringify", (_, args) =>
         {
-            var o = args.Length > 0 && args[0] is JsObject j ? j : null;
+            var o = args.Length > 0 && args[0] is JsDynamicObject j ? j : null;
             var sep = args.Length > 1 && args[1] is JsString s1 ? s1.Value : "&";
             var eq = args.Length > 2 && args[2] is JsString s2 ? s2.Value : "=";
             return new JsString(Stringify(o, sep, eq));
@@ -48,9 +48,9 @@ public static class QueryStringModule
         return obj;
     }
 
-    internal static JsObject Parse(string input, string sep, string eq)
+    internal static JsDynamicObject Parse(string input, string sep, string eq)
     {
-        var result = new JsObject();
+        var result = new JsDynamicObject();
         if (string.IsNullOrEmpty(input)) return result;
         var pairs = input.Split(new[] { sep }, StringSplitOptions.None);
         foreach (var pair in pairs)
@@ -82,7 +82,7 @@ public static class QueryStringModule
         return result;
     }
 
-    internal static string Stringify(JsObject? obj, string sep, string eq)
+    internal static string Stringify(JsDynamicObject? obj, string sep, string eq)
     {
         if (obj is null) return "";
         var sb = new StringBuilder();

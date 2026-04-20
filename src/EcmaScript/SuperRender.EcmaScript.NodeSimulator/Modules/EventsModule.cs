@@ -11,7 +11,7 @@ public static class EventsModule
     private static PropertyDescriptor MethodDesc(string name, Func<JsValue, JsValue[], JsValue> impl, int length) =>
         PropertyDescriptor.Data(JsFunction.CreateNative(name, impl, length), writable: true, enumerable: false, configurable: true);
 
-    public static JsObject Create(Realm realm)
+    public static JsDynamicObject Create(Realm realm)
     {
         var ctor = CreateEmitterConstructor(realm);
         var module = ctor;
@@ -23,7 +23,7 @@ public static class EventsModule
 
     private static JsFunction CreateEmitterConstructor(Realm realm)
     {
-        var proto = new JsObject { Prototype = realm.ObjectPrototype };
+        var proto = new JsDynamicObject { Prototype = realm.ObjectPrototype };
         InstallEmitterMethods(proto);
 
         var ctor = new JsFunction
@@ -34,16 +34,16 @@ public static class EventsModule
             PrototypeObject = proto,
             CallTarget = (thisArg, _) =>
             {
-                JsObject target = thisArg is JsObject to ? to : new JsObject();
+                JsDynamicObject target = thisArg is JsDynamicObject to ? to : new JsDynamicObject();
                 target.Prototype = proto;
-                target.DefineOwnProperty("_events", PropertyDescriptor.Data(new JsObject(), writable: true, enumerable: false, configurable: true));
+                target.DefineOwnProperty("_events", PropertyDescriptor.Data(new JsDynamicObject(), writable: true, enumerable: false, configurable: true));
                 target.DefineOwnProperty("_maxListeners", PropertyDescriptor.Data(JsNumber.Create(10), writable: true, enumerable: false, configurable: true));
                 return target;
             },
         };
         ctor.ConstructTarget = args =>
         {
-            var obj = new JsObject { Prototype = proto };
+            var obj = new JsDynamicObject { Prototype = proto };
             ctor.CallTarget!(obj, args);
             return obj;
         };
@@ -51,7 +51,7 @@ public static class EventsModule
         return ctor;
     }
 
-    private static void InstallEmitterMethods(JsObject proto)
+    private static void InstallEmitterMethods(JsDynamicObject proto)
     {
         proto.DefineOwnProperty("on", MethodDesc("on", (thisArg, args) => AddListener(thisArg, args, once: false, prepend: false), 2));
         proto.DefineOwnProperty("addListener", MethodDesc("addListener", (thisArg, args) => AddListener(thisArg, args, once: false, prepend: false), 2));
@@ -90,7 +90,7 @@ public static class EventsModule
             foreach (var entry in snapshot)
             {
                 if (entry is JsFunction fn) fn.Call(thisArg, rest);
-                else if (entry is JsObject wrap && wrap.Get("listener") is JsFunction inner)
+                else if (entry is JsDynamicObject wrap && wrap.Get("listener") is JsFunction inner)
                 {
                     inner.Call(thisArg, rest);
                     // Remove once-wrapper
@@ -122,7 +122,7 @@ public static class EventsModule
             for (int i = 0; i < list.DenseLength; i++)
             {
                 var v = list.Get(i.ToString(System.Globalization.CultureInfo.InvariantCulture));
-                if (v is JsObject wrap && wrap.Get("listener") is JsFunction inner) clone.Push(inner);
+                if (v is JsDynamicObject wrap && wrap.Get("listener") is JsFunction inner) clone.Push(inner);
                 else clone.Push(v);
             }
             return clone;
@@ -145,7 +145,7 @@ public static class EventsModule
         }, 0));
         proto.DefineOwnProperty("setMaxListeners", MethodDesc("setMaxListeners", (thisArg, args) =>
         {
-            if (thisArg is JsObject o)
+            if (thisArg is JsDynamicObject o)
             {
                 var n = args.Length > 0 && args[0] is not JsUndefined ? args[0].ToNumber() : 10;
                 o.DefineOwnProperty("_maxListeners", PropertyDescriptor.Data(JsNumber.Create(n), writable: true, enumerable: false, configurable: true));
@@ -154,14 +154,14 @@ public static class EventsModule
         }, 1));
         proto.DefineOwnProperty("getMaxListeners", MethodDesc("getMaxListeners", (thisArg, _) =>
         {
-            if (thisArg is JsObject o && o.Get("_maxListeners") is JsNumber n) return n;
+            if (thisArg is JsDynamicObject o && o.Get("_maxListeners") is JsNumber n) return n;
             return JsNumber.Create(10);
         }, 0));
     }
 
     private static JsPromiseObject StaticOnce(Realm realm, JsValue[] args)
     {
-        if (args.Length < 1 || args[0] is not JsObject emitter)
+        if (args.Length < 1 || args[0] is not JsDynamicObject emitter)
             throw new Runtime.Errors.JsTypeError("emitter must be an EventEmitter");
         if (args.Length < 2 || args[1] is not JsString evtStr)
             throw new Runtime.Errors.JsTypeError("The \"name\" argument must be of type string");
@@ -207,14 +207,14 @@ public static class EventsModule
         return promise;
     }
 
-    private static void AddEmitterListener(JsObject emitter, string evt, JsFunction listener, bool once)
+    private static void AddEmitterListener(JsDynamicObject emitter, string evt, JsFunction listener, bool once)
     {
         if (emitter.Get(once ? "once" : "on") is not JsFunction addFn)
             throw new Runtime.Errors.JsTypeError("emitter is not an EventEmitter");
         addFn.Call(emitter, [new JsString(evt), listener]);
     }
 
-    private static void RemoveEmitterListener(JsObject emitter, string evt, JsFunction listener)
+    private static void RemoveEmitterListener(JsDynamicObject emitter, string evt, JsFunction listener)
     {
         if (emitter.Get("off") is JsFunction off)
             off.Call(emitter, [new JsString(evt), listener]);
@@ -242,7 +242,7 @@ public static class EventsModule
         JsValue entry = fn;
         if (once)
         {
-            var wrap = new JsObject();
+            var wrap = new JsDynamicObject();
             wrap.DefineOwnProperty("listener", PropertyDescriptor.Data(fn));
             entry = wrap;
         }
@@ -262,18 +262,18 @@ public static class EventsModule
         {
             var v = list.Get(i.ToString(System.Globalization.CultureInfo.InvariantCulture));
             bool match = ReferenceEquals(v, target) ||
-                         (v is JsObject wrap && ReferenceEquals(wrap.Get("listener"), target));
+                         (v is JsDynamicObject wrap && ReferenceEquals(wrap.Get("listener"), target));
             if (match) { RemoveAt(list, i); break; }
         }
         return thisArg;
     }
 
-    private static JsObject GetEvents(JsValue self)
+    private static JsDynamicObject GetEvents(JsValue self)
     {
-        if (self is not JsObject o) throw new Runtime.Errors.JsTypeError("EventEmitter method called on non-object");
-        if (o.Get("_events") is not JsObject events)
+        if (self is not JsDynamicObject o) throw new Runtime.Errors.JsTypeError("EventEmitter method called on non-object");
+        if (o.Get("_events") is not JsDynamicObject events)
         {
-            events = new JsObject();
+            events = new JsDynamicObject();
             o.DefineOwnProperty("_events", PropertyDescriptor.Data(events, writable: true, enumerable: false, configurable: true));
         }
         return events;

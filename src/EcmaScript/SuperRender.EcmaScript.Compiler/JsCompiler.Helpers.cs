@@ -129,7 +129,7 @@ public sealed partial class JsCompiler
                             typeof(RuntimeHelpers).GetMethod(nameof(RuntimeHelpers.ArraySliceFrom))!,
                             valVar,
                             Expr.Constant(i),
-                            Expr.Constant(_realm.ArrayPrototype, typeof(JsObject))),
+                            Expr.Constant(_realm.ArrayPrototype, typeof(JsDynamicObject))),
                         mutable));
                     continue;
                 }

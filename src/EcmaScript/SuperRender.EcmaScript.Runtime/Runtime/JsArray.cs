@@ -2,7 +2,7 @@ namespace SuperRender.EcmaScript.Runtime;
 
 using System.Globalization;
 
-public sealed class JsArray : JsObject
+public sealed class JsArray : JsDynamicObject
 {
     private readonly List<JsValue> _dense = [];
 

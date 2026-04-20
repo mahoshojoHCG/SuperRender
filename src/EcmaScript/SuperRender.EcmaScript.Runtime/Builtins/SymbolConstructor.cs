@@ -104,7 +104,7 @@ public static class SymbolConstructor
             return sym;
         }
 
-        if (thisArg is JsObject obj)
+        if (thisArg is JsDynamicObject obj)
         {
             var data = obj.GetOwnProperty("[[SymbolData]]");
             if (data?.Value is JsSymbol symData)

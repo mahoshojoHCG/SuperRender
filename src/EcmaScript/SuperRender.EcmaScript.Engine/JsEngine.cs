@@ -301,7 +301,7 @@ public sealed class JsEngine
             return new ObjectProxy(value, typeProxy);
         }
 
-        // For unregistered types, create a simple JsObject wrapper with no methods
+        // For unregistered types, create a simple JsDynamicObject wrapper with no methods
         return new ObjectProxy(value, null);
     }
 }

@@ -6,7 +6,7 @@ namespace SuperRender.EcmaScript.Dom;
 /// <summary>
 /// Array-like wrapper for NodeList/HTMLCollection query results.
 /// </summary>
-internal sealed class JsNodeListWrapper : JsObject
+internal sealed class JsNodeListWrapper : JsDynamicObject
 {
     public JsNodeListWrapper(List<Node> nodes, NodeWrapperCache cache)
     {

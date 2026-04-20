@@ -15,9 +15,9 @@ public static class OsModule
     private static PropertyDescriptor MethodDesc(string name, Func<JsValue, JsValue[], JsValue> impl, int length) =>
         PropertyDescriptor.Data(JsFunction.CreateNative(name, impl, length), writable: true, enumerable: false, configurable: true);
 
-    public static JsObject Create()
+    public static JsDynamicObject Create()
     {
-        var o = new JsObject();
+        var o = new JsDynamicObject();
         o.DefineOwnProperty("EOL", PropertyDescriptor.Data(new JsString(System.Environment.NewLine)));
         o.DefineOwnProperty("platform", MethodDesc("platform", (_, _) => new JsString(GetPlatform()), 0));
         o.DefineOwnProperty("arch", MethodDesc("arch", (_, _) => new JsString(GetArch()), 0));
@@ -274,10 +274,10 @@ public static class OsModule
 
         for (int i = 0; i < cpuCount; i++)
         {
-            var cpu = new JsObject();
+            var cpu = new JsDynamicObject();
             cpu.DefineOwnProperty("model", PropertyDescriptor.Data(new JsString(models[i])));
             cpu.DefineOwnProperty("speed", PropertyDescriptor.Data(JsNumber.Create(speeds[i])));
-            var times = new JsObject();
+            var times = new JsDynamicObject();
             times.DefineOwnProperty("user", PropertyDescriptor.Data(JsNumber.Create(0)));
             times.DefineOwnProperty("nice", PropertyDescriptor.Data(JsNumber.Create(0)));
             times.DefineOwnProperty("sys", PropertyDescriptor.Data(JsNumber.Create(0)));
@@ -289,9 +289,9 @@ public static class OsModule
         return arr;
     }
 
-    private static JsObject BuildUserInfo()
+    private static JsDynamicObject BuildUserInfo()
     {
-        var u = new JsObject();
+        var u = new JsDynamicObject();
         u.DefineOwnProperty("username", PropertyDescriptor.Data(new JsString(System.Environment.UserName)));
 
         int uid = -1, gid = -1;
@@ -320,9 +320,9 @@ public static class OsModule
         return u;
     }
 
-    private static JsObject BuildNetworkInterfaces()
+    private static JsDynamicObject BuildNetworkInterfaces()
     {
-        var result = new JsObject();
+        var result = new JsDynamicObject();
         NetworkInterface[] interfaces;
         try { interfaces = NetworkInterface.GetAllNetworkInterfaces(); }
         catch (NetworkInformationException) { return result; }
@@ -341,7 +341,7 @@ public static class OsModule
                 var family = addr.Address.AddressFamily;
                 if (family != AddressFamily.InterNetwork && family != AddressFamily.InterNetworkV6) continue;
 
-                var entry = new JsObject();
+                var entry = new JsDynamicObject();
                 var addrStr = addr.Address.ToString();
                 var scopeIdx = addrStr.IndexOf('%');
                 if (scopeIdx >= 0) addrStr = addrStr[..scopeIdx];

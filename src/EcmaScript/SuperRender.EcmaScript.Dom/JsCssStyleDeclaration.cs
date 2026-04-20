@@ -7,7 +7,7 @@ namespace SuperRender.EcmaScript.Dom;
 /// JS wrapper for element.style - a CSSStyleDeclaration-like object.
 /// Reads/writes the inline style attribute on the backing Element.
 /// </summary>
-internal sealed class JsCssStyleDeclaration : JsObject
+internal sealed class JsCssStyleDeclaration : JsDynamicObject
 {
     private static readonly Dictionary<string, string> CamelToKebab = new(StringComparer.Ordinal)
     {

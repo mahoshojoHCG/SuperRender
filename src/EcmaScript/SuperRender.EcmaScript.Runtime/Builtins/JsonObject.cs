@@ -48,7 +48,7 @@ public sealed partial class JsonObject : JsObjectBase
 
         if (reviver is JsFunction reviverFn)
         {
-            var root = new JsObject();
+            var root = new JsDynamicObject();
             root.Set("", result);
             return InternalizeJsonValue(root, "", reviverFn);
         }
@@ -123,7 +123,7 @@ public sealed partial class JsonObject : JsObjectBase
 
                 return arr;
             case JsonValueKind.Object:
-                var obj = new JsObject();
+                var obj = new JsDynamicObject();
                 foreach (var prop in element.EnumerateObject())
                 {
                     obj.Set(prop.Name, ConvertElement(prop.Value));
@@ -135,10 +135,10 @@ public sealed partial class JsonObject : JsObjectBase
         }
     }
 
-    private static JsValue InternalizeJsonValue(JsObject holder, string name, JsFunction reviver)
+    private static JsValue InternalizeJsonValue(JsDynamicObject holder, string name, JsFunction reviver)
     {
         var val = holder.Get(name);
-        if (val is JsObject obj)
+        if (val is JsDynamicObject obj)
         {
             if (obj is JsArray arr)
             {
@@ -179,7 +179,7 @@ public sealed partial class JsonObject : JsObjectBase
     private static string? SerializeValue(string key, JsValue value, JsFunction? replacerFn,
         HashSet<string>? propertyList, string indent, string currentIndent)
     {
-        if (value is JsObject objWithToJson)
+        if (value is JsDynamicObject objWithToJson)
         {
             var toJsonFn = objWithToJson.Get("toJSON");
             if (toJsonFn is JsFunction toJson)
@@ -190,7 +190,7 @@ public sealed partial class JsonObject : JsObjectBase
 
         if (replacerFn is not null)
         {
-            var holder = new JsObject();
+            var holder = new JsDynamicObject();
             holder.Set(key, value);
             value = replacerFn.Call(holder, [new JsString(key), value]);
         }
@@ -230,7 +230,7 @@ public sealed partial class JsonObject : JsObjectBase
             return null;
         }
 
-        if (value is JsObject obj)
+        if (value is JsDynamicObject obj)
         {
             return SerializeObject(obj, replacerFn, propertyList, indent, currentIndent);
         }
@@ -281,7 +281,7 @@ public sealed partial class JsonObject : JsObjectBase
         return sb.ToString();
     }
 
-    private static string SerializeObject(JsObject obj, JsFunction? replacerFn,
+    private static string SerializeObject(JsDynamicObject obj, JsFunction? replacerFn,
         HashSet<string>? propertyList, string indent, string currentIndent)
     {
         var keys = propertyList is not null

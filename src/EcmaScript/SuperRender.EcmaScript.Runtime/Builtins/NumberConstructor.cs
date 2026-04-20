@@ -28,7 +28,7 @@ public static class NumberConstructor
             ConstructTarget = args =>
             {
                 var val = args.Length == 0 ? 0.0 : args[0].ToNumber();
-                var wrapper = new JsObject { Prototype = realm.NumberPrototype };
+                var wrapper = new JsDynamicObject { Prototype = realm.NumberPrototype };
                 wrapper.DefineOwnProperty("[[NumberData]]",
                     PropertyDescriptor.Data(JsNumber.Create(val), writable: false, enumerable: false, configurable: false));
                 return wrapper;
@@ -227,7 +227,7 @@ public static class NumberConstructor
             return n.Value;
         }
 
-        if (thisArg is JsObject obj)
+        if (thisArg is JsDynamicObject obj)
         {
             var data = obj.GetOwnProperty("[[NumberData]]");
             if (data?.Value is JsNumber numData)

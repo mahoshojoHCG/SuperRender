@@ -34,10 +34,10 @@ public static class ArrayBufferConstructor
         BuiltinHelper.DefineMethod(abCtor, "isView", (_, args) =>
         {
             var arg = BuiltinHelper.Arg(args, 0);
-            if (arg is JsObject obj)
+            if (arg is JsDynamicObject obj)
             {
                 var bufProp = obj.Get("buffer");
-                return bufProp is JsObject ? JsValue.True : JsValue.False;
+                return bufProp is JsDynamicObject ? JsValue.True : JsValue.False;
             }
             return JsValue.False;
         }, 1);
@@ -45,10 +45,10 @@ public static class ArrayBufferConstructor
         // ArrayBuffer.prototype.byteLength (getter)
         BuiltinHelper.DefineGetter(abProto, "byteLength", (self, _) =>
         {
-            if (self is JsObject obj)
+            if (self is JsDynamicObject obj)
             {
                 var data = obj.Get("[[ArrayBufferData]]");
-                if (data is JsObject wrapper)
+                if (data is JsDynamicObject wrapper)
                 {
                     var bytes = wrapper.Get("bytes");
                     if (bytes is JsNumber len) return len;
@@ -59,7 +59,7 @@ public static class ArrayBufferConstructor
 
         BuiltinHelper.DefineMethod(abProto, "slice", (self, args) =>
         {
-            if (self is not JsObject selfObj)
+            if (self is not JsDynamicObject selfObj)
                 throw new Errors.JsTypeError("ArrayBuffer.prototype.slice called on non-ArrayBuffer", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
 
             var byteArray = GetByteArray(selfObj);
@@ -103,10 +103,10 @@ public static class ArrayBufferConstructor
 
         BuiltinHelper.DefineGetter(sabProto, "byteLength", (self, _) =>
         {
-            if (self is JsObject obj)
+            if (self is JsDynamicObject obj)
             {
                 var data = obj.Get("[[ArrayBufferData]]");
-                if (data is JsObject wrapper)
+                if (data is JsDynamicObject wrapper)
                 {
                     var bytes = wrapper.Get("bytes");
                     if (bytes is JsNumber len) return len;
@@ -118,13 +118,13 @@ public static class ArrayBufferConstructor
         realm.InstallGlobal("SharedArrayBuffer", sabCtor);
     }
 
-    internal static JsObject CreateArrayBuffer(int byteLength, JsObject proto, bool isShared)
+    internal static JsDynamicObject CreateArrayBuffer(int byteLength, JsDynamicObject proto, bool isShared)
     {
-        var buffer = new JsObject { Prototype = proto };
+        var buffer = new JsDynamicObject { Prototype = proto };
         var data = new byte[byteLength];
 
         // Store the byte array as an internal wrapper
-        var wrapper = new JsObject();
+        var wrapper = new JsDynamicObject();
         wrapper.Set("bytes", JsNumber.Create(byteLength));
         wrapper.Set("[[IsShared]]", isShared ? JsValue.True : JsValue.False);
         buffer.Set("[[ArrayBufferData]]", wrapper);
@@ -139,7 +139,7 @@ public static class ArrayBufferConstructor
         return buffer;
     }
 
-    internal static byte[]? GetByteArray(JsObject buffer)
+    internal static byte[]? GetByteArray(JsDynamicObject buffer)
     {
         var store = buffer.Get("[[BackingStore]]");
         if (store is JsByteArrayWrapper wrapper)

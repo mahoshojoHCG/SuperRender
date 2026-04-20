@@ -32,7 +32,7 @@ internal class JsElementWrapper : JsNodeWrapper
 
         this.DefineGetter("classList", () =>
         {
-            var list = new JsObject();
+            var list = new JsDynamicObject();
             list.DefineMethod("add", 1, args =>
             {
                 if (args.Length > 0) DomMutationApi.AddClass(_element, args[0].ToJsString());
@@ -155,7 +155,7 @@ internal class JsElementWrapper : JsNodeWrapper
 
         this.DefineGetter("dataset", () =>
         {
-            var obj = new JsObject();
+            var obj = new JsDynamicObject();
             foreach (var kvp in _element.Dataset)
                 obj.DefineOwnProperty(kvp.Key, PropertyDescriptor.Data(new JsString(kvp.Value)));
             return obj;

@@ -7,7 +7,7 @@ public static class IntlObject
 {
     public static void Install(Realm realm)
     {
-        var intl = new JsObject { Prototype = realm.ObjectPrototype };
+        var intl = new JsDynamicObject { Prototype = realm.ObjectPrototype };
 
         // Symbol.toStringTag
         intl.DefineSymbolProperty(JsSymbol.ToStringTag,
@@ -21,9 +21,9 @@ public static class IntlObject
         realm.InstallGlobal("Intl", intl);
     }
 
-    private static void InstallCollator(JsObject intl, Realm realm)
+    private static void InstallCollator(JsDynamicObject intl, Realm realm)
     {
-        var collatorProto = new JsObject { Prototype = realm.ObjectPrototype };
+        var collatorProto = new JsDynamicObject { Prototype = realm.ObjectPrototype };
 
         var ctor = new JsFunction
         {
@@ -35,7 +35,7 @@ public static class IntlObject
             ConstructTarget = args =>
             {
                 var locale = args.Length > 0 && args[0] is JsString loc ? loc.Value : "en";
-                var options = args.Length > 1 && args[1] is JsObject opts ? opts : null;
+                var options = args.Length > 1 && args[1] is JsDynamicObject opts ? opts : null;
 
                 var sensitivity = "variant";
                 if (options is not null)
@@ -65,7 +65,7 @@ public static class IntlObject
                     _ => CompareOptions.None // "variant"
                 };
 
-                var collatorObj = new JsObject { Prototype = collatorProto };
+                var collatorObj = new JsDynamicObject { Prototype = collatorProto };
 
                 var compareFn = JsFunction.CreateNative("compare", (_, compareArgs) =>
                 {
@@ -82,7 +82,7 @@ public static class IntlObject
             {
                 // Calling Collator() without new also creates a new instance
                 var locale = args.Length > 0 && args[0] is JsString loc ? loc.Value : "en";
-                var collatorObj = new JsObject { Prototype = collatorProto };
+                var collatorObj = new JsDynamicObject { Prototype = collatorProto };
                 CultureInfo culture;
                 try
                 {
@@ -108,9 +108,9 @@ public static class IntlObject
         intl.Set("Collator", ctor);
     }
 
-    private static void InstallNumberFormat(JsObject intl, Realm realm)
+    private static void InstallNumberFormat(JsDynamicObject intl, Realm realm)
     {
-        var nfProto = new JsObject { Prototype = realm.ObjectPrototype };
+        var nfProto = new JsDynamicObject { Prototype = realm.ObjectPrototype };
 
         var ctor = new JsFunction
         {
@@ -122,7 +122,7 @@ public static class IntlObject
             ConstructTarget = args =>
             {
                 var locale = args.Length > 0 && args[0] is JsString loc ? loc.Value : "en";
-                var options = args.Length > 1 && args[1] is JsObject opts ? opts : null;
+                var options = args.Length > 1 && args[1] is JsDynamicObject opts ? opts : null;
 
                 CultureInfo culture;
                 try
@@ -154,7 +154,7 @@ public static class IntlObject
                     if (maxVal is JsNumber maxNum) maxFrac = (int)maxNum.Value;
                 }
 
-                var nfObj = new JsObject { Prototype = nfProto };
+                var nfObj = new JsDynamicObject { Prototype = nfProto };
 
                 var formatFn = JsFunction.CreateNative("format", (_, formatArgs) =>
                 {
@@ -207,7 +207,7 @@ public static class IntlObject
             CallTarget = (_, args) =>
             {
                 // Calling without new creates instance too
-                var nfObj = new JsObject { Prototype = nfProto };
+                var nfObj = new JsDynamicObject { Prototype = nfProto };
                 var formatFn = JsFunction.CreateNative("format", (_, formatArgs) =>
                 {
                     var num = BuiltinHelper.Arg(formatArgs, 0).ToNumber();
@@ -221,9 +221,9 @@ public static class IntlObject
         intl.Set("NumberFormat", ctor);
     }
 
-    private static void InstallDateTimeFormat(JsObject intl, Realm realm)
+    private static void InstallDateTimeFormat(JsDynamicObject intl, Realm realm)
     {
-        var dtfProto = new JsObject { Prototype = realm.ObjectPrototype };
+        var dtfProto = new JsDynamicObject { Prototype = realm.ObjectPrototype };
 
         var ctor = new JsFunction
         {
@@ -245,14 +245,14 @@ public static class IntlObject
                     culture = CultureInfo.InvariantCulture;
                 }
 
-                var dtfObj = new JsObject { Prototype = dtfProto };
+                var dtfObj = new JsDynamicObject { Prototype = dtfProto };
 
                 var formatFn = JsFunction.CreateNative("format", (_, formatArgs) =>
                 {
                     var dateArg = BuiltinHelper.Arg(formatArgs, 0);
                     DateTime dt;
 
-                    if (dateArg is JsObject dateObj)
+                    if (dateArg is JsDynamicObject dateObj)
                     {
                         // Extract [[DateValue]] (epoch ms) from JsDate-like object
                         var dateValue = dateObj.Get("[[DateValue]]");
@@ -279,7 +279,7 @@ public static class IntlObject
             },
             CallTarget = (_, _) =>
             {
-                var dtfObj = new JsObject { Prototype = dtfProto };
+                var dtfObj = new JsDynamicObject { Prototype = dtfProto };
                 var formatFn = JsFunction.CreateNative("format", (_, _) =>
                 {
                     return new JsString(DateTime.UtcNow.ToString("d", CultureInfo.InvariantCulture));
@@ -292,9 +292,9 @@ public static class IntlObject
         intl.Set("DateTimeFormat", ctor);
     }
 
-    private static void InstallPluralRules(JsObject intl, Realm realm)
+    private static void InstallPluralRules(JsDynamicObject intl, Realm realm)
     {
-        var prProto = new JsObject { Prototype = realm.ObjectPrototype };
+        var prProto = new JsDynamicObject { Prototype = realm.ObjectPrototype };
 
         var ctor = new JsFunction
         {
@@ -305,7 +305,7 @@ public static class IntlObject
             PrototypeObject = prProto,
             ConstructTarget = _ =>
             {
-                var prObj = new JsObject { Prototype = prProto };
+                var prObj = new JsDynamicObject { Prototype = prProto };
 
                 var selectFn = JsFunction.CreateNative("select", (_, selectArgs) =>
                 {
@@ -320,7 +320,7 @@ public static class IntlObject
             },
             CallTarget = (_, _) =>
             {
-                var prObj = new JsObject { Prototype = prProto };
+                var prObj = new JsDynamicObject { Prototype = prProto };
                 var selectFn = JsFunction.CreateNative("select", (_, selectArgs) =>
                 {
                     var n = BuiltinHelper.Arg(selectArgs, 0).ToNumber();

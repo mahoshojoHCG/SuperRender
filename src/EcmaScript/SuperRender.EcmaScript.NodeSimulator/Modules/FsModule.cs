@@ -13,7 +13,7 @@ public static class FsModule
     private static PropertyDescriptor MethodDesc(string name, Func<JsValue, JsValue[], JsValue> impl, int length) =>
         PropertyDescriptor.Data(JsFunction.CreateNative(name, impl, length), writable: true, enumerable: false, configurable: true);
 
-    private static void Define(JsObject obj, string name, int length, Func<JsValue, JsValue[], JsValue> impl) =>
+    private static void Define(JsDynamicObject obj, string name, int length, Func<JsValue, JsValue[], JsValue> impl) =>
         obj.DefineOwnProperty(name, MethodDesc(name, impl, length));
 
     private static JsValue Arg(JsValue[] args, int index) => index < args.Length ? args[index] : JsValue.Undefined;
@@ -25,9 +25,9 @@ public static class FsModule
         throw new Runtime.Errors.JsTypeError($"The \"{param}\" argument must be of type string");
     }
 
-    public static JsObject Create(Realm realm)
+    public static JsDynamicObject Create(Realm realm)
     {
-        var fs = new JsObject();
+        var fs = new JsDynamicObject();
 
         Define(fs, "readFileSync", 2, (_, args) =>
         {
@@ -37,7 +37,7 @@ public static class FsModule
             string? enc = encArg switch
             {
                 JsString s => s.Value,
-                JsObject o when o.Get("encoding") is JsString se => se.Value,
+                JsDynamicObject o when o.Get("encoding") is JsString se => se.Value,
                 _ => null,
             };
             return enc is null ? new BufferObject(bytes) : new JsString(BufferModule.Decode(bytes, 0, bytes.Length, enc));
@@ -81,7 +81,7 @@ public static class FsModule
         Define(fs, "mkdirSync", 2, (_, args) =>
         {
             var path = RequireString(args, 0, "path");
-            var opts = Arg(args, 1) as JsObject;
+            var opts = Arg(args, 1) as JsDynamicObject;
             bool recursive = opts?.Get("recursive").ToBoolean() ?? false;
             if (recursive || !Directory.Exists(path)) Directory.CreateDirectory(path);
             return recursive ? (JsValue)new JsString(path) : JsValue.Undefined;
@@ -90,7 +90,7 @@ public static class FsModule
         Define(fs, "rmSync", 2, (_, args) =>
         {
             var path = RequireString(args, 0, "path");
-            var opts = Arg(args, 1) as JsObject;
+            var opts = Arg(args, 1) as JsDynamicObject;
             bool recursive = opts?.Get("recursive").ToBoolean() ?? false;
             bool force = opts?.Get("force").ToBoolean() ?? false;
             try
@@ -106,7 +106,7 @@ public static class FsModule
         Define(fs, "rmdirSync", 2, (_, args) =>
         {
             var path = RequireString(args, 0, "path");
-            var opts = Arg(args, 1) as JsObject;
+            var opts = Arg(args, 1) as JsDynamicObject;
             bool recursive = opts?.Get("recursive").ToBoolean() ?? false;
             Directory.Delete(path, recursive);
             return JsValue.Undefined;
@@ -156,7 +156,7 @@ public static class FsModule
             return JsValue.Undefined;
         });
 
-        var constants = new JsObject();
+        var constants = new JsDynamicObject();
         constants.DefineOwnProperty("F_OK", PropertyDescriptor.Data(JsNumber.Create(0)));
         constants.DefineOwnProperty("R_OK", PropertyDescriptor.Data(JsNumber.Create(4)));
         constants.DefineOwnProperty("W_OK", PropertyDescriptor.Data(JsNumber.Create(2)));
@@ -171,7 +171,7 @@ public static class FsModule
             for (int i = 1; i < args.Length; i++)
             {
                 if (args[i] is JsFunction f) { listener = f; break; }
-                if (args[i] is JsObject opt && opt.Get("recursive").ToBoolean()) recursive = true;
+                if (args[i] is JsDynamicObject opt && opt.Get("recursive").ToBoolean()) recursive = true;
             }
             return new FsWatcherObject(path, recursive, listener, realm);
         });
@@ -180,14 +180,14 @@ public static class FsModule
         return fs;
     }
 
-    private static JsObject MakeStats(string path)
+    private static JsDynamicObject MakeStats(string path)
     {
         var info = new FileInfo(path);
         bool isFile = info.Exists;
         var dir = new DirectoryInfo(path);
         bool isDir = !isFile && dir.Exists;
         if (!isFile && !isDir) throw new Runtime.Errors.JsErrorBase($"ENOENT: {path}");
-        var stats = new JsObject();
+        var stats = new JsDynamicObject();
         long size = isFile ? info.Length : 0;
         DateTime mtime = isFile ? info.LastWriteTimeUtc : dir.LastWriteTimeUtc;
         DateTime ctime = isFile ? info.CreationTimeUtc : dir.CreationTimeUtc;
@@ -209,9 +209,9 @@ public static class FsModule
 
     private static double ToMs(DateTime utc) => (utc - DateTime.UnixEpoch).TotalMilliseconds;
 
-    private static JsObject CreatePromises(Realm realm, JsObject syncFs)
+    private static JsDynamicObject CreatePromises(Realm realm, JsDynamicObject syncFs)
     {
-        var p = new JsObject();
+        var p = new JsDynamicObject();
         // Wrap each sync method as a Promise-returning function
         string[] wrap = ["readFile", "writeFile", "appendFile", "mkdir", "rm", "rmdir", "unlink", "rename", "readdir", "stat", "lstat", "realpath", "access", "copyFile"];
         foreach (var name in wrap)

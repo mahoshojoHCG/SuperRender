@@ -89,7 +89,7 @@ public static class ObjectConstructor
         BuiltinHelper.DefineMethod(ctor, "freeze", (_, args) =>
         {
             var val = BuiltinHelper.Arg(args, 0);
-            if (val is not JsObject obj)
+            if (val is not JsDynamicObject obj)
             {
                 return val;
             }
@@ -121,7 +121,7 @@ public static class ObjectConstructor
         BuiltinHelper.DefineMethod(ctor, "seal", (_, args) =>
         {
             var val = BuiltinHelper.Arg(args, 0);
-            if (val is not JsObject obj)
+            if (val is not JsDynamicObject obj)
             {
                 return val;
             }
@@ -153,8 +153,8 @@ public static class ObjectConstructor
         BuiltinHelper.DefineMethod(ctor, "create", (_, args) =>
         {
             var protoArg = BuiltinHelper.Arg(args, 0);
-            JsObject? protoObj = null;
-            if (protoArg is JsObject p)
+            JsDynamicObject? protoObj = null;
+            if (protoArg is JsDynamicObject p)
             {
                 protoObj = p;
             }
@@ -163,9 +163,9 @@ public static class ObjectConstructor
                 throw new Errors.JsTypeError("Object prototype may only be an Object or null", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
-            var obj = new JsObject { Prototype = protoObj };
+            var obj = new JsDynamicObject { Prototype = protoObj };
 
-            if (args.Length > 1 && args[1] is JsObject props)
+            if (args.Length > 1 && args[1] is JsDynamicObject props)
             {
                 DefinePropertiesFromDescriptors(obj, props);
             }
@@ -223,7 +223,7 @@ public static class ObjectConstructor
             {
                 obj.Prototype = null;
             }
-            else if (protoArg is JsObject p)
+            else if (protoArg is JsDynamicObject p)
             {
                 obj.Prototype = p;
             }
@@ -251,7 +251,7 @@ public static class ObjectConstructor
                 throw new Errors.JsTypeError("callback must be a function", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
-            var result = new JsObject { Prototype = null };
+            var result = new JsDynamicObject { Prototype = null };
             if (iterable is JsArray arr)
             {
                 for (var i = 0; i < arr.DenseLength; i++)
@@ -276,7 +276,7 @@ public static class ObjectConstructor
 
         BuiltinHelper.DefineMethod(proto, "hasOwnProperty", (thisArg, args) =>
         {
-            if (thisArg is not JsObject obj)
+            if (thisArg is not JsDynamicObject obj)
             {
                 return JsValue.False;
             }
@@ -297,7 +297,7 @@ public static class ObjectConstructor
                 return new JsString("[object Null]");
             }
 
-            if (thisArg is JsObject obj && obj.TryGetSymbolProperty(JsSymbol.ToStringTag, out var tag) && tag is JsString tagStr)
+            if (thisArg is JsDynamicObject obj && obj.TryGetSymbolProperty(JsSymbol.ToStringTag, out var tag) && tag is JsString tagStr)
             {
                 return new JsString("[object " + tagStr.Value + "]");
             }
@@ -307,7 +307,7 @@ public static class ObjectConstructor
                 JsArray => "Array",
                 JsFunction => "Function",
                 JsRegExp => "RegExp",
-                JsObject => "Object",
+                JsDynamicObject => "Object",
                 JsBoolean => "Boolean",
                 JsNumber => "Number",
                 JsString => "String",
@@ -325,13 +325,13 @@ public static class ObjectConstructor
 
         BuiltinHelper.DefineMethod(proto, "isPrototypeOf", (thisArg, args) =>
         {
-            if (thisArg is not JsObject protoObj)
+            if (thisArg is not JsDynamicObject protoObj)
             {
                 return JsValue.False;
             }
 
             var target = BuiltinHelper.Arg(args, 0);
-            if (target is not JsObject targetObj)
+            if (target is not JsDynamicObject targetObj)
             {
                 return JsValue.False;
             }
@@ -352,7 +352,7 @@ public static class ObjectConstructor
 
         BuiltinHelper.DefineMethod(proto, "propertyIsEnumerable", (thisArg, args) =>
         {
-            if (thisArg is not JsObject obj)
+            if (thisArg is not JsDynamicObject obj)
             {
                 return JsValue.False;
             }
@@ -367,9 +367,9 @@ public static class ObjectConstructor
         realm.InstallGlobal("Object", ctor);
     }
 
-    private static JsObject RequireObject(JsValue value)
+    private static JsDynamicObject RequireObject(JsValue value)
     {
-        if (value is JsObject obj)
+        if (value is JsDynamicObject obj)
         {
             return obj;
         }
@@ -399,7 +399,7 @@ public static class ObjectConstructor
         return x.StrictEquals(y);
     }
 
-    private static PropertyDescriptor ToPropertyDescriptor(JsObject desc)
+    private static PropertyDescriptor ToPropertyDescriptor(JsDynamicObject desc)
     {
         var hasValue = desc.HasProperty("value");
         var hasWritable = desc.HasProperty("writable");
@@ -427,9 +427,9 @@ public static class ObjectConstructor
         return PropertyDescriptor.Data(value, writable, isEnumerable, isConfigurable);
     }
 
-    private static JsObject FromPropertyDescriptor(PropertyDescriptor desc)
+    private static JsDynamicObject FromPropertyDescriptor(PropertyDescriptor desc)
     {
-        var obj = new JsObject();
+        var obj = new JsDynamicObject();
         if (desc.IsAccessorDescriptor)
         {
             if (desc.Get is not null)
@@ -453,12 +453,12 @@ public static class ObjectConstructor
         return obj;
     }
 
-    private static void DefinePropertiesFromDescriptors(JsObject target, JsObject props)
+    private static void DefinePropertiesFromDescriptors(JsDynamicObject target, JsDynamicObject props)
     {
         foreach (var key in props.OwnPropertyKeys())
         {
             var descObj = props.Get(key);
-            if (descObj is JsObject descObjTyped)
+            if (descObj is JsDynamicObject descObjTyped)
             {
                 var desc = ToPropertyDescriptor(descObjTyped);
                 target.DefineOwnProperty(key, desc);
