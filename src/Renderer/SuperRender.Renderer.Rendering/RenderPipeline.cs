@@ -12,12 +12,16 @@ public sealed class RenderPipeline
 {
     private readonly ITextMeasurer _textMeasurer;
     private readonly bool _useUserAgentStylesheet;
+    private readonly TransitionController _transitions = new();
+    private readonly AnimationController _animations = new();
     private DomDocument? _document;
     private Dictionary<Node, ComputedStyle> _styles = new();
     private LayoutBox? _layoutRoot;
     private PaintList? _paintList;
     private float _lastWidth;
     private float _lastHeight;
+    private bool _transitionsActive;
+    private bool _animationsActive;
 
     public RenderPipeline(ITextMeasurer textMeasurer, bool useUserAgentStylesheet = false)
     {
@@ -49,6 +53,19 @@ public sealed class RenderPipeline
         var resolver = new StyleResolver(_document.Stylesheets, uaStylesheet);
         _styles = resolver.ResolveAll(_document, viewportWidth, viewportHeight);
 
+        // Register @keyframes from the current stylesheets (cheap — parsed once per render).
+        _animations.LoadKeyframes(_document.Stylesheets);
+        _animations.ViewportWidth = viewportWidth;
+        _animations.ViewportHeight = viewportHeight;
+
+        // Apply in-flight transitions (overrides transitionable properties with
+        // their currently interpolated values). May start new transitions when
+        // hover/focus state changes alter the target computed values.
+        _transitionsActive = _transitions.Apply(_styles);
+
+        // Advance @keyframes animations and overwrite animated fields.
+        _animationsActive = _animations.Apply(_styles);
+
         // Layout
         var layoutEngine = new LayoutEngine(_textMeasurer);
         _layoutRoot = layoutEngine.BuildLayoutTree(_document, _styles, viewportWidth, viewportHeight, resolver.PseudoElements);
@@ -70,7 +87,7 @@ public sealed class RenderPipeline
         bool sizeChanged = Math.Abs(viewportWidth - _lastWidth) > 0.1f
                         || Math.Abs(viewportHeight - _lastHeight) > 0.1f;
 
-        if (_document.NeedsLayout || sizeChanged)
+        if (_document.NeedsLayout || sizeChanged || _transitionsActive || _animationsActive)
         {
             return Render(viewportWidth, viewportHeight);
         }

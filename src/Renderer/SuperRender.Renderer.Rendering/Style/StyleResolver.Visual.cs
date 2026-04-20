@@ -126,9 +126,17 @@ public sealed partial class StyleResolver
                 break;
 
             case CssPropertyNames.TextShadow:
-                style.TextShadow = value.Raw.Trim().Equals("none", StringComparison.OrdinalIgnoreCase)
-                    ? null
-                    : value.Raw.Trim();
+                if (value.Raw.Trim().Equals("none", StringComparison.OrdinalIgnoreCase))
+                {
+                    style.TextShadow = null;
+                    style.TextShadows = null;
+                }
+                else
+                {
+                    style.TextShadow = value.Raw.Trim();
+                    var parsed = CssParser.ParseBoxShadowValue(value.Raw);
+                    style.TextShadows = parsed.Count > 0 ? parsed : null;
+                }
                 break;
 
             case CssPropertyNames.FontStretch:

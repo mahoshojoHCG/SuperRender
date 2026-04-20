@@ -29,12 +29,12 @@ sr://test/CSS/20-integration.html
 
 | ID | Description | Expected | Passed | Notes |
 |----|-------------|----------|--------|-------|
-| 1a | `translate(30px, 20px)` | Blue box shifted 30px right and 20px down from normal position. | | |
-| 1b | `rotate(45deg)` | Blue box rotated 45 degrees clockwise around its center. | | |
-| 1c | `scale(1.5)` | Blue box appears 50% larger than normal. | | |
-| 1d | `skewX(20deg)` | Blue box skewed horizontally by 20 degrees. | | |
-| 1e | Multiple transforms (translate + rotate + scale) | Box is translated, rotated 30deg, and scaled to 80%. | | |
-| 1f | `transform-origin: top left` with rotation | Box rotates around its top-left corner. | | |
+| 1a | `translate(30px, 20px)` | Blue box shifted 30px right and 20px down from normal position. | Passed | |
+| 1b | `rotate(45deg)` | Blue box rotated 45 degrees clockwise around its center. | Passed | |
+| 1c | `scale(1.5)` | Blue box appears 50% larger than normal. | Passed | |
+| 1d | `skewX(20deg)` | Blue box skewed horizontally by 20 degrees. | Passed | |
+| 1e | Multiple transforms (translate + rotate + scale) | Box is translated, rotated 30deg, and scaled to 80%. | Passed | |
+| 1f | `transform-origin: top left` with rotation | Box rotates around its top-left corner. | Passed | |
 
 ---
 
@@ -44,10 +44,10 @@ sr://test/CSS/20-integration.html
 
 | ID | Description | Expected | Passed | Notes |
 |----|-------------|----------|--------|-------|
-| 2a | Color transition on hover (0.5s ease) | Box smoothly changes from red to green on hover. | | |
-| 2b | Opacity transition (ease-in) | Box fades to 30% opacity on hover. | | |
-| 2c | Transform transition (scale, ease-out) | Box smoothly grows 30% on hover. | | |
-| 2d | Multiple property transition (color + translateX) | Box changes color and slides right simultaneously. | | |
+| 2a | Color transition on hover (0.5s ease) | Box smoothly changes from red to green on hover. | Passed | |
+| 2b | Opacity transition (ease-in) | Box fades to 30% opacity on hover. | Passed | |
+| 2c | Transform transition (scale, ease-out) | Box smoothly grows 30% on hover. | Passed | |
+| 2d | Multiple property transition (color + translateX) | Box changes color and slides right simultaneously. | Passed | |
 
 ---
 
@@ -57,9 +57,9 @@ sr://test/CSS/20-integration.html
 
 | ID | Description | Expected | Passed | Notes |
 |----|-------------|----------|--------|-------|
-| 3a | Pulse animation (scale, infinite) | Red box pulses (grows and shrinks) continuously. | | |
-| 3b | Slide animation (translateX, linear) | Blue box slides 200px right and repeats. | | |
-| 3c | Color cycle animation (alternate) | Box cycles between green, orange, and purple. | | |
+| 3a | Pulse animation (scale, infinite) | Red box pulses (grows and shrinks) continuously. | Passed | |
+| 3b | Slide animation (translateX, linear) | Blue box slides 200px right and repeats. | Passed | |
+| 3c | Color cycle animation (alternate) | Box cycles between green, orange, and purple. | Failed | |
 
 ---
 
@@ -69,7 +69,7 @@ sr://test/CSS/20-integration.html
 
 | ID | Description | Expected | Passed | Notes |
 |----|-------------|----------|--------|-------|
-| 4a | Five timing functions compared | Five colored balls move at different speeds: ease starts slow/ends slow, linear is constant, ease-in starts slow, ease-out ends slow, ease-in-out is symmetric. | | |
+| 4a | Five timing functions compared | Five colored balls move at different speeds: ease starts slow/ends slow, linear is constant, ease-in starts slow, ease-out ends slow, ease-in-out is symmetric. | Failed | |
 
 ---
 
@@ -79,13 +79,13 @@ sr://test/CSS/20-integration.html
 
 | ID | Description | Expected | Passed | Notes |
 |----|-------------|----------|--------|-------|
-| 5a | `text-decoration-style: solid` | Standard solid underline. | | |
-| 5b | `text-decoration-style: double` | Double-line underline. | | |
-| 5c | `text-decoration-style: dotted` | Dotted underline. | | |
-| 5d | `text-decoration-style: dashed` | Dashed underline. | | |
-| 5e | `text-decoration-style: wavy` with red color | Red wavy underline. | | |
-| 5f | `text-decoration-thickness: 3px` | Thick 3px underline. | | |
-| 5g | `text-underline-offset: 5px` | Underline offset 5px below text. | | |
+| 5a | `text-decoration-style: solid` | Standard solid underline. | Failed | |
+| 5b | `text-decoration-style: double` | Double-line underline. | Failed | |
+| 5c | `text-decoration-style: dotted` | Dotted underline. | Failed | |
+| 5d | `text-decoration-style: dashed` | Dashed underline. | Failed | |
+| 5e | `text-decoration-style: wavy` with red color | Red wavy underline. | Failed | |
+| 5f | `text-decoration-thickness: 3px` | Thick 3px underline. | Failed | |
+| 5g | `text-underline-offset: 5px` | Underline offset 5px below text. | Failed | |
 
 ---
 
@@ -95,9 +95,9 @@ sr://test/CSS/20-integration.html
 
 | ID | Description | Expected | Passed | Notes |
 |----|-------------|----------|--------|-------|
-| 6a | Drop shadow (2px 2px 4px) | Text with subtle gray drop shadow offset down-right. | | |
-| 6b | Red outline shadow (-1px -1px) | Text with red shadow creating outline effect. | | |
-| 6c | Blue glow (0 0 10px) | Text with blue glow effect around it. | | |
+| 6a | Drop shadow (2px 2px 4px) | Text with subtle gray drop shadow offset down-right. | Failed | |
+| 6b | Red outline shadow (-1px -1px) | Text with red shadow creating outline effect. | Failed | |
+| 6c | Blue glow (0 0 10px) | Text with blue glow effect around it. | Failed | |
 
 ---
 
@@ -107,12 +107,12 @@ sr://test/CSS/20-integration.html
 
 | ID | Description | Expected | Passed | Notes |
 |----|-------------|----------|--------|-------|
-| 7a | `vertical-align: baseline` | Inline span aligned to baseline (default). | | |
-| 7b | `vertical-align: top` | Span aligned to top of line box. | | |
-| 7c | `vertical-align: middle` | Span aligned to middle of line box. | | |
-| 7d | `vertical-align: bottom` | Span aligned to bottom of line box. | | |
-| 7e | `vertical-align: sub` | Small text positioned as subscript. | | |
-| 7f | `vertical-align: super` | Small text positioned as superscript. | | |
+| 7a | `vertical-align: baseline` | Inline span aligned to baseline (default). | Failed | |
+| 7b | `vertical-align: top` | Span aligned to top of line box. | Failed | |
+| 7c | `vertical-align: middle` | Span aligned to middle of line box. | Failed | |
+| 7d | `vertical-align: bottom` | Span aligned to bottom of line box. | Failed | |
+| 7e | `vertical-align: sub` | Small text positioned as subscript. | Failed | |
+| 7f | `vertical-align: super` | Small text positioned as superscript. | Failed | |
 
 ---
 

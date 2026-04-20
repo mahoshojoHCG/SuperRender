@@ -41,6 +41,9 @@ public sealed partial class StyleResolver
     /// <summary>Per-element custom property maps for CSS variables.</summary>
     private Dictionary<Node, Dictionary<string, string>>? _customProperties;
 
+    /// <summary>Active counter values during tree traversal (flat scope approximation).</summary>
+    private readonly Dictionary<string, int> _counters = new(StringComparer.Ordinal);
+
     /// <summary>Gets the resolved custom properties for an element (for external access).</summary>
     public Dictionary<string, string>? GetCustomProperties(Node node)
         => _customProperties?.GetValueOrDefault(node);
@@ -57,6 +60,11 @@ public sealed partial class StyleResolver
             elementCustomProps = resolvedCustomProps;
             if (_customProperties != null && resolvedCustomProps != null && resolvedCustomProps.Count > 0)
                 _customProperties[node] = resolvedCustomProps;
+
+            // Apply counter-reset / counter-increment BEFORE resolving pseudo-elements
+            // so that counter() in ::before content reflects the incremented value.
+            ApplyCounterReset(style.CounterReset);
+            ApplyCounterIncrement(style.CounterIncrement);
 
             // Resolve pseudo-elements for this element
             if (PseudoElements != null)
@@ -76,7 +84,10 @@ public sealed partial class StyleResolver
         {
             style = new ComputedStyle { Display = DisplayType.Inline };
             if (parentStyle != null)
+            {
                 InheritFromParent(style, parentStyle);
+                PropagateTextPropsToTextNode(style, parentStyle);
+            }
         }
         else
         {
@@ -303,7 +314,7 @@ public sealed partial class StyleResolver
         {
             if (matched.Declaration.Property == CssPropertyNames.Content)
             {
-                content = ParseContentValue(matched.Declaration.Value.Raw);
+                content = ParseContentValue(matched.Declaration.Value.Raw, _counters);
             }
             else
             {
@@ -351,21 +362,144 @@ public sealed partial class StyleResolver
     }
 
     private static string? ParseContentValue(string raw)
+        => ParseContentValue(raw, null);
+
+    private void ApplyCounterReset(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw) || raw.Equals("none", StringComparison.OrdinalIgnoreCase))
+            return;
+        foreach (var (name, value) in ParseCounterList(raw!, defaultValue: 0))
+            _counters[name] = value;
+    }
+
+    private void ApplyCounterIncrement(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw) || raw.Equals("none", StringComparison.OrdinalIgnoreCase))
+            return;
+        foreach (var (name, delta) in ParseCounterList(raw!, defaultValue: 1))
+            _counters[name] = _counters.TryGetValue(name, out var v) ? v + delta : delta;
+    }
+
+    private static IEnumerable<(string name, int value)> ParseCounterList(string raw, int defaultValue)
+    {
+        var parts = raw.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        int i = 0;
+        while (i < parts.Length)
+        {
+            string name = parts[i++];
+            int value = defaultValue;
+            if (i < parts.Length && int.TryParse(parts[i], System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out int n))
+            {
+                value = n;
+                i++;
+            }
+            yield return (name, value);
+        }
+    }
+
+    private static string? ParseContentValue(string raw, Dictionary<string, int>? counters)
     {
         var trimmed = raw.Trim();
         if (trimmed.Equals("none", StringComparison.OrdinalIgnoreCase) ||
             trimmed.Equals("normal", StringComparison.OrdinalIgnoreCase))
             return null;
 
-        // Strip quotes: "text" or 'text'
+        // Fast path: a single quoted string with no functions.
         if (trimmed.Length >= 2 &&
             ((trimmed[0] == '"' && trimmed[^1] == '"') ||
-             (trimmed[0] == '\'' && trimmed[^1] == '\'')))
+             (trimmed[0] == '\'' && trimmed[^1] == '\'')) &&
+            !trimmed.Contains("counter(", StringComparison.OrdinalIgnoreCase) &&
+            !trimmed.Contains("counters(", StringComparison.OrdinalIgnoreCase))
         {
             return trimmed[1..^1];
         }
 
-        return trimmed;
+        // Tokenize the content value: string literals + counter()/counters() function calls.
+        var sb = new System.Text.StringBuilder();
+        var tokenizer = new CssTokenizer(trimmed);
+        var tokens = tokenizer.Tokenize().Where(t => t.Type != CssTokenType.EndOfFile
+            && t.Type != CssTokenType.Whitespace).ToList();
+
+        for (int i = 0; i < tokens.Count; i++)
+        {
+            var tk = tokens[i];
+            if (tk.Type == CssTokenType.StringLiteral)
+            {
+                sb.Append(tk.Value);
+            }
+            else if (tk.Type == CssTokenType.Function
+                && (tk.Value.Equals("counter", StringComparison.OrdinalIgnoreCase)
+                    || tk.Value.Equals("counters", StringComparison.OrdinalIgnoreCase)))
+            {
+                // Collect arg tokens until matching RightParen.
+                var args = new List<CssToken>();
+                i++;
+                int depth = 1;
+                while (i < tokens.Count && depth > 0)
+                {
+                    var inner = tokens[i];
+                    if (inner.Type == CssTokenType.LeftParen || inner.Type == CssTokenType.Function) depth++;
+                    else if (inner.Type == CssTokenType.RightParen) { depth--; if (depth == 0) break; }
+                    args.Add(inner);
+                    i++;
+                }
+
+                string name = args.Count > 0 && args[0].Type == CssTokenType.Ident ? args[0].Value : "";
+                int value = counters != null && counters.TryGetValue(name, out var v) ? v : 0;
+
+                // Style arg: ident after comma. We only support decimal / upper-roman / lower-roman / alpha.
+                string styleArg = "decimal";
+                for (int a = 1; a < args.Count; a++)
+                {
+                    if (args[a].Type == CssTokenType.Ident) { styleArg = args[a].Value; break; }
+                }
+                sb.Append(FormatCounter(value, styleArg));
+            }
+            else if (tk.Type == CssTokenType.Ident
+                && tk.Value.Equals("attr", StringComparison.OrdinalIgnoreCase))
+            {
+                // attr() not supported here; skip.
+            }
+        }
+
+        return sb.Length > 0 ? sb.ToString() : "";
+    }
+
+    private static string FormatCounter(int n, string style)
+    {
+        return style.ToLowerInvariant() switch
+        {
+            "lower-alpha" or "lower-latin" => AlphaString(n, lower: true),
+            "upper-alpha" or "upper-latin" => AlphaString(n, lower: false),
+            "lower-roman" => RomanString(n).ToLowerInvariant(),
+            "upper-roman" => RomanString(n),
+            "none" => string.Empty,
+            _ => n.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        };
+    }
+
+    private static string AlphaString(int n, bool lower)
+    {
+        if (n <= 0) return n.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var sb = new System.Text.StringBuilder();
+        int v = n;
+        while (v > 0) { v--; sb.Insert(0, (char)((lower ? 'a' : 'A') + v % 26)); v /= 26; }
+        return sb.ToString();
+    }
+
+    private static readonly (int V, string S)[] RomanPairs =
+    [
+        (1000,"M"),(900,"CM"),(500,"D"),(400,"CD"),(100,"C"),(90,"XC"),
+        (50,"L"),(40,"XL"),(10,"X"),(9,"IX"),(5,"V"),(4,"IV"),(1,"I"),
+    ];
+
+    private static string RomanString(int n)
+    {
+        if (n <= 0 || n >= 4000) return n.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var sb = new System.Text.StringBuilder();
+        foreach (var (v, s) in RomanPairs) { while (n >= v) { sb.Append(s); n -= v; } }
+        return sb.ToString();
     }
 
     private void ApplyDeclaration(ComputedStyle style, Declaration decl, ComputedStyle? parentStyle)
@@ -529,6 +663,25 @@ public sealed partial class StyleResolver
         style.FontVariant = parentStyle.FontVariant;
         style.Direction = parentStyle.Direction;
         style.Quotes = parentStyle.Quotes;
+    }
+
+    /// <summary>
+    /// Text-decoration and vertical-align are formally NOT inherited, but text
+    /// nodes have no declarations of their own — text runs built from a text
+    /// node must carry the parent element's decoration/vertical-align so they
+    /// paint correctly. Apply this only to text-node style resolution.
+    /// </summary>
+    private static void PropagateTextPropsToTextNode(ComputedStyle style, ComputedStyle parentStyle)
+    {
+        style.TextDecorationLine = parentStyle.TextDecorationLine;
+        style.TextDecorationColor = parentStyle.TextDecorationColor;
+        style.TextDecorationStyle = parentStyle.TextDecorationStyle;
+        style.TextDecorationThickness = parentStyle.TextDecorationThickness;
+        style.TextUnderlineOffset = parentStyle.TextUnderlineOffset;
+        style.TextShadow = parentStyle.TextShadow;
+        style.TextShadows = parentStyle.TextShadows;
+        style.VerticalAlign = parentStyle.VerticalAlign;
+        style.VerticalAlignLength = parentStyle.VerticalAlignLength;
     }
 
     private static DisplayType GetDefaultDisplay(string tagName) => tagName switch

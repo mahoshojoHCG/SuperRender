@@ -55,7 +55,7 @@ internal static class InlineLayout
                         if (word == "\n")
                         {
                             AlignLine(currentLineRuns, dims.X, availableWidth, child.Style.TextAlign);
-                            AlignLineBaselines(currentLineRuns, measurer);
+                            AlignLineBaselines(currentLineRuns, measurer, cursorY, lineHeight);
                             AlignLineBoxes(currentLineBoxes, cursorY, visualLineHeight);
                             cursorY += lineHeight > 0 ? lineHeight : lh;
                             cursorX = dims.X;
@@ -77,7 +77,7 @@ internal static class InlineLayout
                     {
                         // New line
                         AlignLine(currentLineRuns, dims.X, availableWidth, child.Style.TextAlign);
-                        AlignLineBaselines(currentLineRuns, measurer);
+                        AlignLineBaselines(currentLineRuns, measurer, cursorY, lineHeight);
                         AlignLineBoxes(currentLineBoxes, cursorY, visualLineHeight);
                         cursorY += lineHeight;
                         cursorX = dims.X;
@@ -123,7 +123,7 @@ internal static class InlineLayout
 
         // Finish last line
         AlignLine(currentLineRuns, dims.X, availableWidth, anonymousBlock.Style.TextAlign);
-        AlignLineBaselines(currentLineRuns, measurer);
+        AlignLineBaselines(currentLineRuns, measurer, cursorY, lineHeight);
         AlignLineBoxes(currentLineBoxes, cursorY, visualLineHeight);
         if (lineHeight > 0)
         {
@@ -588,41 +588,79 @@ internal static class InlineLayout
     /// <summary>
     /// Aligns text runs on a line to a shared baseline. When runs have different font sizes
     /// (e.g. pseudo-elements with smaller text), all text is aligned to the baseline of the
-    /// largest font on the line.
+    /// largest font on the line. Then applies per-run vertical-align offsets (sub/super/top/
+    /// middle/bottom/length) relative to the shared baseline or line box.
     /// </summary>
-    private static void AlignLineBaselines(List<TextRun> lineRuns, ITextMeasurer measurer)
+    private static void AlignLineBaselines(List<TextRun> lineRuns, ITextMeasurer measurer,
+        float lineStartY, float lineHeight)
     {
-        if (lineRuns.Count <= 1) return;
+        if (lineRuns.Count == 0) return;
 
-        // Check if all runs have the same font size (common case — skip)
-        float firstSize = lineRuns[0].Style.FontSize;
-        bool allSame = true;
-        for (int i = 1; i < lineRuns.Count; i++)
-        {
-            if (Math.Abs(lineRuns[i].Style.FontSize - firstSize) > 0.01f)
-            {
-                allSame = false;
-                break;
-            }
-        }
-        if (allSame) return;
-
-        // Find the maximum baseline position (Y + ascent) across all runs
+        // Resolve a common baseline Y from runs that sit on the baseline (default).
+        // When runs differ in font size, align ascents so baselines coincide.
         float maxBaseline = float.MinValue;
         foreach (var run in lineRuns)
         {
+            if (!IsBaselineRun(run)) continue;
             float ascent = measurer.GetAscent(run.Style.FontSize);
-            float baseline = run.Y + ascent;
-            maxBaseline = Math.Max(maxBaseline, baseline);
+            maxBaseline = Math.Max(maxBaseline, run.Y + ascent);
         }
-
-        // Shift each run so its baseline matches the max baseline
+        if (maxBaseline == float.MinValue)
+        {
+            foreach (var run in lineRuns)
+            {
+                float ascent = measurer.GetAscent(run.Style.FontSize);
+                maxBaseline = Math.Max(maxBaseline, run.Y + ascent);
+            }
+        }
         foreach (var run in lineRuns)
         {
+            if (!IsBaselineRun(run)) continue;
             float ascent = measurer.GetAscent(run.Style.FontSize);
             run.Y = maxBaseline - ascent;
         }
+
+        // Use the line-box extent from the caller (cursorY to cursorY+lineHeight)
+        // so top/bottom align to the actual line box, not the inked glyph bounds.
+        float lineTop = lineStartY;
+        float lineBottom = lineHeight > 0 ? lineStartY + lineHeight : maxBaseline + 2;
+
+        foreach (var run in lineRuns)
+        {
+            var va = run.Style.VerticalAlign;
+            if (va == "baseline" || string.IsNullOrEmpty(va)) continue;
+
+            float fontSize = run.Style.FontSize;
+            float ascent = measurer.GetAscent(fontSize);
+            switch (va)
+            {
+                case "top":
+                case "text-top":
+                    run.Y = lineTop;
+                    break;
+                case "bottom":
+                case "text-bottom":
+                    run.Y = lineBottom - fontSize;
+                    break;
+                case "middle":
+                    run.Y = (lineTop + lineBottom) * 0.5f - fontSize * 0.5f;
+                    break;
+                case "sub":
+                    run.Y = maxBaseline - ascent + fontSize * 0.3f;
+                    break;
+                case "super":
+                    run.Y = maxBaseline - ascent - fontSize * 0.5f;
+                    break;
+                case "length":
+                    run.Y = maxBaseline - ascent - run.Style.VerticalAlignLength;
+                    break;
+            }
+        }
     }
+
+    private static bool IsBaselineRun(TextRun run)
+        => run.Style.VerticalAlign is "baseline" or "length"
+           || string.IsNullOrEmpty(run.Style.VerticalAlign);
 
     /// <summary>
     /// Computes the rightmost edge of content (text runs and child boxes) in a layout box subtree.

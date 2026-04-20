@@ -34,8 +34,19 @@ public sealed class Painter
         bool hasTransform = box.Style.Transform is { Count: > 0 };
         if (hasTransform)
         {
-            var matrix = TransformMatrix.Compose(box.Style.Transform!.Select(f => f.ToMatrix()));
-            list.Add(new PushTransformCommand { Matrix4x4 = matrix.Elements });
+            var inner = TransformMatrix.Compose(box.Style.Transform!.Select(f => f.ToMatrix()));
+
+            // Apply transform-origin: result = T(origin) * M * T(-origin)
+            // Origin is resolved against the element's border box in absolute coordinates.
+            var borderRect = box.Dimensions.BorderRect;
+            float ox = borderRect.X + borderRect.Width * (box.Style.TransformOriginX / 100f);
+            float oy = borderRect.Y + borderRect.Height * (box.Style.TransformOriginY / 100f);
+
+            var pre = TransformMatrix.CreateTranslation(-ox, -oy);
+            var post = TransformMatrix.CreateTranslation(ox, oy);
+            var final = post.Multiply(inner).Multiply(pre);
+
+            list.Add(new PushTransformCommand { Matrix4x4 = final.Elements });
         }
 
         // Push filter if present
@@ -393,6 +404,9 @@ public sealed class Painter
 
             if (string.IsNullOrWhiteSpace(run.Text)) continue;
 
+            // Text shadow (painted before the main glyph run so it sits behind).
+            PaintTextShadows(run, list, opacity);
+
             list.Add(new DrawTextCommand
             {
                 Text = run.Text,
@@ -410,41 +424,167 @@ public sealed class Painter
         }
     }
 
+    // Poor-man's blur: emit copies on a small grid around the offset with reduced alpha.
+    // Properly blurred text would need a GPU pass that samples the text atlas through a kernel.
+    private static readonly (float dx, float dy, float weight)[] BlurKernel =
+    [
+        (0f, 0f, 0.36f),
+        (-0.7f, 0f, 0.16f), (0.7f, 0f, 0.16f),
+        (0f, -0.7f, 0.16f), (0f, 0.7f, 0.16f),
+        (-0.5f, -0.5f, 0.08f), (0.5f, -0.5f, 0.08f),
+        (-0.5f, 0.5f, 0.08f), (0.5f, 0.5f, 0.08f),
+    ];
+
+    private static void PaintTextShadows(TextRun run, PaintList list, float opacity)
+    {
+        var shadows = run.Style.TextShadows;
+        if (shadows == null || shadows.Count == 0) return;
+
+        // Paint in reverse so first declared shadow ends up on top.
+        for (int i = shadows.Count - 1; i >= 0; i--)
+        {
+            var s = shadows[i];
+            var baseColor = ApplyOpacity(s.Color, opacity);
+            if (baseColor.A <= 0) continue;
+
+            if (s.BlurRadius <= 0.5f)
+            {
+                list.Add(new DrawTextCommand
+                {
+                    Text = run.Text,
+                    X = run.X + s.OffsetX,
+                    Y = run.Y + s.OffsetY,
+                    FontSize = run.Style.FontSize,
+                    Color = baseColor,
+                    FontWeight = run.Style.FontWeight,
+                    FontStyle = run.Style.FontStyle,
+                    FontFamily = run.Style.FontFamily,
+                    FontFamilies = run.Style.FontFamilies,
+                    LetterSpacing = run.Style.LetterSpacing,
+                    WordSpacing = run.Style.WordSpacing,
+                });
+            }
+            else
+            {
+                float step = s.BlurRadius * 0.35f;
+                foreach (var (dx, dy, w) in BlurKernel)
+                {
+                    var sampleColor = new Document.Color(baseColor.R, baseColor.G, baseColor.B, baseColor.A * w);
+                    if (sampleColor.A <= 0.01f) continue;
+                    list.Add(new DrawTextCommand
+                    {
+                        Text = run.Text,
+                        X = run.X + s.OffsetX + dx * step,
+                        Y = run.Y + s.OffsetY + dy * step,
+                        FontSize = run.Style.FontSize,
+                        Color = sampleColor,
+                        FontWeight = run.Style.FontWeight,
+                        FontStyle = run.Style.FontStyle,
+                        FontFamily = run.Style.FontFamily,
+                        FontFamilies = run.Style.FontFamilies,
+                        LetterSpacing = run.Style.LetterSpacing,
+                        WordSpacing = run.Style.WordSpacing,
+                    });
+                }
+            }
+        }
+    }
+
     private static void PaintTextDecoration(TextRun run, PaintList list, float opacity = 1f)
     {
         var decoration = run.Style.TextDecorationLine;
         if (decoration == TextDecorationLine.None) return;
 
         var color = ApplyOpacity(run.Style.TextDecorationColor ?? run.Style.Color, opacity);
-        float thickness = Math.Max(1f, run.Style.FontSize / 16f);
+        float thickness = float.IsNaN(run.Style.TextDecorationThickness)
+            ? Math.Max(1f, run.Style.FontSize / 16f)
+            : Math.Max(1f, run.Style.TextDecorationThickness);
+        string decoStyle = run.Style.TextDecorationStyle;
+        float extraOffset = float.IsNaN(run.Style.TextUnderlineOffset) ? 0f : run.Style.TextUnderlineOffset;
 
         if ((decoration & TextDecorationLine.Underline) != 0)
         {
-            float underlineY = run.Y + run.Style.FontSize;
-            list.Add(new FillRectCommand
-            {
-                Rect = new RectF(run.X, underlineY, run.Width, thickness),
-                Color = color,
-            });
+            float underlineY = run.Y + run.Style.FontSize + extraOffset;
+            EmitDecorationLine(list, run.X, underlineY, run.Width, thickness, color, decoStyle);
         }
 
         if ((decoration & TextDecorationLine.LineThrough) != 0)
         {
             float strikeY = run.Y + run.Style.FontSize * 0.5f;
-            list.Add(new FillRectCommand
-            {
-                Rect = new RectF(run.X, strikeY, run.Width, thickness),
-                Color = color,
-            });
+            EmitDecorationLine(list, run.X, strikeY, run.Width, thickness, color, decoStyle);
         }
 
         if ((decoration & TextDecorationLine.Overline) != 0)
         {
-            list.Add(new FillRectCommand
+            EmitDecorationLine(list, run.X, run.Y, run.Width, thickness, color, decoStyle);
+        }
+    }
+
+    private static void EmitDecorationLine(PaintList list, float x, float y, float width, float thickness,
+        Document.Color color, string decoStyle)
+    {
+        if (width <= 0) return;
+        switch (decoStyle)
+        {
+            case "double":
             {
-                Rect = new RectF(run.X, run.Y, run.Width, thickness),
-                Color = color,
-            });
+                float gap = Math.Max(1f, thickness);
+                list.Add(new FillRectCommand { Rect = new RectF(x, y, width, thickness), Color = color });
+                list.Add(new FillRectCommand { Rect = new RectF(x, y + thickness + gap, width, thickness), Color = color });
+                break;
+            }
+            case "dotted":
+            {
+                float dot = Math.Max(1f, thickness);
+                float step = dot * 2f;
+                for (float cursor = 0; cursor < width; cursor += step)
+                {
+                    float w = Math.Min(dot, width - cursor);
+                    list.Add(new FillRectCommand { Rect = new RectF(x + cursor, y, w, thickness), Color = color });
+                }
+                break;
+            }
+            case "dashed":
+            {
+                float dash = Math.Max(3f, thickness * 3f);
+                float step = dash * 2f;
+                for (float cursor = 0; cursor < width; cursor += step)
+                {
+                    float w = Math.Min(dash, width - cursor);
+                    list.Add(new FillRectCommand { Rect = new RectF(x + cursor, y, w, thickness), Color = color });
+                }
+                break;
+            }
+            case "wavy":
+            {
+                // Approximate sine wave with small axis-aligned segments.
+                float amp = Math.Max(1.5f, thickness * 1.2f);
+                float period = Math.Max(6f, thickness * 6f);
+                int steps = Math.Max(4, (int)(width / 1.5f));
+                float prevOff = 0f;
+                for (int i = 0; i <= steps; i++)
+                {
+                    float t = (float)i / steps;
+                    float cx = t * width;
+                    float off = amp * (float)Math.Sin((cx / period) * Math.PI * 2);
+                    if (i > 0)
+                    {
+                        float segLen = width / steps;
+                        float lowY = Math.Min(prevOff, off);
+                        float highY = Math.Max(prevOff, off);
+                        list.Add(new FillRectCommand
+                        {
+                            Rect = new RectF(x + cx - segLen, y + lowY, segLen, thickness + (highY - lowY)),
+                            Color = color,
+                        });
+                    }
+                    prevOff = off;
+                }
+                break;
+            }
+            default:
+                list.Add(new FillRectCommand { Rect = new RectF(x, y, width, thickness), Color = color });
+                break;
         }
     }
 
@@ -457,13 +597,14 @@ public sealed class Painter
 
         var dims = box.Dimensions;
         float fontSize = box.Style.FontSize;
-        float markerX = dims.X - fontSize * 1.2f;
+        bool inside = box.Style.ListStylePosition == "inside";
+        float markerX = inside ? dims.X : dims.X - fontSize * 1.2f;
         float markerY = dims.Y;
         var color = ApplyOpacity(box.Style.Color, opacity);
 
+        string markerText;
         if (ordered)
         {
-            // Compute item index (1-based)
             int index = 1;
             if (parent != null)
             {
@@ -473,31 +614,76 @@ public sealed class Painter
                     if (sibling is Element sibEl && sibEl.TagName == HtmlTagNames.Li) index++;
                 }
             }
-
-            list.Add(new DrawTextCommand
-            {
-                Text = $"{index}.",
-                X = markerX,
-                Y = markerY,
-                FontSize = fontSize,
-                Color = color,
-                FontFamilies = box.Style.FontFamilies,
-                FontWeight = box.Style.FontWeight,
-            });
+            markerText = FormatOrderedMarker(index, box.Style.ListStyleType);
         }
         else
         {
-            list.Add(new DrawTextCommand
+            markerText = box.Style.ListStyleType switch
             {
-                Text = "\u2022",
-                X = markerX,
-                Y = markerY,
-                FontSize = fontSize,
-                Color = color,
-                FontFamilies = box.Style.FontFamilies,
-                FontWeight = box.Style.FontWeight,
-            });
+                "circle" => "\u25E6",
+                "square" => "\u25AA",
+                "none" => "",
+                _ => "\u2022",
+            };
         }
+
+        if (markerText.Length == 0) return;
+
+        list.Add(new DrawTextCommand
+        {
+            Text = markerText,
+            X = markerX,
+            Y = markerY,
+            FontSize = fontSize,
+            Color = color,
+            FontFamilies = box.Style.FontFamilies,
+            FontWeight = box.Style.FontWeight,
+        });
+    }
+
+    private static string FormatOrderedMarker(int index, string type)
+    {
+        return type switch
+        {
+            "lower-alpha" or "lower-latin" => ToAlpha(index, lower: true) + ".",
+            "upper-alpha" or "upper-latin" => ToAlpha(index, lower: false) + ".",
+            "lower-roman" => ToRoman(index).ToLowerInvariant() + ".",
+            "upper-roman" => ToRoman(index) + ".",
+            "none" => "",
+            _ => index.ToString(System.Globalization.CultureInfo.InvariantCulture) + ".",
+        };
+    }
+
+    private static string ToAlpha(int n, bool lower)
+    {
+        if (n <= 0) return n.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var sb = new System.Text.StringBuilder();
+        int v = n;
+        while (v > 0)
+        {
+            v--;
+            sb.Insert(0, (char)((lower ? 'a' : 'A') + v % 26));
+            v /= 26;
+        }
+        return sb.ToString();
+    }
+
+    private static readonly (int Value, string Numeral)[] RomanTable =
+    [
+        (1000, "M"), (900, "CM"), (500, "D"), (400, "CD"),
+        (100, "C"), (90, "XC"), (50, "L"), (40, "XL"),
+        (10, "X"), (9, "IX"), (5, "V"), (4, "IV"), (1, "I"),
+    ];
+
+    private static string ToRoman(int n)
+    {
+        if (n <= 0 || n >= 4000) return n.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var sb = new System.Text.StringBuilder();
+        foreach (var (v, s) in RomanTable)
+        {
+            while (n >= v) { sb.Append(s); n -= v; }
+        }
+        return sb.ToString();
     }
 
     private static Document.Color ApplyOpacity(Document.Color color, float opacity)

@@ -15,7 +15,6 @@
     <File Path="docs/es-2025-todos.md" />
     <File Path="docs/es-2025-dom-todos.md" />
     <File Path="docs/browser-todos.md" />
-    <File Path="docs/MANUAL_TESTS_JS.md" />
     <File Path="docs/MANUAL_TESTS_CSS.md" />
   </Folder>
   <Folder Name="/src/Document/">

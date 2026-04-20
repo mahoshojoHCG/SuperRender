@@ -203,7 +203,7 @@ public sealed class BrowserWindow : IDisposable
             // This ensures selection is always between backgrounds and text even when
             // the content has nested clip segments (overflow:hidden, positioned elements).
 
-            // Pass 1: content quads (backgrounds, borders) with clip structure
+            // Pass 1: content quads (backgrounds, borders) with clip/transform structure
             combined.Add(new PushClipCommand
             {
                 Rect = new RectF(0, BrowserChrome.TotalChromeHeight, logicalWidth, contentHeight),
@@ -230,7 +230,8 @@ public sealed class BrowserWindow : IDisposable
                 combined.Add(new PopClipCommand());
             }
 
-            // Pass 2: content text with clip structure
+            // Pass 2: content text with clip AND transform/filter structure preserved
+            // (otherwise text inside a transformed element renders un-transformed).
             combined.Add(new PushClipCommand
             {
                 Rect = new RectF(0, BrowserChrome.TotalChromeHeight, logicalWidth, contentHeight),
@@ -238,7 +239,10 @@ public sealed class BrowserWindow : IDisposable
             foreach (var cmd in contentPaintList.Commands)
             {
                 var offset = OffsetCommand(cmd, contentOffset);
-                if (offset is DrawTextCommand or PushClipCommand or PopClipCommand)
+                if (offset is DrawTextCommand
+                    or PushClipCommand or PopClipCommand
+                    or PushTransformCommand or PopTransformCommand
+                    or PushFilterCommand or PopFilterCommand)
                     combined.Add(offset);
             }
             combined.Add(new PopClipCommand());
@@ -542,7 +546,30 @@ public sealed class BrowserWindow : IDisposable
                 Rect = new RectF(img.Rect.X, img.Rect.Y + offsetY, img.Rect.Width, img.Rect.Height),
                 Opacity = img.Opacity,
             },
+            PushTransformCommand xform => OffsetTransform(xform, offsetY),
             _ => cmd,
         };
+    }
+
+    /// <summary>
+    /// Re-anchors a transform matrix's pivot point by <paramref name="offsetY"/> pixels
+    /// so it operates on scrolled coordinates. Computes T(0,offsetY) · M · T(0,-offsetY),
+    /// which preserves the linear 2×2 block and shifts only translation.
+    /// </summary>
+    private static PushTransformCommand OffsetTransform(PushTransformCommand xform, float offsetY)
+    {
+        // Column-major 4x4: [0..3]=col0, [4..7]=col1, [8..11]=col2, [12..15]=col3 (tx,ty,tz,1)
+        // The 2D affine's linear part is (a,b,c,d) = (m[0], m[4], m[1], m[5]).
+        // For T(s)·M·T(-s) with s=(0,offsetY):
+        //   new_tx = tx - b * offsetY
+        //   new_ty = ty + offsetY * (1 - d)
+        var src = xform.Matrix4x4;
+        var dst = new float[16];
+        Array.Copy(src, dst, 16);
+        float b = src[4];   // m[0,1]
+        float d = src[5];   // m[1,1]
+        dst[12] = src[12] - b * offsetY;
+        dst[13] = src[13] + offsetY * (1 - d);
+        return new PushTransformCommand { Matrix4x4 = dst };
     }
 }

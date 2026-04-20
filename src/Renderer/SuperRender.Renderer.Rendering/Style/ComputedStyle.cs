@@ -182,6 +182,7 @@ public sealed class ComputedStyle
     public float TextDecorationThickness { get; set; } = float.NaN; // NaN = auto
     public float TextUnderlineOffset { get; set; } = float.NaN; // NaN = auto
     public string? TextShadow { get; set; }
+    public List<BoxShadowDescriptor>? TextShadows { get; set; }
     public string VerticalAlign { get; set; } = "baseline";
     public float VerticalAlignLength { get; set; }
     public string ListStylePosition { get; set; } = "outside";
@@ -352,6 +353,7 @@ public sealed class ComputedStyle
             TextDecorationThickness = TextDecorationThickness,
             TextUnderlineOffset = TextUnderlineOffset,
             TextShadow = TextShadow,
+            TextShadows = TextShadows,
             VerticalAlign = VerticalAlign,
             VerticalAlignLength = VerticalAlignLength,
             ListStylePosition = ListStylePosition,

@@ -181,6 +181,9 @@ public sealed unsafe class VulkanRenderer : IDisposable
         // Draw each segment in order with its scissor rect
         foreach (var seg in segments)
         {
+            // Per-segment combined projection * model matrix (shader applies transform + NDC mapping)
+            var mvp = seg.Transform * projection;
+
             // Set scissor (in physical pixels)
             var scissor = new Rect2D
             {
@@ -198,7 +201,7 @@ public sealed unsafe class VulkanRenderer : IDisposable
                 vk.CmdBindPipeline(cmd, PipelineBindPoint.Graphics, _pipelines.QuadPipeline);
                 vk.CmdSetScissor(cmd, 0, 1, &scissor);
                 vk.CmdPushConstants(cmd, _pipelines.QuadPipelineLayout,
-                    ShaderStageFlags.VertexBit, 0, 64, &projection);
+                    ShaderStageFlags.VertexBit, 0, 64, &mvp);
 
                 var (qvBuf, qvOff) = _buffers.GetQuadVertexBinding(_currentFrame);
                 vk.CmdBindVertexBuffers(cmd, 0, 1, &qvBuf, &qvOff);
@@ -213,7 +216,7 @@ public sealed unsafe class VulkanRenderer : IDisposable
                 vk.CmdBindPipeline(cmd, PipelineBindPoint.Graphics, _pipelines.TextPipeline);
                 vk.CmdSetScissor(cmd, 0, 1, &scissor);
                 vk.CmdPushConstants(cmd, _pipelines.TextPipelineLayout,
-                    ShaderStageFlags.VertexBit, 0, 64, &projection);
+                    ShaderStageFlags.VertexBit, 0, 64, &mvp);
 
                 var descSet = _textDescriptorSet;
                 vk.CmdBindDescriptorSets(cmd, PipelineBindPoint.Graphics,
@@ -232,7 +235,7 @@ public sealed unsafe class VulkanRenderer : IDisposable
                 vk.CmdBindPipeline(cmd, PipelineBindPoint.Graphics, _pipelines.ImagePipeline);
                 vk.CmdSetScissor(cmd, 0, 1, &scissor);
                 vk.CmdPushConstants(cmd, _pipelines.ImagePipelineLayout,
-                    ShaderStageFlags.VertexBit, 0, 64, &projection);
+                    ShaderStageFlags.VertexBit, 0, 64, &mvp);
 
                 var (ivBuf, ivOff) = _buffers.GetImageVertexBinding(_currentFrame);
                 vk.CmdBindVertexBuffers(cmd, 0, 1, &ivBuf, &ivOff);
@@ -275,6 +278,9 @@ public sealed unsafe class VulkanRenderer : IDisposable
         // Scissor rect in logical pixels
         public float ScissorX, ScissorY, ScissorW, ScissorH;
 
+        // Effective 2D transform applied by the vertex shader for this segment.
+        public Matrix4x4 Transform = Matrix4x4.Identity;
+
         // Offsets into the combined buffer (set during upload)
         public uint QuadIndexOffset;
         public uint QuadVertexOffset;
@@ -304,7 +310,13 @@ public sealed unsafe class VulkanRenderer : IDisposable
         var clipStack = new Stack<(float x, float y, float w, float h)>();
         clipStack.Push((0, 0, logicalWidth, logicalHeight));
 
-        var current = new DrawSegment();
+        // Transform stack — top is the effective 2D affine transform applied by the
+        // vertex shader to every primitive in the active segment. Push/Pop boundaries
+        // flush the segment so each draw call binds its own matrix via push constants.
+        var transformStack = new Stack<Matrix4x4>();
+        transformStack.Push(Matrix4x4.Identity);
+
+        var current = new DrawSegment { Transform = transformStack.Peek() };
         var (cx, cy, cw, ch) = clipStack.Peek();
         current.ScissorX = cx; current.ScissorY = cy;
         current.ScissorW = cw; current.ScissorH = ch;
@@ -340,6 +352,39 @@ public sealed unsafe class VulkanRenderer : IDisposable
                     var (rx, ry, rw, rh) = clipStack.Peek();
                     current.ScissorX = rx; current.ScissorY = ry;
                     current.ScissorW = rw; current.ScissorH = rh;
+                    break;
+                }
+
+                case PushTransformCommand xform:
+                {
+                    current = FlushSegment(segments, current);
+
+                    // CSS matrix is column-major 4x4. Compose with parent transform.
+                    var e = xform.Matrix4x4;
+                    var m2d = new Matrix4x4(
+                        e[0], e[1], 0, 0,
+                        e[4], e[5], 0, 0,
+                        0,    0,    1, 0,
+                        e[12], e[13], 0, 1);
+                    var composed = m2d * transformStack.Peek();
+                    transformStack.Push(composed);
+
+                    current.Transform = composed;
+                    var (cxp, cyp, cwp, chp) = clipStack.Peek();
+                    current.ScissorX = cxp; current.ScissorY = cyp;
+                    current.ScissorW = cwp; current.ScissorH = chp;
+                    break;
+                }
+
+                case PopTransformCommand:
+                {
+                    current = FlushSegment(segments, current);
+
+                    if (transformStack.Count > 1) transformStack.Pop();
+                    current.Transform = transformStack.Peek();
+                    var (cxp, cyp, cwp, chp) = clipStack.Peek();
+                    current.ScissorX = cxp; current.ScissorY = cyp;
+                    current.ScissorW = cwp; current.ScissorH = chp;
                     break;
                 }
 
@@ -418,7 +463,7 @@ public sealed unsafe class VulkanRenderer : IDisposable
             || current.ImageIndices.Count > 0)
         {
             segments.Add(current);
-            return new DrawSegment();
+            return new DrawSegment { Transform = current.Transform };
         }
         return current;
     }
