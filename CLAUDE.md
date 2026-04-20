@@ -16,7 +16,7 @@ A complete HTML+CSS rendering engine built with C# (.NET 10), using Silk.NET + V
   - `SuperRender.EcmaScript.Engine/` — JsEngine public API, .NET interop (TypeProxy, ObjectProxy)
   - `SuperRender.EcmaScript.Repl/` — Interactive JS console (Node.js-style REPL)
   - `SuperRender.EcmaScript.Dom/` — JS DOM API bindings: bridges C# DOM to JS runtime (document, element, window, fetch, location, history APIs)
-  - `SuperRender.EcmaScript.NodeSimulator/` — Node.js-compatible runtime surface (process, Buffer, fs, path, etc.) installed onto a JsEngine. `ref/types-node/` pins `@types/node@25.6.0` as the API reference. Priority plan in `docs/node-api-todos.md`.
+  - `SuperRender.EcmaScript.NodeSimulator/` — Node.js-compatible runtime surface installed onto a JsEngine. P0 modules: `process`, `Buffer`, `console`, timers family, `path` (+posix/win32), `os`, `util`, `events`, `assert`, `fs` (+`fs/promises`, `fs.watch` via cross-platform `FileSystemWatcher`). P1 modules: `querystring`, `url` (legacy parse/format/resolve, fileURLToPath/pathToFileURL, urlToHttpOptions), `string_decoder` (utf8/utf16le/base64/hex partial-chunk safe), `crypto` (randomUUID/randomBytes, createHash/createHmac for md5/sha1/sha256/sha384/sha512, timingSafeEqual, pbkdf2/pbkdf2Sync), `zlib` (gzip/deflate/deflateRaw/brotli sync + callback + `promises` namespace, backed by `System.IO.Compression`), `stream` (Readable/Writable/Transform/PassThrough + pipeline/finished). `ref/types-node/` pins `@types/node@25.6.0` as the API reference. Priority plan in `docs/node-api-todos.md`.
 - `src/Browser/`
   - `SuperRender.Browser/` — Browser application with tabs, address bar, networking, cookies, storage (SQLite), HTTP caching, CORS, HiDPI, image loading
 - `src/Demo/`
@@ -25,13 +25,14 @@ A complete HTML+CSS rendering engine built with C# (.NET 10), using Silk.NET + V
 - `tests/SuperRender.Renderer.Tests/` — xUnit tests for Renderer (543 tests: Style, Layout, Flexbox, Grid, Painting, Transforms, Transitions, Filters, Logical Properties)
 - `tests/SuperRender.Renderer.Image.Tests/` — xUnit tests for Image decoders (25 tests: PNG, BMP, JPEG)
 - `tests/SuperRender.EcmaScript.Tests/` — xUnit tests for EcmaScript (668 tests)
+- `tests/SuperRender.EcmaScript.NodeSimulator.Tests/` — xUnit tests for NodeSimulator (124 tests: P0 path/os/fs/util/events/assert/buffer/process/timers/globals + P1 querystring/url/string_decoder/crypto/zlib/stream/fs.watch)
 - `tests/SuperRender.Browser.Tests/` — xUnit tests for Browser + DOM bindings (265 tests)
 
 ## Build & Run
 
 ```bash
 dotnet build              # Build all projects (warnings are errors)
-dotnet test               # Run all unit tests (2047 total)
+dotnet test               # Run all unit tests (2171 total)
 dotnet run --project src/Demo/SuperRender.Demo  # Launch the demo window (requires Vulkan)
 dotnet run --project src/Browser/SuperRender.Browser  # Launch the browser (requires Vulkan)
 dotnet run --project src/EcmaScript/SuperRender.EcmaScript.Repl  # Launch the JS console REPL

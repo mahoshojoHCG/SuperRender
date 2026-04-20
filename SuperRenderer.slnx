@@ -47,5 +47,6 @@
     <Project Path="tests/SuperRender.EcmaScript.Tests/SuperRender.EcmaScript.Tests.csproj" />
     <Project Path="tests/SuperRender.Browser.Tests/SuperRender.Browser.Tests.csproj" />
     <Project Path="tests/SuperRender.Renderer.Image.Tests/SuperRender.Renderer.Image.Tests.csproj" />
+    <Project Path="tests/SuperRender.EcmaScript.NodeSimulator.Tests/SuperRender.EcmaScript.NodeSimulator.Tests.csproj" />
   </Folder>
 </Solution>

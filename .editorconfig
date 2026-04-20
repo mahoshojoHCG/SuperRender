@@ -23,3 +23,11 @@ dotnet_diagnostic.CA1873.severity = none
 
 [tests/**/*.cs]
 dotnet_diagnostic.CA1707.severity = none
+
+# Node.js API simulator — must expose the same algorithm and type names as Node itself.
+[src/EcmaScript/SuperRender.EcmaScript.NodeSimulator/**/*.cs]
+# CA5350/CA5351: broken/weak crypto — Node.js `crypto` exposes MD5/SHA1 by name
+dotnet_diagnostic.CA5350.severity = none
+dotnet_diagnostic.CA5351.severity = none
+# CA1711: "Stream" suffix on type names — Node.js calls them Readable/Writable/TransformStream
+dotnet_diagnostic.CA1711.severity = none
