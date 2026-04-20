@@ -2,142 +2,144 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public static class AtomicsObject
+[JsObject]
+public sealed partial class AtomicsObject : JsObjectBase
 {
-    public static void Install(Realm realm)
+    private static readonly JsString ToStringTagValue = new("Atomics");
+
+    private readonly Realm _realm;
+
+    public AtomicsObject(Realm realm)
     {
-        var atomics = new JsDynamicObject { Prototype = realm.ObjectPrototype };
+        _realm = realm;
+        Prototype = realm.ObjectPrototype;
+        Extensible = false;
+    }
 
-        // Symbol.toStringTag
-        atomics.DefineSymbolProperty(JsSymbol.ToStringTag,
-            PropertyDescriptor.Data(new JsString("Atomics"), writable: false, enumerable: false, configurable: true));
+    public static void Install(Realm realm) => realm.InstallGlobal("Atomics", new AtomicsObject(realm));
 
-        BuiltinHelper.DefineMethod(atomics, "load", (_, args) =>
+    public override bool TryGetSymbolProperty(JsSymbol symbol, out JsValue value)
+    {
+        if (symbol == JsSymbol.ToStringTag)
         {
-            var ta = RequireTypedArray(args, 0);
-            var index = (int)BuiltinHelper.Arg(args, 1).ToNumber();
-            ValidateIndex(ta, index);
-            var bytes = GetBytes(ta);
-            var (getter, _, bytesPerElement, byteOffset) = GetAccessors(ta);
-            lock (bytes)
+            value = ToStringTagValue;
+            return true;
+        }
+
+        return base.TryGetSymbolProperty(symbol, out value);
+    }
+
+    [JsMethod("load")]
+    public static JsValue Load(JsValue _, JsValue[] args)
+    {
+        var ta = RequireTypedArray(args, 0);
+        var index = (int)BuiltinHelper.Arg(args, 1).ToNumber();
+        ValidateIndex(ta, index);
+        var bytes = GetBytes(ta);
+        var (getter, _, bytesPerElement, byteOffset) = GetAccessors(ta);
+        lock (bytes)
+        {
+            return JsNumber.Create(getter(bytes, byteOffset + index * bytesPerElement));
+        }
+    }
+
+    [JsMethod("store")]
+    public static JsValue Store(JsValue _, JsValue[] args)
+    {
+        var ta = RequireTypedArray(args, 0);
+        var index = (int)BuiltinHelper.Arg(args, 1).ToNumber();
+        var value = BuiltinHelper.Arg(args, 2).ToNumber();
+        ValidateIndex(ta, index);
+        var bytes = GetBytes(ta);
+        var (_, setter, bytesPerElement, byteOffset) = GetAccessors(ta);
+        lock (bytes)
+        {
+            setter(bytes, byteOffset + index * bytesPerElement, value);
+        }
+        return JsNumber.Create(value);
+    }
+
+    [JsMethod("add")]
+    public static JsValue Add(JsValue _, JsValue[] args) => AtomicOp(args, (old, val) => old + val);
+
+    [JsMethod("sub")]
+    public static JsValue Sub(JsValue _, JsValue[] args) => AtomicOp(args, (old, val) => old - val);
+
+    [JsMethod("and")]
+    public static JsValue And(JsValue _, JsValue[] args) => AtomicOp(args, (old, val) => (int)old & (int)val);
+
+    [JsMethod("or")]
+    public static JsValue Or(JsValue _, JsValue[] args) => AtomicOp(args, (old, val) => (int)old | (int)val);
+
+    [JsMethod("xor")]
+    public static JsValue Xor(JsValue _, JsValue[] args) => AtomicOp(args, (old, val) => (int)old ^ (int)val);
+
+    [JsMethod("exchange")]
+    public static JsValue Exchange(JsValue _, JsValue[] args)
+    {
+        var ta = RequireTypedArray(args, 0);
+        var index = (int)BuiltinHelper.Arg(args, 1).ToNumber();
+        var value = BuiltinHelper.Arg(args, 2).ToNumber();
+        ValidateIndex(ta, index);
+        var bytes = GetBytes(ta);
+        var (getter, setter, bytesPerElement, byteOffset) = GetAccessors(ta);
+        lock (bytes)
+        {
+            var offset = byteOffset + index * bytesPerElement;
+            var old = getter(bytes, offset);
+            setter(bytes, offset, value);
+            return JsNumber.Create(old);
+        }
+    }
+
+    [JsMethod("compareExchange")]
+    public static JsValue CompareExchange(JsValue _, JsValue[] args)
+    {
+        var ta = RequireTypedArray(args, 0);
+        var index = (int)BuiltinHelper.Arg(args, 1).ToNumber();
+        var expected = BuiltinHelper.Arg(args, 2).ToNumber();
+        var replacement = BuiltinHelper.Arg(args, 3).ToNumber();
+        ValidateIndex(ta, index);
+        var bytes = GetBytes(ta);
+        var (getter, setter, bytesPerElement, byteOffset) = GetAccessors(ta);
+        lock (bytes)
+        {
+            var offset = byteOffset + index * bytesPerElement;
+            var old = getter(bytes, offset);
+            // ReSharper disable once CompareOfFloatsByEqualityOperator
+            if (old == expected)
             {
-                return JsNumber.Create(getter(bytes, byteOffset + index * bytesPerElement));
+                setter(bytes, offset, replacement);
             }
-        }, 2);
+            return JsNumber.Create(old);
+        }
+    }
 
-        BuiltinHelper.DefineMethod(atomics, "store", (_, args) =>
-        {
-            var ta = RequireTypedArray(args, 0);
-            var index = (int)BuiltinHelper.Arg(args, 1).ToNumber();
-            var value = BuiltinHelper.Arg(args, 2).ToNumber();
-            ValidateIndex(ta, index);
-            var bytes = GetBytes(ta);
-            var (_, setter, bytesPerElement, byteOffset) = GetAccessors(ta);
-            lock (bytes)
-            {
-                setter(bytes, byteOffset + index * bytesPerElement, value);
-            }
-            return JsNumber.Create(value);
-        }, 3);
+    [JsMethod("isLockFree")]
+    public static JsValue IsLockFree(JsValue _, JsValue[] args)
+    {
+        var size = (int)BuiltinHelper.Arg(args, 0).ToNumber();
+        return size is 1 or 2 or 4 or 8 ? JsValue.True : JsValue.False;
+    }
 
-        BuiltinHelper.DefineMethod(atomics, "add", (_, args) =>
-        {
-            return AtomicOp(args, (old, val) => old + val);
-        }, 3);
+    [JsMethod("wait")]
+    public static JsValue Wait(JsValue _, JsValue[] args) => new JsString("not-equal");
 
-        BuiltinHelper.DefineMethod(atomics, "sub", (_, args) =>
-        {
-            return AtomicOp(args, (old, val) => old - val);
-        }, 3);
+    [JsMethod("notify")]
+    public static JsValue Notify(JsValue _, JsValue[] args) => JsNumber.Zero;
 
-        BuiltinHelper.DefineMethod(atomics, "and", (_, args) =>
-        {
-            return AtomicOp(args, (old, val) => (int)old & (int)val);
-        }, 3);
+    [JsMethod("waitAsync")]
+    public JsValue WaitAsync(JsValue[] args)
+    {
+        var promise = new JsPromiseObject { Prototype = _realm.PromisePrototype };
+        var result = new JsDynamicObject { Prototype = _realm.ObjectPrototype };
+        result.Set("value", new JsString("not-equal"));
+        PromiseConstructor.ResolvePromise(promise, result, _realm);
 
-        BuiltinHelper.DefineMethod(atomics, "or", (_, args) =>
-        {
-            return AtomicOp(args, (old, val) => (int)old | (int)val);
-        }, 3);
-
-        BuiltinHelper.DefineMethod(atomics, "xor", (_, args) =>
-        {
-            return AtomicOp(args, (old, val) => (int)old ^ (int)val);
-        }, 3);
-
-        BuiltinHelper.DefineMethod(atomics, "exchange", (_, args) =>
-        {
-            var ta = RequireTypedArray(args, 0);
-            var index = (int)BuiltinHelper.Arg(args, 1).ToNumber();
-            var value = BuiltinHelper.Arg(args, 2).ToNumber();
-            ValidateIndex(ta, index);
-            var bytes = GetBytes(ta);
-            var (getter, setter, bytesPerElement, byteOffset) = GetAccessors(ta);
-            lock (bytes)
-            {
-                var offset = byteOffset + index * bytesPerElement;
-                var old = getter(bytes, offset);
-                setter(bytes, offset, value);
-                return JsNumber.Create(old);
-            }
-        }, 3);
-
-        BuiltinHelper.DefineMethod(atomics, "compareExchange", (_, args) =>
-        {
-            var ta = RequireTypedArray(args, 0);
-            var index = (int)BuiltinHelper.Arg(args, 1).ToNumber();
-            var expected = BuiltinHelper.Arg(args, 2).ToNumber();
-            var replacement = BuiltinHelper.Arg(args, 3).ToNumber();
-            ValidateIndex(ta, index);
-            var bytes = GetBytes(ta);
-            var (getter, setter, bytesPerElement, byteOffset) = GetAccessors(ta);
-            lock (bytes)
-            {
-                var offset = byteOffset + index * bytesPerElement;
-                var old = getter(bytes, offset);
-                // ReSharper disable once CompareOfFloatsByEqualityOperator
-                if (old == expected)
-                {
-                    setter(bytes, offset, replacement);
-                }
-                return JsNumber.Create(old);
-            }
-        }, 4);
-
-        BuiltinHelper.DefineMethod(atomics, "isLockFree", (_, args) =>
-        {
-            var size = (int)BuiltinHelper.Arg(args, 0).ToNumber();
-            // 1, 2, 4, 8 bytes are typically lock-free on modern hardware
-            return size is 1 or 2 or 4 or 8 ? JsValue.True : JsValue.False;
-        }, 1);
-
-        BuiltinHelper.DefineMethod(atomics, "wait", (_, _) =>
-        {
-            // Simplified: always returns "not-equal" since we don't have real shared memory
-            return new JsString("not-equal");
-        }, 4);
-
-        BuiltinHelper.DefineMethod(atomics, "notify", (_, _) =>
-        {
-            // Simplified: returns 0 since no waiters
-            return JsNumber.Zero;
-        }, 3);
-
-        BuiltinHelper.DefineMethod(atomics, "waitAsync", (_, _) =>
-        {
-            // Return a promise that resolves to "not-equal"
-            var promise = new JsPromiseObject { Prototype = realm.PromisePrototype };
-            var result = new JsDynamicObject { Prototype = realm.ObjectPrototype };
-            result.Set("value", new JsString("not-equal"));
-            PromiseConstructor.ResolvePromise(promise, result, realm);
-
-            var wrapper = new JsDynamicObject { Prototype = realm.ObjectPrototype };
-            wrapper.Set("async", JsValue.True);
-            wrapper.Set("value", promise);
-            return wrapper;
-        }, 4);
-
-        realm.InstallGlobal("Atomics", atomics);
+        var wrapper = new JsDynamicObject { Prototype = _realm.ObjectPrototype };
+        wrapper.Set("async", JsValue.True);
+        wrapper.Set("value", promise);
+        return wrapper;
     }
 
     private static JsValue AtomicOp(JsValue[] args, Func<double, double, double> op)
@@ -189,11 +191,10 @@ public static class AtomicsObject
     {
         var byteOffset = (int)ta.Get("byteOffset").ToNumber();
 
-        if (ta is JsTypedArrayObject typed)
+        if (ta is JsTypedArrayObject)
         {
-            // Access through reflection or stored accessors
             var bpe = (int)ta.Get("BYTES_PER_ELEMENT").ToNumber();
-            if (bpe == 0) bpe = 4; // default to Int32
+            if (bpe == 0) bpe = 4;
 
             return bpe switch
             {
@@ -204,7 +205,6 @@ public static class AtomicsObject
             };
         }
 
-        // Fallback for non-JsTypedArrayObject
         return ((b, i) => BitConverter.ToInt32(b, i), (b, i, v) => BitConverter.TryWriteBytes(b.AsSpan(i), (int)v), 4, byteOffset);
     }
 }

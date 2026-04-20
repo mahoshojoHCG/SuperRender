@@ -4,15 +4,30 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using SuperRender.EcmaScript.Runtime;
 
-public static class TemporalObject
+[JsObject]
+public sealed partial class TemporalObject : JsDynamicObject
 {
+    private static readonly JsString ToStringTagValue = new("Temporal");
+
+    public TemporalObject(Realm realm)
+    {
+        Prototype = realm.ObjectPrototype;
+    }
+
+    public override bool TryGetSymbolProperty(JsSymbol symbol, out JsValue value)
+    {
+        if (symbol == JsSymbol.ToStringTag)
+        {
+            value = ToStringTagValue;
+            return true;
+        }
+
+        return base.TryGetSymbolProperty(symbol, out value);
+    }
+
     public static void Install(Realm realm)
     {
-        var temporal = new JsDynamicObject { Prototype = realm.ObjectPrototype };
-
-        // Symbol.toStringTag
-        temporal.DefineSymbolProperty(JsSymbol.ToStringTag,
-            PropertyDescriptor.Data(new JsString("Temporal"), writable: false, enumerable: false, configurable: true));
+        var temporal = new TemporalObject(realm);
 
         InstallPlainDate(temporal, realm);
         InstallPlainTime(temporal, realm);

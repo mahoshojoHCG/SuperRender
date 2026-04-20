@@ -3,15 +3,30 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using System.Globalization;
 using SuperRender.EcmaScript.Runtime;
 
-public static class IntlObject
+[JsObject]
+public sealed partial class IntlObject : JsDynamicObject
 {
+    private static readonly JsString ToStringTagValue = new("Intl");
+
+    public IntlObject(Realm realm)
+    {
+        Prototype = realm.ObjectPrototype;
+    }
+
+    public override bool TryGetSymbolProperty(JsSymbol symbol, out JsValue value)
+    {
+        if (symbol == JsSymbol.ToStringTag)
+        {
+            value = ToStringTagValue;
+            return true;
+        }
+
+        return base.TryGetSymbolProperty(symbol, out value);
+    }
+
     public static void Install(Realm realm)
     {
-        var intl = new JsDynamicObject { Prototype = realm.ObjectPrototype };
-
-        // Symbol.toStringTag
-        intl.DefineSymbolProperty(JsSymbol.ToStringTag,
-            PropertyDescriptor.Data(new JsString("Intl"), writable: false, enumerable: false, configurable: true));
+        var intl = new IntlObject(realm);
 
         InstallCollator(intl, realm);
         InstallNumberFormat(intl, realm);
