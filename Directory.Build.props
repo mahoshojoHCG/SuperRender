@@ -9,4 +9,7 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
+  <ItemGroup>
+    <CompilerVisibleProperty Include="TargetDir" />
+  </ItemGroup>
 </Project>
