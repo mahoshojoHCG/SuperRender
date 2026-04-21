@@ -43,6 +43,30 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         DiagnosticSeverity.Info,
         true);
 
+    private static readonly DiagnosticDescriptor DisallowedParamType = new(
+        "JSGEN005",
+        "Parameter type not allowed by [JsMethod]/[JsProperty] rules",
+        "Parameter '{0}' on {1}.{2} has type '{3}'. Allowed: an IJsType-derived interface, a C# primitive, or JsOptional<T>.",
+        "SuperRender.Analyzer",
+        DiagnosticSeverity.Warning,
+        true);
+
+    private static readonly DiagnosticDescriptor DisallowedReturnType = new(
+        "JSGEN006",
+        "Return type not allowed by [JsMethod]/[JsProperty] rules",
+        "Return type on {0}.{1} is '{2}'. When a member returns a single type, use that type directly (IJsType interface or primitive); when it also yields undefined, use JsOptional<T>.",
+        "SuperRender.Analyzer",
+        DiagnosticSeverity.Warning,
+        true);
+
+    private static readonly DiagnosticDescriptor LegacyShapeDisallowed = new(
+        "JSGEN007",
+        "Legacy (JsValue, JsValue[]) method shape disallowed",
+        "Method {0}.{1} uses the legacy (JsValue thisArg, JsValue[] args) shape. Prefer typed parameters; suppress with a reason when variadics genuinely require this shape.",
+        "SuperRender.Analyzer",
+        DiagnosticSeverity.Warning,
+        true);
+
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         context.RegisterPostInitializationOutput(static ctx =>
@@ -166,6 +190,15 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             && IsJsValue(m.Parameters[0].Type)
             && IsJsValueArray(m.Parameters[1].Type);
 
+        if (isLegacy)
+        {
+            diagnostics.Add(Diagnostic.Create(
+                LegacyShapeDisallowed,
+                m.Locations.FirstOrDefault(),
+                className,
+                m.Name));
+        }
+
         var parameters = ImmutableArray.CreateBuilder<ParamModel>();
         if (!isLegacy)
         {
@@ -184,6 +217,17 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
                     return null;
                 }
 
+                if (IsDisallowedParamKind(kind))
+                {
+                    diagnostics.Add(Diagnostic.Create(
+                        DisallowedParamType,
+                        p.Locations.FirstOrDefault() ?? m.Locations.FirstOrDefault(),
+                        p.Name,
+                        className,
+                        m.Name,
+                        p.Type.ToDisplayString()));
+                }
+
                 parameters.Add(new ParamModel(p.Name, p.Type.ToDisplayString(), kind));
             }
         }
@@ -198,6 +242,16 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
                 className,
                 m.Name));
             return null;
+        }
+
+        if (IsDisallowedReturnKind(retKind))
+        {
+            diagnostics.Add(Diagnostic.Create(
+                DisallowedReturnType,
+                m.Locations.FirstOrDefault(),
+                className,
+                m.Name,
+                m.ReturnType.ToDisplayString()));
         }
 
         ReturnKind innerKind = ReturnKind.Void;
@@ -262,6 +316,16 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             yield break;
         }
 
+        if (IsDisallowedReturnKind(getterKind))
+        {
+            diagnostics.Add(Diagnostic.Create(
+                DisallowedReturnType,
+                member.Locations.FirstOrDefault(),
+                className,
+                member.Name,
+                valueType.ToDisplayString()));
+        }
+
         ReturnKind innerKind = ReturnKind.Void;
         string? innerDisplay = null;
         if (getterKind == ReturnKind.ROptional && IsJsOptional(valueType, out var innerType) && innerType is not null)
@@ -298,10 +362,31 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
                 yield break;
             }
 
+            if (IsDisallowedParamKind(setterKind))
+            {
+                diagnostics.Add(Diagnostic.Create(
+                    DisallowedParamType,
+                    member.Locations.FirstOrDefault(),
+                    "value",
+                    className,
+                    member.Name,
+                    valueType.ToDisplayString()));
+            }
+
             yield return new PropertyModel(jsName ?? member.Name, member.Name, true, isStatic, true,
                 valueType.ToDisplayString(), (ParamKind?)setterKind, null);
         }
     }
+
+    private static bool IsDisallowedParamKind(ParamKind kind) => kind switch
+    {
+        ParamKind.JsValue => true,
+        ParamKind.JsObject => true,
+        ParamKind.ArgsArray => true,
+        _ => false,
+    };
+
+    private static bool IsDisallowedReturnKind(ReturnKind kind) => kind == ReturnKind.JsValue;
 
     private static bool InheritsJsObject(INamedTypeSymbol cls)
     {

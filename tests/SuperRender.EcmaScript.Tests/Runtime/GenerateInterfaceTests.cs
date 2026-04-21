@@ -9,17 +9,17 @@ using Xunit;
 
 namespace SuperRender.EcmaScript.Tests.Runtime;
 
-[JsObject(GenerateInterface = true)]
+[JsObject(GenerateInterface = true, ExportType = JsObjectExportType.Global)]
 public sealed partial class FixtureGen : JsObject
 {
     [JsMethod("ping")]
-    public JsString Ping(string s) => new(s);
+    public string Ping(string s) => s;
 
     [JsMethod("add")]
     public double Add(double a, double b) => a + b;
 
     [JsProperty("label")]
-    public JsString Label => new("hello");
+    public string Label => "hello";
 }
 
 // IJsType interface used as [JsMethod] parameter/return — user-declared so it's visible
@@ -90,7 +90,7 @@ public class GenerateInterfaceTests
         JsValue v = obj;
         var view = v.AsInterface<IFixtureGen>();
         Assert.Same(obj, view);
-        Assert.Equal("hi", view.Ping("hi").Value);
+        Assert.Equal("hi", view.Ping("hi"));
         Assert.Equal(5.0, view.Add(2.0, 3.0));
     }
 
@@ -98,14 +98,14 @@ public class GenerateInterfaceTests
     public void DtsFile_WrittenToTypesFolder()
     {
         var asmDir = Path.GetDirectoryName(typeof(GenerateInterfaceTests).Assembly.Location)!;
-        var dts = Path.Combine(
-            asmDir, "types", "SuperRender", "EcmaScript", "Tests", "Runtime", "IFixtureGen.d.ts");
+        var dts = Path.Combine(asmDir, "types", "FixtureGen.d.ts");
         Assert.True(File.Exists(dts), $"expected {dts}");
         var content = File.ReadAllText(dts);
-        Assert.Contains("export interface IFixtureGen", content);
+        Assert.Contains("interface IFixtureGen", content);
         Assert.Contains("ping(", content);
         Assert.Contains("add(", content);
         Assert.Contains("readonly label:", content);
+        Assert.Contains("declare const FixtureGen: IFixtureGen;", content);
     }
 
     [Fact]

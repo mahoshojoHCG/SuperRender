@@ -4,6 +4,11 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 
+// JSGEN005/006/007: Node util.format/inspect/types.* accept any JS value and return strings/bools
+// via pass-through JsValue. Typed migration would need per-predicate overloads and a string-format
+// value list that doesn't collapse type distinctions.
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007
+
 /// <summary>
 /// Node.js `util` module. Implements format / inspect / promisify / callbackify and
 /// the isDeep* / types.* predicates needed by common library code.

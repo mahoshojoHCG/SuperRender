@@ -2,6 +2,11 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.Dom;
 
+// JSGEN005/006/007: history.pushState/replaceState accept an arbitrary JS state value (pass-through
+// JsValue) and the `state` getter returns whatever was stored. Typed migration would lose this
+// arbitrary-payload semantics.
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007
+
 /// <summary>
 /// JS wrapper for window.history. Provides pushState/replaceState/back/forward/go.
 /// Uses delegates so the EcmaScript.Dom project remains dependency-free.

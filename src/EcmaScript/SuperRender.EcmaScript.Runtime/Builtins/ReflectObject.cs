@@ -2,6 +2,12 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
+// JSGEN005/006/007: Reflect is a pure meta-object — every method operates on an
+// untyped target `JsObject`/`JsValue` and forwards raw args. Typed signatures
+// cannot express Reflect.apply/construct/defineProperty/etc. without losing the
+// "pass-through any JS value" contract, so the legacy variadic shape is kept.
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007
+
 [JsObject]
 public sealed partial class ReflectObject : JsObject
 {

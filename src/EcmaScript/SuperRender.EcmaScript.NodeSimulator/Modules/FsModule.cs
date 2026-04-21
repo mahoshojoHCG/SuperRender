@@ -3,6 +3,11 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 
+// JSGEN005/006/007: Node fs mirrors the Node.js API — sync/callback variants take PathLike|Buffer
+// with optional flags/encoding (legacy variadic) and return Buffer|string|Stats wrappers (JsValue).
+// Typed migration would need IPathLike/IBuffer/IStats IJsType interfaces.
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007
+
 /// <summary>
 /// Node.js `fs` module. Implements the commonly used sync operations plus a
 /// `promises` namespace whose methods return JS Promises. Real disk I/O is

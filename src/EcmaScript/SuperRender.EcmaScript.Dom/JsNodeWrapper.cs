@@ -4,6 +4,12 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.Dom;
 
+// JSGEN005/006/007: DOM Node members return JsValue-wrapped DOM nodes and accept raw JsValue for
+// mixed Node|string targets. Migration to IJsNode/IJsNodeList IJsType is tracked separately;
+// addEventListener/removeEventListener stay on the legacy variadic shape because the callback arg
+// is a JsFunction that can't be represented as a typed interface param.
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007
+
 /// <summary>
 /// JS wrapper for a DOM Node. Exposes the standard DOM Node API.
 /// </summary>

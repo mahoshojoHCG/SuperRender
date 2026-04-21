@@ -4,6 +4,11 @@ using SuperRender.EcmaScript.Runtime.Builtins;
 
 namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 
+// JSGEN005/006/007: Node zlib mirrors the Node.js API — sync/callback/promise calls accept
+// Buffer|string + optional options (legacy variadic) and return Buffer wrappers (JsValue).
+// A typed migration would require IBuffer/IZlibOptions IJsType interfaces.
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007
+
 /// <summary>
 /// Node.js `zlib` module. Sync + callback + promise variants for gzip, deflate,
 /// deflate-raw, and brotli, backed by <c>System.IO.Compression</c>.

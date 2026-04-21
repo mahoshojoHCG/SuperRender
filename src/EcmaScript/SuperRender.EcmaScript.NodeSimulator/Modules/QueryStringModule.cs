@@ -4,6 +4,10 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 
+// JSGEN005/006/007: Node querystring.parse/stringify accept optional sep/eq/options (legacy variadic)
+// and return a dynamic key/value object (JsValue). A typed contract would collapse the parsed shape.
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007
+
 /// <summary>
 /// Node.js `querystring` module: parse, stringify, escape, unescape.
 /// </summary>

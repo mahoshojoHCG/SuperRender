@@ -2,6 +2,10 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 
+// JSGEN005/006/007: Node url module returns legacy URL objects / URLSearchParams wrappers (JsValue)
+// and accepts options objects via JsValue. Typed migration requires IUrlOptions + IUrlObject IJsType.
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007
+
 /// <summary>
 /// Node.js `url` module. The WHATWG `URL`/`URLSearchParams` are provided by the engine; this
 /// module adds the legacy parse/format/resolve helpers and the fileURL/httpOptions bridges.

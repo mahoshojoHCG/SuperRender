@@ -2,6 +2,11 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.Dom;
 
+// JSGEN005/006/007: setTimeout/setInterval/requestAnimationFrame take a JsFunction callback + rest
+// args (legacy variadic); document returns the wrapped DOM document (JsValue). Migration to IJsDocument
+// IJsType + a typed timer ID return is tracked separately.
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007
+
 /// <summary>
 /// The 'window' global object exposed to JavaScript.
 /// </summary>

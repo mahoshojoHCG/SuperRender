@@ -2,6 +2,13 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
+// JSGEN005/006/007: every Atomics method takes variadic typed-array args, uses
+// dynamic runtime typing on the receiver, and returns JsValue (JsNumber/JsBoolean).
+// The legacy (JsValue, JsValue[]) shape is the only way to express these without
+// losing the ECMAScript semantics; migration would require a dedicated IJsType
+// for typed-array receivers plus per-op overloads.
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007
+
 [JsObject]
 public sealed partial class AtomicsObject : JsObject
 {

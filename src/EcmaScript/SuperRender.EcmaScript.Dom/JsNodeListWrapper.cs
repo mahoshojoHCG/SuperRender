@@ -4,6 +4,10 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.Dom;
 
+// JSGEN005/006/007: NodeList.item returns a wrapped Node (JsValue) or null; forEach takes a
+// JsFunction callback + optional thisArg (legacy variadic). Migration needs IJsNode IJsType.
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007
+
 /// <summary>
 /// Array-like wrapper for NodeList/HTMLCollection query results.
 /// </summary>

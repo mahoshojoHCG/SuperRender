@@ -4,6 +4,11 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.Dom;
 
+// JSGEN005/006/007: createElement/getElementById/querySelector* return wrapped Element / NodeList
+// as JsValue (and null for the lookup variants). Migration to IJsElement/IJsNodeList IJsType is
+// tracked separately; getElementById should eventually become JsOptional<IJsElement>.
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007
+
 /// <summary>
 /// JS wrapper for a DOM Document. Exposes the standard document API.
 /// </summary>

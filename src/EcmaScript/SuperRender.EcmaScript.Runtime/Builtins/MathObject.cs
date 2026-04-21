@@ -83,6 +83,7 @@ public sealed partial class MathObject : JsObject
     [JsMethod("pow")]
     public static double Pow(double b, double e) => Math.Pow(b, e);
 
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // Math.max/min/hypot are variadic — typed signatures cannot express arbitrary-arity numeric folds
     [JsMethod("max")]
     public static JsValue Max(JsValue _, JsValue[] args)
     {
@@ -157,6 +158,7 @@ public sealed partial class MathObject : JsObject
 
         return JsNumber.Create(Math.Sqrt(sum));
     }
+#pragma warning restore JSGEN005, JSGEN006, JSGEN007
 
     [JsMethod("random")]
     public static double Random() => System.Random.Shared.NextDouble();

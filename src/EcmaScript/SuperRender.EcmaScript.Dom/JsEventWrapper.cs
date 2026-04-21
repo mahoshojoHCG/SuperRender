@@ -3,6 +3,10 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.Dom;
 
+// JSGEN006: event.target / event.currentTarget return the wrapped EventTarget (JsValue).
+// Migration to IJsEventTarget IJsType is tracked separately.
+#pragma warning disable JSGEN006
+
 /// <summary>
 /// JS wrapper for a DomEvent, exposing event properties to JavaScript.
 /// Subtype-specific properties (MouseEvent, KeyboardEvent) are attached dynamically.

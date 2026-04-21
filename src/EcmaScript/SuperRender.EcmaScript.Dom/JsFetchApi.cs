@@ -4,6 +4,10 @@ using SuperRender.EcmaScript.Runtime.Builtins;
 
 namespace SuperRender.EcmaScript.Dom;
 
+// JSGEN006: Response.text()/json() return JsValue-wrapped Promises; migration requires a typed
+// IPromise<T> IJsType which doesn't exist yet.
+#pragma warning disable JSGEN006
+
 /// <summary>
 /// JS fetch() API implementation. Returns a Promise that resolves with a JsResponse.
 /// Uses delegates so the EcmaScript.Dom project remains dependency-free.

@@ -4,6 +4,10 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 
+// JSGEN005/006/007: Node crypto wraps Buffer-returning hash/HMAC/random helpers; variadic
+// callback overloads and Buffer outputs can't be typed without IBuffer + IDigest IJsType.
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007
+
 /// <summary>
 /// Node.js `crypto` module (hash/hmac/random subset).
 /// Cross-platform via System.Security.Cryptography.

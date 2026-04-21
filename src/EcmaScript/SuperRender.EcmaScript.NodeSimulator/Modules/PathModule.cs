@@ -2,6 +2,10 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 
+// JSGEN005/006/007: Node path.join/resolve/parse/format are variadic or return ParsedPath/PathObject
+// wrappers (JsValue). Typed migration needs IParsedPath IJsType and a rest `params string[]`.
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007
+
 /// <summary>
 /// Node.js `path` module. Provides posix + win32 variants plus the platform-default namespace.
 /// </summary>

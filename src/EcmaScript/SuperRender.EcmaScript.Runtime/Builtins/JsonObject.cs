@@ -29,6 +29,7 @@ public sealed partial class JsonObject : JsObject
         return base.TryGetSymbolProperty(symbol, out value);
     }
 
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // JSON.parse/stringify need raw JsValue for the optional reviver/replacer callbacks and the pass-through first argument (any JSON-compatible type).
     [JsMethod("parse")]
     public static JsValue Parse(JsValue _, JsValue[] args)
     {
@@ -130,6 +131,7 @@ public sealed partial class JsonObject : JsObject
                 return JsValue.Undefined;
         }
     }
+#pragma warning restore JSGEN005, JSGEN006, JSGEN007
 
     private static JsValue InternalizeJsonValue(JsDynamicObject holder, string name, JsFunction reviver)
     {

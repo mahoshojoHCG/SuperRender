@@ -4,6 +4,11 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.Dom;
 
+// JSGEN005/006/007: Element members return wrapped child elements / NodeLists / DOMTokenList as
+// JsValue. toggleAttribute uses legacy variadic for its optional force flag; after()/before() take
+// a mixed Node|string rest list. Migration to IJsElement/IDomTokenList IJsType is tracked separately.
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007
+
 /// <summary>
 /// JS wrapper for a DOM Element. Extends JsNodeWrapper with Element-specific APIs.
 /// </summary>

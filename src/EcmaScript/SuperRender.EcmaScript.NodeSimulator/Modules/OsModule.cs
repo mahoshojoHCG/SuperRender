@@ -7,6 +7,10 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 
+// JSGEN005/006/007: Node os.cpus()/networkInterfaces()/userInfo() return dynamic info records
+// backed by JsValue; typed migration would need INetworkInterface/ICpuInfo IJsType interfaces.
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007
+
 /// <summary>
 /// Node.js `os` module. Values come from <see cref="System.Environment"/> where available.
 /// </summary>
