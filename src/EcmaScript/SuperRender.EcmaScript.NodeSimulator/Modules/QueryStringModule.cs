@@ -8,7 +8,7 @@ namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 /// Node.js `querystring` module: parse, stringify, escape, unescape.
 /// </summary>
 [JsObject]
-public sealed partial class QueryStringModule : JsObjectBase
+public sealed partial class QueryStringModule : JsObject
 {
     public QueryStringModule(Realm realm)
     {

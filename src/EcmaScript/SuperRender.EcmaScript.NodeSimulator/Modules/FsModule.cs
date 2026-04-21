@@ -233,7 +233,7 @@ public sealed partial class FsModule : JsDynamicObject
 
     private static double ToMs(DateTime utc) => (utc - DateTime.UnixEpoch).TotalMilliseconds;
 
-    private static JsDynamicObject CreatePromises(Realm realm, JsObjectBase syncFs)
+    private static JsDynamicObject CreatePromises(Realm realm, JsObject syncFs)
     {
         var p = new JsDynamicObject();
         string[] wrap = ["readFile", "writeFile", "appendFile", "mkdir", "rm", "rmdir", "unlink", "rename", "readdir", "stat", "lstat", "realpath", "access", "copyFile"];

@@ -8,7 +8,7 @@ namespace SuperRender.EcmaScript.Dom;
 /// Uses delegates for navigation so the EcmaScript.Dom project remains dependency-free.
 /// </summary>
 [JsObject(GenerateInterface = true)]
-internal sealed partial class JsLocationWrapper : JsObjectBase
+internal sealed partial class JsLocationWrapper : JsObject
 {
     private readonly Func<Uri?> _getCurrentUri;
     private readonly Action<string> _navigate;

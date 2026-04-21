@@ -1,6 +1,6 @@
 namespace SuperRender.EcmaScript.Runtime;
 
-public class JsDynamicObject : JsObjectBase
+public class JsDynamicObject : JsObject
 {
     private readonly Dictionary<string, PropertyDescriptor> _properties = new(StringComparer.Ordinal);
     private readonly List<string> _propertyOrder = [];

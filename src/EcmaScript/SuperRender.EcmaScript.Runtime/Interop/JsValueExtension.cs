@@ -8,7 +8,7 @@ using SuperRender.EcmaScript.Runtime.Errors;
 /// </summary>
 public static class JsValueExtension
 {
-    private static readonly ConditionalWeakTable<JsObjectBase, Dictionary<Type, object>> Cache = new();
+    private static readonly ConditionalWeakTable<JsObject, Dictionary<Type, object>> Cache = new();
 
     extension(JsValue value)
     {
@@ -26,7 +26,7 @@ public static class JsValueExtension
     /// <summary>Non-generic counterpart; used internally for recursive wrapping of nested <see cref="IJsType"/> returns.</summary>
     internal static object AsInterfaceOf(JsValue value, Type interfaceType)
     {
-        if (value is not JsObjectBase obj)
+        if (value is not JsObject obj)
         {
             throw new JsTypeError(
                 $"Cannot apply interface {interfaceType.Name} to non-object value of type {value.TypeOf}",
@@ -34,7 +34,7 @@ public static class JsValueExtension
                 ExecutionContext.CurrentColumn);
         }
 
-        // Fast path: the backing object directly implements T (e.g., [JsObject] partial class : JsObjectBase, IFoo).
+        // Fast path: the backing object directly implements T (e.g., [JsObject] partial class : JsObject, IFoo).
         if (interfaceType.IsInstanceOfType(obj))
         {
             return obj;

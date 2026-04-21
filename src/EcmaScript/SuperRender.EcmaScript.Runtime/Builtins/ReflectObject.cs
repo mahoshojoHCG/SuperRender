@@ -3,7 +3,7 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using SuperRender.EcmaScript.Runtime;
 
 [JsObject]
-public sealed partial class ReflectObject : JsObjectBase
+public sealed partial class ReflectObject : JsObject
 {
     private static readonly JsString ToStringTagValue = new("Reflect");
 

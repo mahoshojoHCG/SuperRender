@@ -10,7 +10,7 @@ using Xunit;
 namespace SuperRender.EcmaScript.Tests.Runtime;
 
 [JsObject(GenerateInterface = true)]
-public sealed partial class FixtureGen : JsObjectBase
+public sealed partial class FixtureGen : JsObject
 {
     [JsMethod("ping")]
     public JsString Ping(string s) => new(s);
@@ -29,7 +29,7 @@ public interface IBoxThing : IJsType
     string Name { get; }
 }
 
-public sealed class BoxThing : JsObjectBase, IBoxThing
+public sealed class BoxThing : JsObject, IBoxThing
 {
     public string Name { get; set; } = "box";
 
@@ -41,7 +41,7 @@ public sealed class BoxThing : JsObjectBase, IBoxThing
 }
 
 [JsObject]
-public sealed partial class FixtureGenConsumer : JsObjectBase
+public sealed partial class FixtureGenConsumer : JsObject
 {
     public IBoxThing? Captured { get; private set; }
 

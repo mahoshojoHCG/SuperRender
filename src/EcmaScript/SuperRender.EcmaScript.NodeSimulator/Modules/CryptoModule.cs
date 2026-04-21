@@ -9,7 +9,7 @@ namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 /// Cross-platform via System.Security.Cryptography.
 /// </summary>
 [JsObject]
-public sealed partial class CryptoModule : JsObjectBase
+public sealed partial class CryptoModule : JsObject
 {
     private readonly Realm _realm;
 

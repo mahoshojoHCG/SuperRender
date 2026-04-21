@@ -3,7 +3,7 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using SuperRender.EcmaScript.Runtime;
 
 [JsObject]
-public sealed partial class MathObject : JsObjectBase
+public sealed partial class MathObject : JsObject
 {
     private static readonly JsString ToStringTagValue = new("Math");
 

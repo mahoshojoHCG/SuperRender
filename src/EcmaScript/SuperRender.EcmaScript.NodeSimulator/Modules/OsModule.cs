@@ -11,7 +11,7 @@ namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 /// Node.js `os` module. Values come from <see cref="System.Environment"/> where available.
 /// </summary>
 [JsObject]
-public sealed partial class OsModule : JsObjectBase
+public sealed partial class OsModule : JsObject
 {
     public OsModule(Realm realm)
     {

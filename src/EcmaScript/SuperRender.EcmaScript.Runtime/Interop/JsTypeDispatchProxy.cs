@@ -11,11 +11,11 @@ using SuperRender.EcmaScript.Runtime.Errors;
 /// </summary>
 public class JsTypeDispatchProxy : DispatchProxy, IJsTypeProxy
 {
-    private JsObjectBase _target = null!;
+    private JsObject _target = null!;
 
-    JsObjectBase IJsTypeProxy.Target => _target;
+    JsObject IJsTypeProxy.Target => _target;
 
-    internal void Init(JsObjectBase target) => _target = target;
+    internal void Init(JsObject target) => _target = target;
 
     protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
     {

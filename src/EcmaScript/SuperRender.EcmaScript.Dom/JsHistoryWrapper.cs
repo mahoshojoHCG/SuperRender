@@ -7,7 +7,7 @@ namespace SuperRender.EcmaScript.Dom;
 /// Uses delegates so the EcmaScript.Dom project remains dependency-free.
 /// </summary>
 [JsObject(GenerateInterface = true)]
-internal sealed partial class JsHistoryWrapper : JsObjectBase
+internal sealed partial class JsHistoryWrapper : JsObject
 {
     private readonly List<HistoryEntry> _entries = [];
     private int _currentIndex = -1;

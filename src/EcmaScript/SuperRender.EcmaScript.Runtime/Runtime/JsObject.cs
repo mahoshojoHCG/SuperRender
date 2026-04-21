@@ -1,8 +1,8 @@
 namespace SuperRender.EcmaScript.Runtime;
 
-public abstract class JsObjectBase : JsValue
+public abstract class JsObject : JsValue
 {
-    public JsObjectBase? Prototype { get; set; }
+    public JsObject? Prototype { get; set; }
     public bool Extensible { get; set; } = true;
 
     public override string TypeOf => "object";
@@ -17,7 +17,7 @@ public abstract class JsObjectBase : JsValue
         {
             var hint = new JsString(preferredType ?? "default");
             var result = fn.Call(this, [hint]);
-            if (result is not JsObjectBase)
+            if (result is not JsObject)
             {
                 return result;
             }
@@ -35,7 +35,7 @@ public abstract class JsObjectBase : JsValue
             if (method is JsFunction callable)
             {
                 var result = callable.Call(this, []);
-                if (result is not JsObjectBase)
+                if (result is not JsObject)
                 {
                     return result;
                 }

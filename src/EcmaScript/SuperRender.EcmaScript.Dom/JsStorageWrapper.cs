@@ -8,7 +8,7 @@ namespace SuperRender.EcmaScript.Dom;
 /// remains dependency-free (no direct reference to Browser's WebStorage class).
 /// </summary>
 [JsObject(GenerateInterface = true)]
-internal sealed partial class JsStorageWrapper : JsObjectBase
+internal sealed partial class JsStorageWrapper : JsObject
 {
     private readonly Func<string, string?> _getItem;
     private readonly Action<string, string> _setItem;

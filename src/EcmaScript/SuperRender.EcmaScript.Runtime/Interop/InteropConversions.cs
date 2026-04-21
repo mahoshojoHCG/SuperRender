@@ -65,11 +65,11 @@ public static class InteropConversions
     public static sbyte FromJsSByte(JsValue value) => (sbyte)value.ToNumber();
 
     /// <summary>
-    /// Requires <paramref name="value"/> to be a <see cref="JsObjectBase"/>; throws <see cref="JsTypeError"/> otherwise.
+    /// Requires <paramref name="value"/> to be a <see cref="JsObject"/>; throws <see cref="JsTypeError"/> otherwise.
     /// </summary>
-    public static JsObjectBase RequireObject(JsValue value, string memberName, int argIndex)
+    public static JsObject RequireObject(JsValue value, string memberName, int argIndex)
     {
-        if (value is JsObjectBase obj)
+        if (value is JsObject obj)
         {
             return obj;
         }
@@ -81,10 +81,10 @@ public static class InteropConversions
     }
 
     /// <summary>
-    /// Unwraps an <see cref="IJsType"/> instance back to its underlying <see cref="JsObjectBase"/>
+    /// Unwraps an <see cref="IJsType"/> instance back to its underlying <see cref="JsObject"/>
     /// so it can be passed as an argument to a JS function. <c>null</c> maps to <see cref="JsValue.Null"/>.
     /// If the instance is a <c>[JsObject]</c>-partial that directly implements the interface, it is itself
-    /// a <see cref="JsObjectBase"/> and is used as-is.
+    /// a <see cref="JsObject"/> and is used as-is.
     /// </summary>
     public static JsValue UnwrapIJsType(IJsType? value)
     {
@@ -98,7 +98,7 @@ public static class InteropConversions
             return proxy.Target;
         }
 
-        if (value is JsObjectBase direct)
+        if (value is JsObject direct)
         {
             return direct;
         }
@@ -112,7 +112,7 @@ public static class InteropConversions
     /// <summary>
     /// Resolves a member on <paramref name="target"/> and requires it to be a callable <see cref="JsFunction"/>.
     /// </summary>
-    public static JsFunction RequireFunction(JsObjectBase target, string memberName)
+    public static JsFunction RequireFunction(JsObject target, string memberName)
     {
         var value = target.Get(memberName);
         if (value is JsFunction fn)

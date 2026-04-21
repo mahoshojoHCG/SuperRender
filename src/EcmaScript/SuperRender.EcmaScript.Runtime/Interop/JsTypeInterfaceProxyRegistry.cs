@@ -8,17 +8,17 @@ using System.Collections.Concurrent;
 /// </summary>
 public static class JsTypeInterfaceProxyRegistry
 {
-    private static readonly ConcurrentDictionary<Type, Func<JsObjectBase, object>> Factories = new();
+    private static readonly ConcurrentDictionary<Type, Func<JsObject, object>> Factories = new();
 
     /// <summary>Registers a factory for <paramref name="interfaceType"/>. First writer wins.</summary>
-    public static void Register(Type interfaceType, Func<JsObjectBase, object> factory)
+    public static void Register(Type interfaceType, Func<JsObject, object> factory)
     {
         ArgumentNullException.ThrowIfNull(interfaceType);
         ArgumentNullException.ThrowIfNull(factory);
         Factories.TryAdd(interfaceType, factory);
     }
 
-    public static bool TryCreate(Type interfaceType, JsObjectBase target, out object? proxy)
+    public static bool TryCreate(Type interfaceType, JsObject target, out object? proxy)
     {
         if (Factories.TryGetValue(interfaceType, out var factory))
         {

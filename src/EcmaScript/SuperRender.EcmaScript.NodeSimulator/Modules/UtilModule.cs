@@ -9,7 +9,7 @@ namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 /// the isDeep* / types.* predicates needed by common library code.
 /// </summary>
 [JsObject]
-public sealed partial class UtilModule : JsObjectBase
+public sealed partial class UtilModule : JsObject
 {
     private readonly Realm _realm;
     private UtilTypesObject? _types;
@@ -246,7 +246,7 @@ public sealed partial class UtilModule : JsObjectBase
 }
 
 [JsObject]
-public sealed partial class UtilTypesObject : JsObjectBase
+public sealed partial class UtilTypesObject : JsObject
 {
     private readonly Realm _realm;
 

@@ -38,7 +38,7 @@ public class AsInterfaceTests
 
     internal interface IWithObjectArg : IJsType
     {
-        JsValue Echo(JsObjectBase arg);
+        JsValue Echo(JsObject arg);
     }
 
     internal interface ICustomName : IJsType
@@ -50,8 +50,8 @@ public class AsInterfaceTests
         string DoThing(string input);
     }
 
-    // Bi-directional fast path: class both implements IFoo and inherits JsObjectBase.
-    internal sealed class DirectFoo : JsObjectBase, IFoo
+    // Bi-directional fast path: class both implements IFoo and inherits JsObject.
+    internal sealed class DirectFoo : JsObject, IFoo
     {
         public double Foo { get; set; }
     }
@@ -105,7 +105,7 @@ public class AsInterfaceTests
         foo.Foo = 99;
         Assert.Equal(99.0, foo.Foo);
         // Verify the JS object observed the write.
-        var obj = (JsObjectBase)v;
+        var obj = (JsObject)v;
         Assert.Equal(99.0, obj.Get("foo").ToNumber());
     }
 
@@ -136,11 +136,11 @@ public class AsInterfaceTests
     }
 
     [Fact]
-    public void AsInterface_Method_JsObjectBaseArg_PassesThrough()
+    public void AsInterface_Method_JsObjectArg_PassesThrough()
     {
         var engine = Engine();
-        var host = (JsObjectBase)engine.Execute("({ echo(x) { return x; } })");
-        var payload = (JsObjectBase)engine.Execute("({ id: 7 })");
+        var host = (JsObject)engine.Execute("({ echo(x) { return x; } })");
+        var payload = (JsObject)engine.Execute("({ id: 7 })");
         JsValue asJs = host;
         var wrap = asJs.AsInterface<IWithObjectArg>();
         var ret = wrap.Echo(payload);

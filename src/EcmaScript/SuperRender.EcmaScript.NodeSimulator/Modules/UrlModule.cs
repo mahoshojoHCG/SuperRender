@@ -7,7 +7,7 @@ namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 /// module adds the legacy parse/format/resolve helpers and the fileURL/httpOptions bridges.
 /// </summary>
 [JsObject]
-public sealed partial class UrlModule : JsObjectBase
+public sealed partial class UrlModule : JsObject
 {
     private readonly Realm _realm;
 

@@ -6,7 +6,7 @@ using System.Text.Json;
 using SuperRender.EcmaScript.Runtime;
 
 [JsObject]
-public sealed partial class JsonObject : JsObjectBase
+public sealed partial class JsonObject : JsObject
 {
     private static readonly JsString ToStringTagValue = new("JSON");
 

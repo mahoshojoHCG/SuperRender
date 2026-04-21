@@ -31,17 +31,17 @@ internal sealed partial class JsWindowWrapper : JsDynamicObject
         _devicePixelRatio = dpr;
     }
 
-    public void InstallStorage(string name, JsObjectBase storageWrapper)
+    public void InstallStorage(string name, JsObject storageWrapper)
     {
         DefineOwnProperty(name, PropertyDescriptor.Data(storageWrapper));
     }
 
-    public void InstallLocation(JsObjectBase locationWrapper)
+    public void InstallLocation(JsObject locationWrapper)
     {
         DefineOwnProperty("location", PropertyDescriptor.Data(locationWrapper));
     }
 
-    public void InstallHistory(JsObjectBase historyWrapper)
+    public void InstallHistory(JsObject historyWrapper)
     {
         DefineOwnProperty("history", PropertyDescriptor.Data(historyWrapper));
     }

@@ -22,7 +22,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor UnsupportedParamType = new(
         "JSGEN001",
         "Unsupported parameter type for [JsMethod]/[JsProperty]",
-        "Parameter type '{0}' on {1}.{2} is not supported. Use JsValue, JsObjectBase, a C# primitive (string/bool/double/int/long/float/short/byte/uint/ulong/sbyte/ushort/decimal), or JsValue[] (last parameter only, for rest args).",
+        "Parameter type '{0}' on {1}.{2} is not supported. Use JsValue, JsObject, a C# primitive (string/bool/double/int/long/float/short/byte/uint/ulong/sbyte/ushort/decimal), or JsValue[] (last parameter only, for rest args).",
         "SuperRender.Analyzer",
         DiagnosticSeverity.Error,
         true);
@@ -77,7 +77,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             return null;
         }
 
-        if (!InheritsJsObjectBase(cls))
+        if (!InheritsJsObject(cls))
         {
             return null;
         }
@@ -296,11 +296,11 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         }
     }
 
-    private static bool InheritsJsObjectBase(INamedTypeSymbol cls)
+    private static bool InheritsJsObject(INamedTypeSymbol cls)
     {
         for (var t = cls.BaseType; t is not null; t = t.BaseType)
         {
-            if (t.Name == "JsObjectBase" && t.ContainingNamespace?.ToDisplayString() == Ns)
+            if (t.Name == "JsObject" && t.ContainingNamespace?.ToDisplayString() == Ns)
             {
                 return true;
             }
@@ -312,8 +312,8 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
     private static bool IsJsValue(ITypeSymbol t) =>
         t.Name == "JsValue" && t.ContainingNamespace?.ToDisplayString() == Ns;
 
-    private static bool IsJsObjectBase(ITypeSymbol t) =>
-        t.Name == "JsObjectBase" && t.ContainingNamespace?.ToDisplayString() == Ns;
+    private static bool IsJsObject(ITypeSymbol t) =>
+        t.Name == "JsObject" && t.ContainingNamespace?.ToDisplayString() == Ns;
 
     private static bool IsJsValueArray(ITypeSymbol t) =>
         t is IArrayTypeSymbol arr && IsJsValue(arr.ElementType);
@@ -364,9 +364,9 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             return ParamKind.JsValue;
         }
 
-        if (IsJsObjectBase(t))
+        if (IsJsObject(t))
         {
-            return ParamKind.JsObjectBase;
+            return ParamKind.JsObject;
         }
 
         if (InheritsIJsType(t))
@@ -440,9 +440,9 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         return kind switch
         {
             ParamKind.JsValue => $"var {localName} = {argExpr};",
-            ParamKind.JsObjectBase =>
+            ParamKind.JsObject =>
                 $"var {localName}__raw = {argExpr};\n" +
-                $"            if ({localName}__raw is not JsObjectBase {localName}) " +
+                $"            if ({localName}__raw is not JsObject {localName}) " +
                 $"throw new SuperRender.EcmaScript.Runtime.Errors.JsTypeError(" +
                 $"\"{Escape(memberJsName)}: argument {paramIndex} must be an object\", " +
                 $"SuperRender.EcmaScript.Runtime.ExecutionContext.CurrentLine, " +
@@ -927,7 +927,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
     {
         Unsupported,
         JsValue,
-        JsObjectBase,
+        JsObject,
         IJsTypeInterface,
         ArgsArray,
         PString,

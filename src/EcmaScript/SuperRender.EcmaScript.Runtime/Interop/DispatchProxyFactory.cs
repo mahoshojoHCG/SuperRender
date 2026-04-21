@@ -5,7 +5,7 @@ using SuperRender.EcmaScript.Runtime.Errors;
 
 internal static class DispatchProxyFactory
 {
-    public static T Create<T>(JsObjectBase target)
+    public static T Create<T>(JsObject target)
         where T : class, IJsType
     {
         ValidateInterface(typeof(T));
@@ -14,7 +14,7 @@ internal static class DispatchProxyFactory
         return proxy;
     }
 
-    public static object Create(Type interfaceType, JsObjectBase target)
+    public static object Create(Type interfaceType, JsObject target)
     {
         ValidateInterface(interfaceType);
         var method = typeof(DispatchProxy).GetMethod(

@@ -99,7 +99,7 @@ public sealed class FetchResult
 /// JS Response object for the fetch API.
 /// </summary>
 [JsObject(GenerateInterface = true)]
-internal sealed partial class JsResponseWrapper : JsObjectBase
+internal sealed partial class JsResponseWrapper : JsObject
 {
     private readonly FetchResult _result;
     private readonly Realm _realm;

@@ -10,7 +10,7 @@ namespace SuperRender.Analyzer;
 /// <summary>
 /// Discovers user interfaces inheriting <c>SuperRender.EcmaScript.Runtime.Interop.IJsType</c> and
 /// emits a sealed proxy class per interface that forwards member access to the backing
-/// <c>JsObjectBase</c>. The proxy is self-registered with <c>JsTypeInterfaceProxyRegistry</c> via a
+/// <c>JsObject</c>. The proxy is self-registered with <c>JsTypeInterfaceProxyRegistry</c> via a
 /// <c>[ModuleInitializer]</c> so that <c>value.AsInterface&lt;T&gt;()</c> uses the generated
 /// proxy instead of falling back to <c>System.Reflection.DispatchProxy</c>.
 /// </summary>
@@ -373,9 +373,9 @@ public sealed class JsTypeInterfaceProxyGenerator : IIncrementalGenerator
           .Append(" : global::").Append(model.InterfaceFullyQualified)
           .AppendLine(", global::SuperRender.EcmaScript.Runtime.Interop.IJsTypeProxy");
         sb.AppendLine("{");
-        sb.AppendLine("    private readonly global::SuperRender.EcmaScript.Runtime.JsObjectBase _target;");
-        sb.Append("    public ").Append(proxyName).AppendLine("(global::SuperRender.EcmaScript.Runtime.JsObjectBase target) { _target = target; }");
-        sb.AppendLine("    global::SuperRender.EcmaScript.Runtime.JsObjectBase global::SuperRender.EcmaScript.Runtime.Interop.IJsTypeProxy.Target => _target;");
+        sb.AppendLine("    private readonly global::SuperRender.EcmaScript.Runtime.JsObject _target;");
+        sb.Append("    public ").Append(proxyName).AppendLine("(global::SuperRender.EcmaScript.Runtime.JsObject target) { _target = target; }");
+        sb.AppendLine("    global::SuperRender.EcmaScript.Runtime.JsObject global::SuperRender.EcmaScript.Runtime.Interop.IJsTypeProxy.Target => _target;");
         sb.AppendLine();
 
         foreach (var member in model.Members)
