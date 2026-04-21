@@ -22,8 +22,6 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
     private const string JsStaticMethodAttr = "JsStaticMethodAttribute";
     private const string JsStaticPropertyAttr = "JsStaticPropertyAttribute";
     private const string JsCallAttr = "JsCallAttribute";
-    private const string JsGetterAttr = "JsGetterAttribute";
-    private const string JsSetterAttr = "JsSetterAttribute";
 
     private static readonly DiagnosticDescriptor UnsupportedParamType = new(
         "JSGEN001",
@@ -155,7 +153,6 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         var properties = new List<PropertyModel>();
         var staticMethods = new List<MethodModel>();
         var staticProperties = new List<PropertyModel>();
-        var accessors = new List<AccessorModel>();
         ConstructorModel? constructor = null;
         string? callMethodName = null;
         var diagnostics = new List<Diagnostic>();
@@ -220,44 +217,6 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
                     }
                     constructor = BuildConstructor(ctorSym, attr, cls.Name, diagnostics);
                 }
-                else if (attrName == JsGetterAttr && member is IMethodSymbol gm)
-                {
-                    if (gm.IsStatic || gm.Parameters.Length != 0)
-                    {
-                        diagnostics.Add(Diagnostic.Create(
-                            InvalidConstructorShape,
-                            gm.Locations.FirstOrDefault(),
-                            $"[JsGetter] on {cls.Name}.{gm.Name}: must be a parameterless instance method."));
-                        continue;
-                    }
-                    var model = BuildMethod(gm, attr, cls.Name, diagnostics);
-                    if (model is not null)
-                    {
-                        var accessorName = attr.ConstructorArguments.Length > 0
-                            ? attr.ConstructorArguments[0].Value as string ?? gm.Name
-                            : gm.Name;
-                        accessors.Add(new AccessorModel(accessorName, model, true));
-                    }
-                }
-                else if (attrName == JsSetterAttr && member is IMethodSymbol ssm)
-                {
-                    if (ssm.IsStatic || ssm.Parameters.Length != 1 || ssm.ReturnType.SpecialType != SpecialType.System_Void)
-                    {
-                        diagnostics.Add(Diagnostic.Create(
-                            InvalidConstructorShape,
-                            ssm.Locations.FirstOrDefault(),
-                            $"[JsSetter] on {cls.Name}.{ssm.Name}: must be an instance method with one parameter and void return."));
-                        continue;
-                    }
-                    var model = BuildMethod(ssm, attr, cls.Name, diagnostics);
-                    if (model is not null)
-                    {
-                        var accessorName = attr.ConstructorArguments.Length > 0
-                            ? attr.ConstructorArguments[0].Value as string ?? ssm.Name
-                            : ssm.Name;
-                        accessors.Add(new AccessorModel(accessorName, model, false));
-                    }
-                }
                 else if (attrName == JsCallAttr && member is IMethodSymbol callSym)
                 {
                     if (!callSym.IsStatic || callSym.Parameters.Length != 2
@@ -277,7 +236,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         }
 
         if (methods.Count == 0 && properties.Count == 0 && staticMethods.Count == 0
-            && staticProperties.Count == 0 && accessors.Count == 0 && constructor is null
+            && staticProperties.Count == 0 && constructor is null
             && diagnostics.Count == 0 && !generateInterface && exportType == 0)
         {
             return null;
@@ -294,7 +253,6 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             properties.ToImmutableArray(),
             staticMethods.ToImmutableArray(),
             staticProperties.ToImmutableArray(),
-            accessors.ToImmutableArray(),
             constructor,
             callMethodName,
             diagnostics.ToImmutableArray());
@@ -878,7 +836,6 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
 
         if (model.Methods.Length == 0 && model.Properties.Length == 0
             && model.StaticMethods.Length == 0 && model.StaticProperties.Length == 0
-            && model.Accessors.Length == 0
             && model.Constructor is null && !model.GenerateInterface && model.ExportType == 0)
         {
             return;
@@ -1132,40 +1089,6 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             sb.Append("            \"").Append(Escape(m.JsName)).AppendLine("\",");
             EmitProtoTrampoline(sb, model, m);
             sb.Append("            ").Append(m.Length).AppendLine("), writable: true, enumerable: false, configurable: true));");
-        }
-
-        // Prototype accessors (grouped by JS name)
-        foreach (var group in model.Accessors.GroupBy(a => a.JsName, StringComparer.Ordinal))
-        {
-            var getter = group.FirstOrDefault(a => a.IsGetter);
-            var setter = group.FirstOrDefault(a => !a.IsGetter);
-
-            sb.Append("        proto.DefineOwnProperty(\"").Append(Escape(group.Key))
-              .AppendLine("\", PropertyDescriptor.Accessor(");
-
-            if (getter is not null)
-            {
-                sb.Append("            JsFunction.CreateNative(\"get ").Append(Escape(group.Key)).AppendLine("\",");
-                EmitProtoTrampoline(sb, model, getter.Method);
-                sb.AppendLine("            0),");
-            }
-            else
-            {
-                sb.AppendLine("            null,");
-            }
-
-            if (setter is not null)
-            {
-                sb.Append("            JsFunction.CreateNative(\"set ").Append(Escape(group.Key)).AppendLine("\",");
-                EmitProtoTrampoline(sb, model, setter.Method);
-                sb.AppendLine("            1),");
-            }
-            else
-            {
-                sb.AppendLine("            null,");
-            }
-
-            sb.AppendLine("            enumerable: false, configurable: true));");
         }
 
         // Static methods on ctor
@@ -1825,12 +1748,9 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         ImmutableArray<PropertyModel> Properties,
         ImmutableArray<MethodModel> StaticMethods,
         ImmutableArray<PropertyModel> StaticProperties,
-        ImmutableArray<AccessorModel> Accessors,
         ConstructorModel? Constructor,
         string? CallMethodName,
         ImmutableArray<Diagnostic> Diagnostics);
-
-    private sealed record AccessorModel(string JsName, MethodModel Method, bool IsGetter);
 
     private sealed record ConstructorModel(
         string Name,
@@ -1948,20 +1868,6 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         [AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
         internal sealed class JsCallAttribute : Attribute
         {
-        }
-
-        [AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
-        internal sealed class JsGetterAttribute : Attribute
-        {
-            public JsGetterAttribute(string name) { Name = name; }
-            public string Name { get; }
-        }
-
-        [AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
-        internal sealed class JsSetterAttribute : Attribute
-        {
-            public JsSetterAttribute(string name) { Name = name; }
-            public string Name { get; }
         }
         """;
 }
