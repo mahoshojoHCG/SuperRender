@@ -57,12 +57,8 @@ public sealed partial class JsonObject : JsObject
     }
 
     [JsMethod("stringify")]
-    public static JsValue Stringify(JsValue _, JsValue[] args)
+    public static JsOptional<string> Stringify(JsValue value, JsValue replacer, JsValue space)
     {
-        var value = BuiltinHelper.Arg(args, 0);
-        var replacer = BuiltinHelper.Arg(args, 1);
-        var space = BuiltinHelper.Arg(args, 2);
-
         JsFunction? replacerFn = replacer as JsFunction;
         HashSet<string>? propertyList = null;
         if (replacer is JsArray replacerArr)
@@ -97,7 +93,7 @@ public sealed partial class JsonObject : JsObject
         }
 
         var result = SerializeValue("", value, replacerFn, propertyList, indent, "");
-        return result is not null ? new JsString(result) : JsValue.Undefined;
+        return result is not null ? JsOptional<string>.Of(result) : JsOptional<string>.Undefined;
     }
 
     private static JsValue ConvertElement(JsonElement element)

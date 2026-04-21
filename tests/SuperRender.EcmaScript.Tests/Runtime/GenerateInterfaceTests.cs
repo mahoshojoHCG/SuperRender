@@ -56,6 +56,24 @@ public sealed partial class FixtureGenConsumer : JsObject
     public IBoxThing MakeBox(string name) => new BoxThing { Name = name };
 }
 
+[JsObject]
+public sealed partial class FixtureOptional : JsObject
+{
+    [JsMethod("maybeString")]
+    public JsOptional<string> MaybeString(bool has) =>
+        has ? JsOptional<string>.Of("ok") : JsOptional<string>.Undefined;
+
+    [JsMethod("maybeNumber")]
+    public JsOptional<double> MaybeNumber(bool has) =>
+        has ? JsOptional<double>.Of(42.0) : JsOptional<double>.Undefined;
+
+    [JsProperty("maybeLabel")]
+    public JsOptional<string> MaybeLabel => JsOptional<string>.Of("lbl");
+
+    [JsProperty("noLabel")]
+    public JsOptional<string> NoLabel => JsOptional<string>.Undefined;
+}
+
 public class GenerateInterfaceTests
 {
     [Fact]
@@ -125,5 +143,50 @@ public class GenerateInterfaceTests
 
         Assert.Throws<SuperRender.EcmaScript.Runtime.Errors.JsTypeError>(
             () => takeBox!.Call(consumer, [new JsString("not-an-object")]));
+    }
+
+    [Fact]
+    public void JsOptional_Method_HasValue_WrapsInner()
+    {
+        var obj = new FixtureOptional();
+        var fn = Assert.IsAssignableFrom<JsFunction>(obj.Get("maybeString"));
+        var result = fn.Call(obj, [JsValue.True]);
+        Assert.Equal("ok", Assert.IsType<JsString>(result).Value);
+    }
+
+    [Fact]
+    public void JsOptional_Method_NoValue_ReturnsUndefined()
+    {
+        var obj = new FixtureOptional();
+        var fn = Assert.IsAssignableFrom<JsFunction>(obj.Get("maybeString"));
+        var result = fn.Call(obj, [JsValue.False]);
+        Assert.Same(JsValue.Undefined, result);
+    }
+
+    [Fact]
+    public void JsOptional_Method_PrimitiveInner_Wraps()
+    {
+        var obj = new FixtureOptional();
+        var fn = Assert.IsAssignableFrom<JsFunction>(obj.Get("maybeNumber"));
+        var has = fn.Call(obj, [JsValue.True]);
+        Assert.Equal(42.0, Assert.IsType<JsNumber>(has).Value);
+        var none = fn.Call(obj, [JsValue.False]);
+        Assert.Same(JsValue.Undefined, none);
+    }
+
+    [Fact]
+    public void JsOptional_Property_Getter_BranchesOnHasValue()
+    {
+        var obj = new FixtureOptional();
+        Assert.Equal("lbl", Assert.IsType<JsString>(obj.Get("maybeLabel")).Value);
+        Assert.Same(JsValue.Undefined, obj.Get("noLabel"));
+    }
+
+    [Fact]
+    public void JsOptional_Length_CountsOuterParam()
+    {
+        var obj = new FixtureOptional();
+        var fn = Assert.IsAssignableFrom<JsFunction>(obj.Get("maybeString"));
+        Assert.Equal(1, fn.Length);
     }
 }

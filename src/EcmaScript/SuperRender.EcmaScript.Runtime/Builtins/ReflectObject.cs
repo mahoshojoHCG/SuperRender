@@ -218,17 +218,17 @@ public sealed partial class ReflectObject : JsObject
     }
 
     [JsMethod("getOwnPropertyDescriptor")]
-    public static JsValue GetOwnPropertyDescriptor(JsValue _, JsValue[] args)
+    public static JsOptional<JsValue> GetOwnPropertyDescriptor(JsValue target, JsValue propertyKey)
     {
-        var target = RequireObject(BuiltinHelper.Arg(args, 0));
-        var propertyKey = BuiltinHelper.Arg(args, 1).ToJsString();
-        var desc = target.GetOwnProperty(propertyKey);
+        var obj = RequireObject(target);
+        var key = propertyKey.ToJsString();
+        var desc = obj.GetOwnProperty(key);
         if (desc is null)
         {
-            return JsValue.Undefined;
+            return JsOptional<JsValue>.Undefined;
         }
 
-        return FromPropertyDescriptor(desc);
+        return JsOptional<JsValue>.Of(FromPropertyDescriptor(desc));
     }
 
     private static JsDynamicObject RequireObject(JsValue value)

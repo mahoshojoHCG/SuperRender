@@ -182,6 +182,25 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             return null;
         }
 
+        ReturnKind innerKind = ReturnKind.Void;
+        string? innerDisplay = null;
+        if (retKind == ReturnKind.ROptional && IsJsOptional(m.ReturnType, out var innerType) && innerType is not null)
+        {
+            innerKind = ClassifyReturn(innerType);
+            if (innerKind == ReturnKind.Unsupported || innerKind == ReturnKind.Void || innerKind == ReturnKind.ROptional)
+            {
+                diagnostics.Add(Diagnostic.Create(
+                    UnsupportedReturnType,
+                    m.Locations.FirstOrDefault(),
+                    m.ReturnType.ToDisplayString(),
+                    className,
+                    m.Name));
+                return null;
+            }
+
+            innerDisplay = innerType.ToDisplayString();
+        }
+
         // Auto-derive function.length from signature:
         //   typed mode: count of parameters excluding a trailing JsValue[] rest slot
         //   legacy mode: 0 (source signature carries no arity info)
@@ -196,7 +215,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             length,
             isLegacy,
             parameters.ToImmutable(),
-            new ReturnModel(m.ReturnType.ToDisplayString(), retKind));
+            new ReturnModel(m.ReturnType.ToDisplayString(), retKind, innerKind, innerDisplay));
     }
 
     private static PropertyModel? BuildProperty(ISymbol member, AttributeData attr, string className, List<Diagnostic> diagnostics)
@@ -291,8 +310,27 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
                 return null;
             }
 
+            ReturnKind innerKind = ReturnKind.Void;
+            string? innerDisplay = null;
+            if (kind == ReturnKind.ROptional && IsJsOptional(valueType, out var innerType) && innerType is not null)
+            {
+                innerKind = ClassifyReturn(innerType);
+                if (innerKind == ReturnKind.Unsupported || innerKind == ReturnKind.Void || innerKind == ReturnKind.ROptional)
+                {
+                    diagnostics.Add(Diagnostic.Create(
+                        UnsupportedReturnType,
+                        member.Locations.FirstOrDefault(),
+                        valueType.ToDisplayString(),
+                        className,
+                        member.Name));
+                    return null;
+                }
+
+                innerDisplay = innerType.ToDisplayString();
+            }
+
             return new PropertyModel(jsName ?? member.Name, member.Name, isCsharpProperty, isStatic, false,
-                valueType.ToDisplayString(), null, (ReturnKind?)kind);
+                valueType.ToDisplayString(), null, (ReturnKind?)kind, innerKind, innerDisplay);
         }
     }
 
@@ -399,11 +437,31 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         };
     }
 
+    private static bool IsJsOptional(ITypeSymbol t, out ITypeSymbol? inner)
+    {
+        inner = null;
+        if (t is INamedTypeSymbol nts
+            && nts.Name == "JsOptional"
+            && nts.ContainingNamespace?.ToDisplayString() == Ns
+            && nts.TypeArguments.Length == 1)
+        {
+            inner = nts.TypeArguments[0];
+            return true;
+        }
+
+        return false;
+    }
+
     private static ReturnKind ClassifyReturn(ITypeSymbol t)
     {
         if (t.SpecialType == SpecialType.System_Void)
         {
             return ReturnKind.Void;
+        }
+
+        if (IsJsOptional(t, out _))
+        {
+            return ReturnKind.ROptional;
         }
 
         if (IsJsValueDerived(t))
@@ -673,7 +731,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
                 }
             }
 
-            sb.Append("): ").Append(TsReturnType(m.Return.Kind)).AppendLine(";");
+            sb.Append("): ").Append(TsReturnType(m.Return.Kind, m.Return.InnerKind)).AppendLine(";");
         }
 
         var seenProps = new HashSet<string>(StringComparer.Ordinal);
@@ -690,7 +748,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             }
 
             var hasSetter = model.Properties.Any(x => x.IsSetter && x.JsName == p.JsName);
-            var ts = p.ReturnKind is { } rk ? TsReturnType(rk) : "any";
+            var ts = p.ReturnKind is { } rk ? TsReturnType(rk, p.InnerKind) : "any";
             if (!hasSetter)
             {
                 sb.Append("    readonly ").Append(p.JsName).Append(": ").Append(ts).AppendLine(";");
@@ -735,9 +793,10 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         _ => "any",
     };
 
-    private static string TsReturnType(ReturnKind kind) => kind switch
+    private static string TsReturnType(ReturnKind kind, ReturnKind innerKind = ReturnKind.Void) => kind switch
     {
         ReturnKind.Void => "void",
+        ReturnKind.ROptional => TsReturnType(innerKind) + " | undefined",
         ReturnKind.RString => "string",
         ReturnKind.RBool => "boolean",
         ReturnKind.RDouble or ReturnKind.RFloat or ReturnKind.RInt32 or ReturnKind.RInt64
@@ -767,8 +826,19 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             sb.Append("            case \"").Append(Escape(p.JsName)).AppendLine("\":");
             var target = p.IsStatic ? model.ClassName : "this";
             var access = p.IsCsharpProperty ? $"{target}.{p.CsharpName}" : $"{target}.{p.CsharpName}()";
-            var wrapped = WrapReturn(p.ReturnKind ?? ReturnKind.JsValue, p.ValueTypeDisplay, access);
-            sb.Append("                return ").Append(wrapped).AppendLine(";");
+            if (p.ReturnKind == ReturnKind.ROptional)
+            {
+                sb.AppendLine("            {");
+                sb.Append("                var __r = ").Append(access).AppendLine(";");
+                var innerWrapped = WrapReturn(p.InnerKind, p.InnerTypeDisplay ?? string.Empty, "__r.Value!");
+                sb.Append("                return __r.HasValue ? ").Append(innerWrapped).AppendLine(" : JsValue.Undefined;");
+                sb.AppendLine("            }");
+            }
+            else
+            {
+                var wrapped = WrapReturn(p.ReturnKind ?? ReturnKind.JsValue, p.ValueTypeDisplay, access);
+                sb.Append("                return ").Append(wrapped).AppendLine(";");
+            }
         }
 
         sb.AppendLine("            default:");
@@ -838,6 +908,12 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         {
             sb.Append("                        ").Append(call).AppendLine(";");
             sb.AppendLine("                        return JsValue.Undefined;");
+        }
+        else if (m.Return.Kind == ReturnKind.ROptional)
+        {
+            sb.Append("                        var __r = ").Append(call).AppendLine(";");
+            var innerWrapped = WrapReturn(m.Return.InnerKind, m.Return.InnerTypeDisplay ?? string.Empty, "__r.Value!");
+            sb.Append("                        return __r.HasValue ? ").Append(innerWrapped).AppendLine(" : JsValue.Undefined;");
         }
         else
         {
@@ -951,6 +1027,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         Void,
         JsValue,
         RIJsTypeInterface,
+        ROptional,
         RString,
         RBool,
         RDouble,
@@ -986,7 +1063,11 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
 
     private sealed record ParamModel(string CsharpName, string TypeDisplay, ParamKind Kind);
 
-    private sealed record ReturnModel(string TypeDisplay, ReturnKind Kind);
+    private sealed record ReturnModel(
+        string TypeDisplay,
+        ReturnKind Kind,
+        ReturnKind InnerKind = ReturnKind.Void,
+        string? InnerTypeDisplay = null);
 
     private sealed record PropertyModel(
         string JsName,
@@ -996,7 +1077,9 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         bool IsSetter,
         string ValueTypeDisplay,
         ParamKind? SetterParamKind,
-        ReturnKind? ReturnKind);
+        ReturnKind? ReturnKind,
+        ReturnKind InnerKind = JsObjectGenerator.ReturnKind.Void,
+        string? InnerTypeDisplay = null);
 
     private const string AttributeSource = """
         // <auto-generated/>
