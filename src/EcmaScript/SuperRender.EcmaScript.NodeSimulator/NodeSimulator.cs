@@ -63,9 +63,9 @@ public static class NodeSimulator
         realm.InstallGlobal("globalThis", realm.GlobalObject);
 
         // Cached module singletons
-        JsDynamicObject? pathMod = null, eventsMod = null, assertMod = null, fsMod = null;
-        JsObjectBase? qsMod = null, osMod = null, utilMod = null, urlMod = null;
-        JsDynamicObject? strDecMod = null, cryptoMod = null, zlibMod = null, streamMod = null;
+        JsDynamicObject? pathMod = null, eventsMod = null, assertMod = null;
+        JsObjectBase? qsMod = null, osMod = null, utilMod = null, urlMod = null, zlibMod = null, fsMod = null;
+        JsDynamicObject? strDecMod = null, cryptoMod = null, streamMod = null;
         var modules = new Dictionary<string, Func<JsValue>>(StringComparer.Ordinal)
         {
             ["path"] = () => pathMod ??= PathModule.CreateDefault(),
