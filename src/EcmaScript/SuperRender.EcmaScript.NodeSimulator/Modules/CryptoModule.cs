@@ -8,112 +8,122 @@ namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 /// Node.js `crypto` module (hash/hmac/random subset).
 /// Cross-platform via System.Security.Cryptography.
 /// </summary>
-public static class CryptoModule
+[JsObject]
+public sealed partial class CryptoModule : JsObjectBase
 {
-    private static PropertyDescriptor MethodDesc(string name, Func<JsValue, JsValue[], JsValue> impl, int length) =>
-        PropertyDescriptor.Data(JsFunction.CreateNative(name, impl, length), writable: true, enumerable: false, configurable: true);
+    private readonly Realm _realm;
 
-    public static JsDynamicObject Create(Realm realm)
+    public CryptoModule(Realm realm)
     {
-        var obj = new JsDynamicObject();
+        _realm = realm;
+        Prototype = realm.ObjectPrototype;
+    }
 
-        obj.DefineOwnProperty("randomUUID", MethodDesc("randomUUID", (_, _) =>
-            new JsString(Guid.NewGuid().ToString("D")), 0));
+    public static CryptoModule Create(Realm realm) => new(realm);
 
-        obj.DefineOwnProperty("randomBytes", MethodDesc("randomBytes", (_, args) =>
+    [JsMethod("randomUUID")]
+    public static string RandomUUID() => Guid.NewGuid().ToString("D");
+
+    [JsMethod("randomBytes")]
+    public static JsValue RandomBytes(JsValue _, JsValue[] args)
+    {
+        int size = args.Length > 0 ? (int)args[0].ToNumber() : 0;
+        if (size < 0) throw new Runtime.Errors.JsRangeError("size must be non-negative");
+        var bytes = new byte[size];
+        RandomNumberGenerator.Fill(bytes);
+        return new BufferObject(bytes);
+    }
+
+    [JsMethod("randomFillSync")]
+    public static JsValue RandomFillSync(JsValue _, JsValue[] args)
+    {
+        if (args.Length == 0 || args[0] is not BufferObject buf)
+            throw new Runtime.Errors.JsTypeError("randomFillSync requires a Buffer");
+        int offset = args.Length > 1 && args[1] is not JsUndefined ? (int)args[1].ToNumber() : 0;
+        int size = args.Length > 2 && args[2] is not JsUndefined ? (int)args[2].ToNumber() : buf.Length - offset;
+        offset = Math.Clamp(offset, 0, buf.Length);
+        size = Math.Clamp(size, 0, buf.Length - offset);
+        RandomNumberGenerator.Fill(buf.Bytes.AsSpan(buf.Offset + offset, size));
+        return buf;
+    }
+
+    [JsMethod("randomInt")]
+    public static JsValue RandomInt(JsValue _, JsValue[] args)
+    {
+        int min = 0, max;
+        if (args.Length >= 2) { min = (int)args[0].ToNumber(); max = (int)args[1].ToNumber(); }
+        else if (args.Length == 1) { max = (int)args[0].ToNumber(); }
+        else throw new Runtime.Errors.JsTypeError("randomInt requires max");
+        if (max <= min) throw new Runtime.Errors.JsRangeError("max must be greater than min");
+        return JsNumber.Create(RandomNumberGenerator.GetInt32(min, max));
+    }
+
+    [JsMethod("createHash")]
+    public static JsValue CreateHashMethod(JsValue _, JsValue[] args)
+    {
+        var algo = args.Length > 0 && args[0] is JsString s ? s.Value : throw new Runtime.Errors.JsTypeError("algorithm must be a string");
+        return new HashObject(algo);
+    }
+
+    [JsMethod("createHmac")]
+    public static JsValue CreateHmacMethod(JsValue _, JsValue[] args)
+    {
+        var algo = args.Length > 0 && args[0] is JsString s ? s.Value : throw new Runtime.Errors.JsTypeError("algorithm must be a string");
+        if (args.Length < 2) throw new Runtime.Errors.JsTypeError("createHmac requires a key");
+        var key = ArgToBytes(args[1]);
+        return new HmacObject(algo, key);
+    }
+
+    [JsMethod("timingSafeEqual")]
+    public static JsValue TimingSafeEqual(JsValue _, JsValue[] args)
+    {
+        if (args.Length < 2 || args[0] is not BufferObject a || args[1] is not BufferObject b)
+            throw new Runtime.Errors.JsTypeError("timingSafeEqual requires two Buffers");
+        if (a.Length != b.Length) throw new Runtime.Errors.JsRangeError("Input buffers must have the same byte length");
+        return CryptographicOperations.FixedTimeEquals(a.Span, b.Span) ? JsValue.True : JsValue.False;
+    }
+
+    [JsMethod("pbkdf2Sync")]
+    public static JsValue Pbkdf2Sync(JsValue _, JsValue[] args)
+    {
+        if (args.Length < 5) throw new Runtime.Errors.JsTypeError("pbkdf2Sync requires 5 arguments");
+        var password = ArgToBytes(args[0]);
+        var salt = ArgToBytes(args[1]);
+        int iterations = (int)args[2].ToNumber();
+        int keylen = (int)args[3].ToNumber();
+        var digest = args[4] is JsString ds ? ds.Value : "sha1";
+        var derived = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, ToHashName(digest), keylen);
+        return new BufferObject(derived);
+    }
+
+    [JsMethod("pbkdf2")]
+    public static JsValue Pbkdf2(JsValue _, JsValue[] args)
+    {
+        if (args.Length < 6 || args[5] is not JsFunction cb)
+            throw new Runtime.Errors.JsTypeError("pbkdf2 requires a callback");
+        try
         {
-            int size = args.Length > 0 ? (int)args[0].ToNumber() : 0;
-            if (size < 0) throw new Runtime.Errors.JsRangeError("size must be non-negative");
-            var bytes = new byte[size];
-            RandomNumberGenerator.Fill(bytes);
-            return new BufferObject(bytes);
-        }, 1));
-
-        obj.DefineOwnProperty("randomFillSync", MethodDesc("randomFillSync", (_, args) =>
-        {
-            if (args.Length == 0 || args[0] is not BufferObject buf)
-                throw new Runtime.Errors.JsTypeError("randomFillSync requires a Buffer");
-            int offset = args.Length > 1 && args[1] is not JsUndefined ? (int)args[1].ToNumber() : 0;
-            int size = args.Length > 2 && args[2] is not JsUndefined ? (int)args[2].ToNumber() : buf.Length - offset;
-            offset = Math.Clamp(offset, 0, buf.Length);
-            size = Math.Clamp(size, 0, buf.Length - offset);
-            RandomNumberGenerator.Fill(buf.Bytes.AsSpan(buf.Offset + offset, size));
-            return buf;
-        }, 3));
-
-        obj.DefineOwnProperty("randomInt", MethodDesc("randomInt", (_, args) =>
-        {
-            int min = 0, max;
-            if (args.Length >= 2) { min = (int)args[0].ToNumber(); max = (int)args[1].ToNumber(); }
-            else if (args.Length == 1) { max = (int)args[0].ToNumber(); }
-            else throw new Runtime.Errors.JsTypeError("randomInt requires max");
-            if (max <= min) throw new Runtime.Errors.JsRangeError("max must be greater than min");
-            return JsNumber.Create(RandomNumberGenerator.GetInt32(min, max));
-        }, 2));
-
-        obj.DefineOwnProperty("createHash", MethodDesc("createHash", (_, args) =>
-        {
-            var algo = args.Length > 0 && args[0] is JsString s ? s.Value : throw new Runtime.Errors.JsTypeError("algorithm must be a string");
-            return new HashObject(algo);
-        }, 1));
-
-        obj.DefineOwnProperty("createHmac", MethodDesc("createHmac", (_, args) =>
-        {
-            var algo = args.Length > 0 && args[0] is JsString s ? s.Value : throw new Runtime.Errors.JsTypeError("algorithm must be a string");
-            if (args.Length < 2) throw new Runtime.Errors.JsTypeError("createHmac requires a key");
-            var key = ArgToBytes(args[1]);
-            return new HmacObject(algo, key);
-        }, 2));
-
-        obj.DefineOwnProperty("timingSafeEqual", MethodDesc("timingSafeEqual", (_, args) =>
-        {
-            if (args.Length < 2 || args[0] is not BufferObject a || args[1] is not BufferObject b)
-                throw new Runtime.Errors.JsTypeError("timingSafeEqual requires two Buffers");
-            if (a.Length != b.Length) throw new Runtime.Errors.JsRangeError("Input buffers must have the same byte length");
-            return CryptographicOperations.FixedTimeEquals(a.Span, b.Span) ? JsValue.True : JsValue.False;
-        }, 2));
-
-        obj.DefineOwnProperty("pbkdf2Sync", MethodDesc("pbkdf2Sync", (_, args) =>
-        {
-            if (args.Length < 5) throw new Runtime.Errors.JsTypeError("pbkdf2Sync requires 5 arguments");
             var password = ArgToBytes(args[0]);
             var salt = ArgToBytes(args[1]);
             int iterations = (int)args[2].ToNumber();
             int keylen = (int)args[3].ToNumber();
             var digest = args[4] is JsString ds ? ds.Value : "sha1";
             var derived = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, ToHashName(digest), keylen);
-            return new BufferObject(derived);
-        }, 5));
-
-        obj.DefineOwnProperty("pbkdf2", MethodDesc("pbkdf2", (_, args) =>
+            cb.Call(JsValue.Undefined, [JsValue.Null, new BufferObject(derived)]);
+        }
+        catch (Exception ex)
         {
-            if (args.Length < 6 || args[5] is not JsFunction cb)
-                throw new Runtime.Errors.JsTypeError("pbkdf2 requires a callback");
-            try
-            {
-                var password = ArgToBytes(args[0]);
-                var salt = ArgToBytes(args[1]);
-                int iterations = (int)args[2].ToNumber();
-                int keylen = (int)args[3].ToNumber();
-                var digest = args[4] is JsString ds ? ds.Value : "sha1";
-                var derived = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, ToHashName(digest), keylen);
-                cb.Call(JsValue.Undefined, [JsValue.Null, new BufferObject(derived)]);
-            }
-            catch (Exception ex)
-            {
-                cb.Call(JsValue.Undefined, [new JsString(ex.Message), JsValue.Undefined]);
-            }
-            return JsValue.Undefined;
-        }, 6));
+            cb.Call(JsValue.Undefined, [new JsString(ex.Message), JsValue.Undefined]);
+        }
+        return JsValue.Undefined;
+    }
 
-        obj.DefineOwnProperty("getHashes", MethodDesc("getHashes", (_, _) =>
-        {
-            var arr = new JsArray { Prototype = realm.ArrayPrototype };
-            foreach (var h in HashNames) arr.Push(new JsString(h));
-            return arr;
-        }, 0));
-
-        return obj;
+    [JsMethod("getHashes")]
+    public JsValue GetHashes()
+    {
+        var arr = new JsArray { Prototype = _realm.ArrayPrototype };
+        foreach (var h in HashNames) arr.Push(new JsString(h));
+        return arr;
     }
 
     private static readonly string[] HashNames = ["md5", "sha1", "sha256", "sha384", "sha512"];

@@ -64,8 +64,8 @@ public static class NodeSimulator
 
         // Cached module singletons
         JsDynamicObject? pathMod = null, eventsMod = null, assertMod = null;
-        JsObjectBase? qsMod = null, osMod = null, utilMod = null, urlMod = null, zlibMod = null, fsMod = null;
-        JsDynamicObject? strDecMod = null, cryptoMod = null, streamMod = null;
+        JsObjectBase? qsMod = null, osMod = null, utilMod = null, urlMod = null, zlibMod = null, fsMod = null, cryptoMod = null;
+        JsDynamicObject? strDecMod = null, streamMod = null;
         var modules = new Dictionary<string, Func<JsValue>>(StringComparer.Ordinal)
         {
             ["path"] = () => pathMod ??= PathModule.CreateDefault(),
