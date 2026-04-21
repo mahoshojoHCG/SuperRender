@@ -484,7 +484,7 @@ public static class StringConstructor
                     return BuiltinHelper.CreateIteratorResult(JsValue.Undefined, true);
                 }, 0);
                 iterator.DefineSymbolProperty(JsSymbol.Iterator, PropertyDescriptor.Data(
-                    JsFunction.CreateNative("[Symbol.iterator]", (self, _) => self, 0),
+                    BuiltinHelper.__JsFn_SymbolIteratorSelf(),
                     writable: false, enumerable: false, configurable: true));
                 return iterator;
             }, 0), writable: true, enumerable: false, configurable: true));

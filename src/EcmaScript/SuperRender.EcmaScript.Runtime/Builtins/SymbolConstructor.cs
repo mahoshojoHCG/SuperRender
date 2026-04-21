@@ -2,7 +2,7 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public static class SymbolConstructor
+public static partial class SymbolConstructor
 {
     private static readonly Dictionary<string, JsSymbol> GlobalRegistry = new(StringComparer.Ordinal);
 
@@ -85,10 +85,7 @@ public static class SymbolConstructor
 
         // Symbol.prototype[Symbol.toPrimitive]
         proto.DefineSymbolProperty(JsSymbol.ToPrimitiveSymbol,
-            PropertyDescriptor.Data(JsFunction.CreateNative("[Symbol.toPrimitive]", (thisArg, _) =>
-            {
-                return GetSymbolValue(thisArg);
-            }, 1), writable: false, enumerable: false, configurable: true));
+            PropertyDescriptor.Data(__JsFn_SymbolToPrimitive(), writable: false, enumerable: false, configurable: true));
 
         // Symbol.prototype[Symbol.toStringTag]
         proto.DefineSymbolProperty(JsSymbol.ToStringTag,
@@ -96,6 +93,9 @@ public static class SymbolConstructor
 
         realm.InstallGlobal("Symbol", ctor);
     }
+
+    [JsMethod("[Symbol.toPrimitive]")]
+    internal static JsValue SymbolToPrimitive(JsValue thisArg, JsValue[] args) => GetSymbolValue(thisArg);
 
     private static JsSymbol GetSymbolValue(JsValue thisArg)
     {

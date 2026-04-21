@@ -106,7 +106,7 @@ public sealed class Realm
         // Symbol.iterator on generator prototype returns self
         GeneratorPrototype.DefineSymbolProperty(JsSymbol.Iterator,
             PropertyDescriptor.Data(
-                JsFunction.CreateNative("[Symbol.iterator]", static (self, _) => self, 0),
+                Builtins.BuiltinHelper.__JsFn_SymbolIteratorSelf(),
                 writable: false, enumerable: false, configurable: true));
 
         // Symbol.toStringTag

@@ -2,7 +2,7 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public static class IteratorConstructor
+public static partial class IteratorConstructor
 {
     public static void Install(Realm realm)
     {
@@ -244,7 +244,7 @@ public static class IteratorConstructor
         // Symbol.iterator on IteratorPrototype returns self
         iterProto.DefineSymbolProperty(JsSymbol.Iterator,
             PropertyDescriptor.Data(
-                JsFunction.CreateNative("[Symbol.iterator]", static (self, _) => self, 0),
+                BuiltinHelper.__JsFn_SymbolIteratorSelf(),
                 writable: false, enumerable: false, configurable: true));
 
         realm.InstallGlobal("Iterator", ctor);

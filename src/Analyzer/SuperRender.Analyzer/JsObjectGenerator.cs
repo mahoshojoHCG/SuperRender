@@ -110,6 +110,29 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             .Collect();
         var windowCombined = windowClasses.Combine(targetDir);
         context.RegisterSourceOutput(windowCombined, static (ctx, tuple) => EmitWindowDts(ctx, tuple.Left, tuple.Right));
+
+        var jsFunctions = context.SyntaxProvider
+            .ForAttributeWithMetadataName(
+                $"{Ns}.{JsMethodAttr}",
+                static (node, _) => node is MethodDeclarationSyntax mds
+                    && mds.Modifiers.Any(m => m.ValueText == "static")
+                    && node.Parent is ClassDeclarationSyntax cds
+                    && cds.Modifiers.Any(m => m.ValueText == "partial"),
+                static (ctx, _) => CollectJsFunction(ctx))
+            .Where(static x => x is not null)
+            .Select(static (x, _) => x!);
+
+        var jsFuncGrouped = jsFunctions
+            .Collect()
+            .Select(static (items, _) => GroupJsFunctions(items));
+
+        context.RegisterSourceOutput(jsFuncGrouped, static (ctx, models) =>
+        {
+            foreach (var model in models)
+            {
+                EmitJsFunctionClass(ctx, model);
+            }
+        });
     }
 
     private const int ExportTypeGlobal = 1;
@@ -338,7 +361,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             parameters.ToImmutable());
     }
 
-    private static MethodModel? BuildMethod(IMethodSymbol m, AttributeData attr, string className, List<Diagnostic> diagnostics)
+    private static MethodModel? BuildMethod(IMethodSymbol m, AttributeData attr, string className, List<Diagnostic> diagnostics, bool warnLegacy = true, bool warnDisallowed = true)
     {
         var jsName = attr.ConstructorArguments.Length > 0
             ? attr.ConstructorArguments[0].Value as string
@@ -349,7 +372,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             && IsJsValue(m.Parameters[0].Type)
             && IsJsValueArray(m.Parameters[1].Type);
 
-        if (isLegacy)
+        if (isLegacy && warnLegacy)
         {
             diagnostics.Add(Diagnostic.Create(
                 LegacyShapeDisallowed,
@@ -376,7 +399,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
                     return null;
                 }
 
-                if (IsDisallowedParamKind(kind))
+                if (IsDisallowedParamKind(kind) && warnDisallowed)
                 {
                     diagnostics.Add(Diagnostic.Create(
                         DisallowedParamType,
@@ -412,7 +435,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             return null;
         }
 
-        if (IsDisallowedReturnKind(retKind))
+        if (IsDisallowedReturnKind(retKind) && warnDisallowed)
         {
             diagnostics.Add(Diagnostic.Create(
                 DisallowedReturnType,
@@ -1677,6 +1700,207 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         sb.AppendLine("    }");
     }
 
+    private static JsFunctionItem? CollectJsFunction(GeneratorAttributeSyntaxContext ctx)
+    {
+        if (ctx.TargetSymbol is not IMethodSymbol m)
+        {
+            return null;
+        }
+
+        var cls = m.ContainingType;
+
+        if (cls.GetAttributes().Any(a => a.AttributeClass?.Name == JsObjectAttr))
+        {
+            return null;
+        }
+
+        var diagnostics = new List<Diagnostic>();
+
+        var model = BuildMethod(m, ctx.Attributes[0], cls.Name, diagnostics, warnLegacy: false, warnDisallowed: false);
+        if (model is null)
+        {
+            return new JsFunctionItem(
+                cls.ContainingNamespace.IsGlobalNamespace ? null : cls.ContainingNamespace.ToDisplayString(),
+                cls.Name,
+                new MethodModel(m.Name, m.Name, true, 0, false, ImmutableArray<ParamModel>.Empty, new ReturnModel("void", ReturnKind.Void)),
+                diagnostics.ToImmutableArray());
+        }
+
+        return new JsFunctionItem(
+            cls.ContainingNamespace.IsGlobalNamespace ? null : cls.ContainingNamespace.ToDisplayString(),
+            cls.Name,
+            model,
+            diagnostics.ToImmutableArray());
+    }
+
+    private static ImmutableArray<JsFunctionClassModel> GroupJsFunctions(ImmutableArray<JsFunctionItem> items)
+    {
+        if (items.IsDefaultOrEmpty)
+        {
+            return ImmutableArray<JsFunctionClassModel>.Empty;
+        }
+
+        var groups = new Dictionary<(string?, string), (List<MethodModel> methods, List<Diagnostic> diags)>();
+        foreach (var item in items)
+        {
+            var key = (item.Namespace, item.ClassName);
+            if (!groups.TryGetValue(key, out var g))
+            {
+                g = (new List<MethodModel>(), new List<Diagnostic>());
+                groups[key] = g;
+            }
+
+            g.diags.AddRange(item.Diagnostics);
+            if (!item.Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error))
+            {
+                g.methods.Add(item.Method);
+            }
+        }
+
+        var result = ImmutableArray.CreateBuilder<JsFunctionClassModel>();
+        foreach (var kv in groups)
+        {
+            if (kv.Value.methods.Count == 0 && kv.Value.diags.Count == 0)
+            {
+                continue;
+            }
+
+            result.Add(new JsFunctionClassModel(
+                kv.Key.Item1,
+                kv.Key.Item2,
+                kv.Value.methods.ToImmutableArray(),
+                kv.Value.diags.ToImmutableArray()));
+        }
+
+        return result.ToImmutable();
+    }
+
+    private static void EmitJsFunctionClass(SourceProductionContext ctx, JsFunctionClassModel model)
+    {
+        foreach (var d in model.Diagnostics)
+        {
+            ctx.ReportDiagnostic(d);
+        }
+
+        if (model.Methods.Length == 0)
+        {
+            return;
+        }
+
+        var sb = new StringBuilder();
+        sb.AppendLine("// <auto-generated/>");
+        sb.AppendLine("#nullable enable");
+        sb.AppendLine("using SuperRender.EcmaScript.Runtime;");
+        sb.AppendLine();
+
+        if (model.Namespace is not null)
+        {
+            sb.Append("namespace ").Append(model.Namespace).AppendLine(";");
+            sb.AppendLine();
+        }
+
+        sb.Append("partial class ").AppendLine(model.ClassName);
+        sb.AppendLine("{");
+
+        for (var i = 0; i < model.Methods.Length; i++)
+        {
+            if (i > 0)
+            {
+                sb.AppendLine();
+            }
+
+            EmitJsFnFactory(sb, model.ClassName, model.Methods[i]);
+        }
+
+        sb.AppendLine("}");
+
+        ctx.AddSource($"{model.ClassName}.JsFunction.g.cs", sb.ToString());
+    }
+
+    private static void EmitJsFnFactory(StringBuilder sb, string className, MethodModel m)
+    {
+        var needsRealm = m.Parameters.Any(p => p.Kind == ParamKind.Realm);
+
+        if (m.IsLegacy)
+        {
+            sb.Append("    internal static JsFunction __JsFn_").Append(SanitizeIdent(m.CsharpName))
+              .AppendLine("() =>");
+            sb.Append("        JsFunction.CreateNative(\"").Append(Escape(m.JsName)).Append("\", ")
+              .Append(className).Append('.').Append(m.CsharpName).Append(", ").Append(m.Length).AppendLine(");");
+            return;
+        }
+
+        sb.Append("    internal static JsFunction __JsFn_").Append(SanitizeIdent(m.CsharpName)).Append('(');
+        if (needsRealm)
+        {
+            sb.Append("Realm realm");
+        }
+
+        sb.AppendLine(") =>");
+        sb.Append("        JsFunction.CreateNative(\"").Append(Escape(m.JsName)).AppendLine("\",");
+        sb.Append("            ").Append(needsRealm ? string.Empty : "static ").AppendLine("(__thisArg, __args) =>");
+        sb.AppendLine("            {");
+
+        var callArgs = new List<string>();
+        var jsIdx = 0;
+        for (var i = 0; i < m.Parameters.Length; i++)
+        {
+            var p = m.Parameters[i];
+            var local = "__p" + i;
+            if (p.Kind == ParamKind.Realm)
+            {
+                sb.Append("                var ").Append(local).AppendLine(" = realm;");
+            }
+            else if (p.Kind == ParamKind.ArgsArray)
+            {
+                if (jsIdx == 0)
+                {
+                    sb.Append("                var ").Append(local).AppendLine(" = __args;");
+                }
+                else
+                {
+                    sb.Append("                var ").Append(local).Append(" = __args.Length > ")
+                      .Append(jsIdx).Append(" ? __args[").Append(jsIdx).AppendLine("..] : System.Array.Empty<JsValue>();");
+                }
+                jsIdx++;
+            }
+            else
+            {
+                var argExpr = $"(__args.Length > {jsIdx} ? __args[{jsIdx}] : JsValue.Undefined)";
+                var convert = ConvertArg(p.Kind, p.TypeDisplay, argExpr, local, m.JsName, jsIdx);
+                sb.Append("                ").AppendLine(convert);
+                jsIdx++;
+            }
+            callArgs.Add(local);
+        }
+
+        var call = $"{className}.{m.CsharpName}({string.Join(", ", callArgs)})";
+        if (m.Return.Kind == ReturnKind.Void)
+        {
+            sb.Append("                ").Append(call).AppendLine(";");
+            sb.AppendLine("                return JsValue.Undefined;");
+        }
+        else if (m.Return.Kind == ReturnKind.ROptional)
+        {
+            sb.Append("                var __r = ").Append(call).AppendLine(";");
+            var inner = WrapReturn(m.Return.InnerKind, m.Return.InnerTypeDisplay ?? string.Empty, "__r.Value!");
+            sb.Append("                return __r.HasValue ? ").Append(inner).AppendLine(" : JsValue.Undefined;");
+        }
+        else if (m.Return.Kind == ReturnKind.RTaskOfT)
+        {
+            sb.Append("                return global::SuperRender.EcmaScript.Runtime.Builtins.JsPromise.FromTask(")
+              .Append(call).AppendLine(");");
+        }
+        else
+        {
+            var wrapped = WrapReturn(m.Return.Kind, m.Return.TypeDisplay, call);
+            sb.Append("                return ").Append(wrapped).AppendLine(";");
+        }
+
+        sb.AppendLine("            },");
+        sb.Append("            ").Append(m.Length).AppendLine(");");
+    }
+
     private static string SanitizeIdent(string name)
     {
         var sb = new StringBuilder(name.Length);
@@ -1792,6 +2016,18 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         ReturnKind? ReturnKind,
         ReturnKind InnerKind = JsObjectGenerator.ReturnKind.Void,
         string? InnerTypeDisplay = null);
+
+    private sealed record JsFunctionItem(
+        string? Namespace,
+        string ClassName,
+        MethodModel Method,
+        ImmutableArray<Diagnostic> Diagnostics);
+
+    private sealed record JsFunctionClassModel(
+        string? Namespace,
+        string ClassName,
+        ImmutableArray<MethodModel> Methods,
+        ImmutableArray<Diagnostic> Diagnostics);
 
     private const string AttributeSource = """
         // <auto-generated/>

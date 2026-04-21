@@ -2,18 +2,18 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public static class StructuredCloneHelper
+public static partial class StructuredCloneHelper
 {
     public static void Install(Realm realm)
     {
-        var cloneFn = JsFunction.CreateNative("structuredClone", (_, args) =>
-        {
-            var value = BuiltinHelper.Arg(args, 0);
-            var seen = new Dictionary<JsDynamicObject, JsDynamicObject>(ReferenceEqualityComparer.Instance);
-            return Clone(value, realm, seen);
-        }, 1);
+        realm.InstallGlobal("structuredClone", __JsFn_StructuredCloneImpl(realm));
+    }
 
-        realm.InstallGlobal("structuredClone", cloneFn);
+    [JsMethod("structuredClone")]
+    internal static JsValue StructuredCloneImpl(JsValue value, Realm realm)
+    {
+        var seen = new Dictionary<JsDynamicObject, JsDynamicObject>(ReferenceEqualityComparer.Instance);
+        return Clone(value, realm, seen);
     }
 
     private static JsValue Clone(JsValue value, Realm realm, Dictionary<JsDynamicObject, JsDynamicObject> seen)

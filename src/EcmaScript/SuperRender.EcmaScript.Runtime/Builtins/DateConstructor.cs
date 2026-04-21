@@ -3,7 +3,7 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using System.Globalization;
 using SuperRender.EcmaScript.Runtime;
 
-public static class DateConstructor
+public static partial class DateConstructor
 {
     private static readonly DateTimeOffset Epoch = new(1970, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
@@ -215,26 +215,28 @@ public static class DateConstructor
 
         // Symbol.toPrimitive
         proto.DefineSymbolProperty(JsSymbol.ToPrimitiveSymbol,
-            PropertyDescriptor.Data(JsFunction.CreateNative("[Symbol.toPrimitive]", (thisArg, args) =>
-            {
-                var hint = BuiltinHelper.Arg(args, 0).ToJsString();
-                if (hint == "number" || hint == "default")
-                {
-                    return JsNumber.Create(GetDateMs(thisArg));
-                }
-
-                // "string" hint
-                var ms = GetDateMs(thisArg);
-                if (double.IsNaN(ms))
-                {
-                    return new JsString("Invalid Date");
-                }
-
-                var dto = ToDateTimeOffset(ms);
-                return new JsString(dto.LocalDateTime.ToString("ddd MMM dd yyyy HH:mm:ss 'GMT'zzz", CultureInfo.InvariantCulture));
-            }, 1), writable: false, enumerable: false, configurable: true));
+            PropertyDescriptor.Data(__JsFn_DateToPrimitive(), writable: false, enumerable: false, configurable: true));
 
         realm.InstallGlobal("Date", ctor);
+    }
+
+    [JsMethod("[Symbol.toPrimitive]")]
+    internal static JsValue DateToPrimitive(JsValue thisArg, JsValue[] args)
+    {
+        var hint = BuiltinHelper.Arg(args, 0).ToJsString();
+        if (hint == "number" || hint == "default")
+        {
+            return JsNumber.Create(GetDateMs(thisArg));
+        }
+
+        var ms = GetDateMs(thisArg);
+        if (double.IsNaN(ms))
+        {
+            return new JsString("Invalid Date");
+        }
+
+        var dto = ToDateTimeOffset(ms);
+        return new JsString(dto.LocalDateTime.ToString("ddd MMM dd yyyy HH:mm:ss 'GMT'zzz", CultureInfo.InvariantCulture));
     }
 
     private static double CurrentTimeMs()

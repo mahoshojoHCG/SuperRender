@@ -3,7 +3,7 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using System.Globalization;
 using SuperRender.EcmaScript.Runtime;
 
-public static class NumberConstructor
+public static partial class NumberConstructor
 {
     public static void Install(Realm realm)
     {
@@ -208,17 +208,17 @@ public static class NumberConstructor
         realm.InstallGlobal("Number", ctor);
         realm.InstallGlobal("parseInt", ctor.Get("parseInt"));
         realm.InstallGlobal("parseFloat", ctor.Get("parseFloat"));
-        realm.InstallGlobal("isFinite", JsFunction.CreateNative("isFinite", (_, args) =>
-        {
-            var n = BuiltinHelper.Arg(args, 0).ToNumber();
-            return double.IsFinite(n) ? JsValue.True : JsValue.False;
-        }, 1));
-        realm.InstallGlobal("isNaN", JsFunction.CreateNative("isNaN", (_, args) =>
-        {
-            var n = BuiltinHelper.Arg(args, 0).ToNumber();
-            return double.IsNaN(n) ? JsValue.True : JsValue.False;
-        }, 1));
+        realm.InstallGlobal("isFinite", __JsFn_GlobalIsFinite());
+        realm.InstallGlobal("isNaN", __JsFn_GlobalIsNaN());
     }
+
+    [JsMethod("isFinite")]
+    internal static JsValue GlobalIsFinite(double n) =>
+        double.IsFinite(n) ? JsValue.True : JsValue.False;
+
+    [JsMethod("isNaN")]
+    internal static JsValue GlobalIsNaN(double n) =>
+        double.IsNaN(n) ? JsValue.True : JsValue.False;
 
     private static double GetNumberValue(JsValue thisArg)
     {

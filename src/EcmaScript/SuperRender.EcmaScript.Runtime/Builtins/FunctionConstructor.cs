@@ -2,7 +2,7 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public static class FunctionConstructor
+public static partial class FunctionConstructor
 {
     public static void Install(Realm realm)
     {
@@ -115,38 +115,7 @@ public static class FunctionConstructor
 
         // Function.prototype[Symbol.hasInstance]
         proto.DefineSymbolProperty(JsSymbol.HasInstance,
-            PropertyDescriptor.Data(JsFunction.CreateNative("[Symbol.hasInstance]", (thisArg, args) =>
-            {
-                if (thisArg is not JsFunction ctor)
-                {
-                    return JsValue.False;
-                }
-
-                var target = BuiltinHelper.Arg(args, 0);
-                if (target is not JsDynamicObject obj)
-                {
-                    return JsValue.False;
-                }
-
-                var protoObj = ctor.PrototypeObject;
-                if (protoObj is null)
-                {
-                    return JsValue.False;
-                }
-
-                var current = obj.Prototype;
-                while (current is not null)
-                {
-                    if (ReferenceEquals(current, protoObj))
-                    {
-                        return JsValue.True;
-                    }
-
-                    current = current.Prototype;
-                }
-
-                return JsValue.False;
-            }, 1), writable: false, enumerable: false, configurable: false));
+            PropertyDescriptor.Data(__JsFn_HasInstance(), writable: false, enumerable: false, configurable: false));
 
         // Install a constructable Function global that supports dynamic code compilation
         var fnCtor = new JsFunction
@@ -161,6 +130,40 @@ public static class FunctionConstructor
         };
 
         realm.InstallGlobal("Function", fnCtor);
+    }
+
+    [JsMethod("[Symbol.hasInstance]")]
+    internal static JsValue HasInstance(JsValue thisArg, JsValue[] args)
+    {
+        if (thisArg is not JsFunction ctor)
+        {
+            return JsValue.False;
+        }
+
+        var target = BuiltinHelper.Arg(args, 0);
+        if (target is not JsDynamicObject obj)
+        {
+            return JsValue.False;
+        }
+
+        var protoObj = ctor.PrototypeObject;
+        if (protoObj is null)
+        {
+            return JsValue.False;
+        }
+
+        var current = obj.Prototype;
+        while (current is not null)
+        {
+            if (ReferenceEquals(current, protoObj))
+            {
+                return JsValue.True;
+            }
+
+            current = current.Prototype;
+        }
+
+        return JsValue.False;
     }
 
     private static JsValue CreateDynamicFunction(Realm realm, JsValue[] args)
