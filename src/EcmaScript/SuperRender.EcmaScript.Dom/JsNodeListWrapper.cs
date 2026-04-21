@@ -1,3 +1,4 @@
+using System.Globalization;
 using SuperRender.Document.Dom;
 using SuperRender.EcmaScript.Runtime;
 
@@ -6,46 +7,46 @@ namespace SuperRender.EcmaScript.Dom;
 /// <summary>
 /// Array-like wrapper for NodeList/HTMLCollection query results.
 /// </summary>
-internal sealed class JsNodeListWrapper : JsDynamicObject
+[JsObject]
+internal sealed partial class JsNodeListWrapper : JsDynamicObject
 {
+    private readonly List<Node> _nodes;
+    private readonly NodeWrapperCache _cache;
+
     public JsNodeListWrapper(List<Node> nodes, NodeWrapperCache cache)
     {
-        DefineOwnProperty("length", PropertyDescriptor.Accessor(
-            JsFunction.CreateNative("get length", (_, _) => JsNumber.Create(nodes.Count), 0),
-            null, enumerable: true, configurable: true));
+        _nodes = nodes;
+        _cache = cache;
 
-        // Index access
         for (int i = 0; i < nodes.Count; i++)
         {
             var node = nodes[i];
-            DefineOwnProperty(i.ToString(System.Globalization.CultureInfo.InvariantCulture), PropertyDescriptor.Data(
+            DefineOwnProperty(i.ToString(CultureInfo.InvariantCulture), PropertyDescriptor.Data(
                 cache.GetOrCreate(node), writable: false, enumerable: true, configurable: true));
         }
+    }
 
-        DefineOwnProperty("item", PropertyDescriptor.Data(
-            JsFunction.CreateNative("item", (_, args) =>
-            {
-                if (args.Length > 0)
-                {
-                    var idx = (int)args[0].ToNumber();
-                    if (idx >= 0 && idx < nodes.Count)
-                        return cache.GetOrCreate(nodes[idx]);
-                }
-                return Null;
-            }, 1)));
+    [JsProperty("length")]
+    public int Length => _nodes.Count;
 
-        DefineOwnProperty("forEach", PropertyDescriptor.Data(
-            JsFunction.CreateNative("forEach", (_, args) =>
+    [JsMethod("item")]
+    public JsValue Item(int index)
+    {
+        if (index >= 0 && index < _nodes.Count)
+            return _cache.GetOrCreate(_nodes[index]);
+        return JsValue.Null;
+    }
+
+    [JsMethod("forEach")]
+    public void ForEach(JsValue[] args)
+    {
+        if (args.Length > 0 && args[0] is JsFunction callback)
+        {
+            for (int j = 0; j < _nodes.Count; j++)
             {
-                if (args.Length > 0 && args[0] is JsFunction callback)
-                {
-                    for (int j = 0; j < nodes.Count; j++)
-                    {
-                        var wrapped = cache.GetOrCreate(nodes[j]);
-                        callback.Call(Undefined, [wrapped, JsNumber.Create(j)]);
-                    }
-                }
-                return Undefined;
-            }, 1)));
+                var wrapped = _cache.GetOrCreate(_nodes[j]);
+                callback.Call(JsValue.Undefined, [wrapped, JsNumber.Create(j)]);
+            }
+        }
     }
 }

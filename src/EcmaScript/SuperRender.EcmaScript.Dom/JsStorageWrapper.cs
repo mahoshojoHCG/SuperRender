@@ -7,8 +7,16 @@ namespace SuperRender.EcmaScript.Dom;
 /// Wraps a WebStorage-like interface using delegates, so the EcmaScript.Dom project
 /// remains dependency-free (no direct reference to Browser's WebStorage class).
 /// </summary>
-internal sealed class JsStorageWrapper : JsDynamicObject
+[JsObject(GenerateInterface = true)]
+internal sealed partial class JsStorageWrapper : JsObjectBase
 {
+    private readonly Func<string, string?> _getItem;
+    private readonly Action<string, string> _setItem;
+    private readonly Action<string> _removeItem;
+    private readonly Action _clear;
+    private readonly Func<int, string?> _key;
+    private readonly Func<int> _getLength;
+
     public JsStorageWrapper(
         Func<string, string?> getItem,
         Action<string, string> setItem,
@@ -18,48 +26,38 @@ internal sealed class JsStorageWrapper : JsDynamicObject
         Func<int> getLength,
         Realm realm)
     {
+        _getItem = getItem;
+        _setItem = setItem;
+        _removeItem = removeItem;
+        _clear = clear;
+        _key = key;
+        _getLength = getLength;
         Prototype = realm.ObjectPrototype;
-
-        this.DefineMethod("getItem", 1, args =>
-        {
-            if (args.Length > 0)
-            {
-                var result = getItem(args[0].ToJsString());
-                return result is not null ? new JsString(result) : Null;
-            }
-            return Null;
-        });
-
-        this.DefineMethod("setItem", 2, args =>
-        {
-            if (args.Length >= 2)
-                setItem(args[0].ToJsString(), args[1].ToJsString());
-            return Undefined;
-        });
-
-        this.DefineMethod("removeItem", 1, args =>
-        {
-            if (args.Length > 0) removeItem(args[0].ToJsString());
-            return Undefined;
-        });
-
-        this.DefineMethod("clear", 0, _ =>
-        {
-            clear();
-            return Undefined;
-        });
-
-        this.DefineMethod("key", 1, args =>
-        {
-            if (args.Length > 0)
-            {
-                var idx = (int)args[0].ToNumber();
-                var result = key(idx);
-                return result is not null ? new JsString(result) : Null;
-            }
-            return Null;
-        });
-
-        this.DefineGetter("length", () => JsNumber.Create(getLength()));
     }
+
+    [JsMethod("getItem")]
+    public JsValue GetItem(string key)
+    {
+        var result = _getItem(key);
+        return result is not null ? new JsString(result) : JsValue.Null;
+    }
+
+    [JsMethod("setItem")]
+    public void SetItem(string key, string value) => _setItem(key, value);
+
+    [JsMethod("removeItem")]
+    public void RemoveItem(string key) => _removeItem(key);
+
+    [JsMethod("clear")]
+    public void Clear() => _clear();
+
+    [JsMethod("key")]
+    public JsValue Key(int index)
+    {
+        var result = _key(index);
+        return result is not null ? new JsString(result) : JsValue.Null;
+    }
+
+    [JsProperty("length")]
+    public int Length => _getLength();
 }

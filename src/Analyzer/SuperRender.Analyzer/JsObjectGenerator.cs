@@ -40,7 +40,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         "Member skipped for GenerateInterface",
         "Member '{0}.{1}' is skipped from generated interface: {2}",
         "SuperRender.Analyzer",
-        DiagnosticSeverity.Warning,
+        DiagnosticSeverity.Info,
         true);
 
     public void Initialize(IncrementalGeneratorInitializationContext context)

@@ -31,7 +31,7 @@ internal sealed class JsWindowWrapper : JsDynamicObject
     /// <summary>
     /// Install a storage object (localStorage or sessionStorage) as a window property.
     /// </summary>
-    public void InstallStorage(string name, JsDynamicObject storageWrapper)
+    public void InstallStorage(string name, JsObjectBase storageWrapper)
     {
         DefineOwnProperty(name, PropertyDescriptor.Data(storageWrapper));
     }
@@ -39,7 +39,7 @@ internal sealed class JsWindowWrapper : JsDynamicObject
     /// <summary>
     /// Install the location object as a window property.
     /// </summary>
-    public void InstallLocation(JsDynamicObject locationWrapper)
+    public void InstallLocation(JsObjectBase locationWrapper)
     {
         DefineOwnProperty("location", PropertyDescriptor.Data(locationWrapper));
     }
@@ -47,7 +47,7 @@ internal sealed class JsWindowWrapper : JsDynamicObject
     /// <summary>
     /// Install the history object as a window property.
     /// </summary>
-    public void InstallHistory(JsDynamicObject historyWrapper)
+    public void InstallHistory(JsObjectBase historyWrapper)
     {
         DefineOwnProperty("history", PropertyDescriptor.Data(historyWrapper));
     }

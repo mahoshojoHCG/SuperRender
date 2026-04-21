@@ -6,7 +6,8 @@ namespace SuperRender.EcmaScript.Dom;
 /// JS wrapper for window.history. Provides pushState/replaceState/back/forward/go.
 /// Uses delegates so the EcmaScript.Dom project remains dependency-free.
 /// </summary>
-internal sealed class JsHistoryWrapper : JsDynamicObject
+[JsObject(GenerateInterface = true)]
+internal sealed partial class JsHistoryWrapper : JsObjectBase
 {
     private readonly List<HistoryEntry> _entries = [];
     private int _currentIndex = -1;
@@ -33,119 +34,119 @@ internal sealed class JsHistoryWrapper : JsDynamicObject
         _goForward = goForward;
         _updateAddressBar = updateAddressBar;
         Prototype = realm.ObjectPrototype;
-        InstallProperties();
 
-        // Initialize with the current URI
         var current = getCurrentUri();
         if (current is not null)
         {
-            _entries.Add(new HistoryEntry { Url = current, State = Null });
+            _entries.Add(new HistoryEntry { Url = current, State = JsValue.Null });
             _currentIndex = 0;
         }
     }
 
-    private void InstallProperties()
-    {
-        this.DefineGetter("length", () => JsNumber.Create(_entries.Count));
+    [JsProperty("length")]
+    public int Length => _entries.Count;
 
-        this.DefineGetter("state", () =>
+    [JsProperty("state")]
+    public JsValue State
+    {
+        get
         {
             if (_currentIndex >= 0 && _currentIndex < _entries.Count)
                 return _entries[_currentIndex].State;
-            return Null;
-        });
+            return JsValue.Null;
+        }
+    }
 
-        this.DefineMethod("pushState", 3, args =>
+    [JsMethod("pushState")]
+    public JsValue PushState(JsValue _, JsValue[] args)
+    {
+        var state = args.Length > 0 ? args[0] : JsValue.Null;
+        var url = args.Length > 2 && args[2] is not JsUndefined && args[2] is not JsNull
+            ? args[2].ToJsString()
+            : null;
+
+        var newUri = ResolveHistoryUrl(url);
+
+        if (_currentIndex < _entries.Count - 1)
+            _entries.RemoveRange(_currentIndex + 1, _entries.Count - _currentIndex - 1);
+
+        _entries.Add(new HistoryEntry { Url = newUri, State = state });
+        _currentIndex = _entries.Count - 1;
+        _updateAddressBar(newUri);
+        return JsValue.Undefined;
+    }
+
+    [JsMethod("replaceState")]
+    public JsValue ReplaceState(JsValue _, JsValue[] args)
+    {
+        var state = args.Length > 0 ? args[0] : JsValue.Null;
+        var url = args.Length > 2 && args[2] is not JsUndefined && args[2] is not JsNull
+            ? args[2].ToJsString()
+            : null;
+
+        var newUri = ResolveHistoryUrl(url);
+
+        if (_currentIndex >= 0 && _currentIndex < _entries.Count)
         {
-            var state = args.Length > 0 ? args[0] : Null;
-            var url = args.Length > 2 && args[2] is not JsUndefined && args[2] is not JsNull
-                ? args[2].ToJsString()
-                : null;
-
-            var newUri = ResolveHistoryUrl(url);
-
-            // Truncate forward entries
-            if (_currentIndex < _entries.Count - 1)
-                _entries.RemoveRange(_currentIndex + 1, _entries.Count - _currentIndex - 1);
-
+            _entries[_currentIndex] = new HistoryEntry { Url = newUri, State = state };
+        }
+        else
+        {
             _entries.Add(new HistoryEntry { Url = newUri, State = state });
             _currentIndex = _entries.Count - 1;
-            _updateAddressBar(newUri);
-            return Undefined;
-        });
+        }
 
-        this.DefineMethod("replaceState", 3, args =>
+        _updateAddressBar(newUri);
+        return JsValue.Undefined;
+    }
+
+    [JsMethod("back")]
+    public void Back()
+    {
+        if (_currentIndex > 0)
         {
-            var state = args.Length > 0 ? args[0] : Null;
-            var url = args.Length > 2 && args[2] is not JsUndefined && args[2] is not JsNull
-                ? args[2].ToJsString()
-                : null;
-
-            var newUri = ResolveHistoryUrl(url);
-
-            if (_currentIndex >= 0 && _currentIndex < _entries.Count)
-            {
-                _entries[_currentIndex] = new HistoryEntry { Url = newUri, State = state };
-            }
-            else
-            {
-                _entries.Add(new HistoryEntry { Url = newUri, State = state });
-                _currentIndex = _entries.Count - 1;
-            }
-
-            _updateAddressBar(newUri);
-            return Undefined;
-        });
-
-        this.DefineMethod("back", 0, _ =>
+            _currentIndex--;
+            _updateAddressBar(_entries[_currentIndex].Url);
+        }
+        else
         {
-            if (_currentIndex > 0)
-            {
-                _currentIndex--;
-                _updateAddressBar(_entries[_currentIndex].Url);
-            }
-            else
-            {
-                _goBack();
-            }
-            return Undefined;
-        });
+            _goBack();
+        }
+    }
 
-        this.DefineMethod("forward", 0, _ =>
+    [JsMethod("forward")]
+    public void Forward()
+    {
+        if (_currentIndex < _entries.Count - 1)
         {
-            if (_currentIndex < _entries.Count - 1)
-            {
-                _currentIndex++;
-                _updateAddressBar(_entries[_currentIndex].Url);
-            }
-            else
-            {
-                _goForward();
-            }
-            return Undefined;
-        });
-
-        this.DefineMethod("go", 1, args =>
+            _currentIndex++;
+            _updateAddressBar(_entries[_currentIndex].Url);
+        }
+        else
         {
-            var delta = args.Length > 0 ? (int)args[0].ToNumber() : 0;
-            if (delta == 0) return Undefined;
+            _goForward();
+        }
+    }
 
-            int newIndex = _currentIndex + delta;
-            if (newIndex >= 0 && newIndex < _entries.Count)
-            {
-                _currentIndex = newIndex;
-                _updateAddressBar(_entries[_currentIndex].Url);
-            }
-            else if (delta < 0)
-            {
-                _goBack();
-            }
-            else
-            {
-                _goForward();
-            }
-            return Undefined;
-        });
+    [JsMethod("go")]
+    public void Go(int delta)
+    {
+        if (delta == 0) return;
+
+        int newIndex = _currentIndex + delta;
+        if (newIndex >= 0 && newIndex < _entries.Count)
+        {
+            _currentIndex = newIndex;
+            _updateAddressBar(_entries[_currentIndex].Url);
+        }
+        else if (delta < 0)
+        {
+            _goBack();
+        }
+        else
+        {
+            _goForward();
+        }
     }
 
     private Uri ResolveHistoryUrl(string? url)

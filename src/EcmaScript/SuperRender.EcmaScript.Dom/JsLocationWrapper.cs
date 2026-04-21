@@ -1,3 +1,4 @@
+using System.Globalization;
 using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.Dom;
@@ -6,7 +7,8 @@ namespace SuperRender.EcmaScript.Dom;
 /// JS wrapper for window.location. Provides URL property access and navigation methods.
 /// Uses delegates for navigation so the EcmaScript.Dom project remains dependency-free.
 /// </summary>
-internal sealed class JsLocationWrapper : JsDynamicObject
+[JsObject(GenerateInterface = true)]
+internal sealed partial class JsLocationWrapper : JsObjectBase
 {
     private readonly Func<Uri?> _getCurrentUri;
     private readonly Action<string> _navigate;
@@ -25,68 +27,80 @@ internal sealed class JsLocationWrapper : JsDynamicObject
         _replace = replace;
         _reload = reload;
         Prototype = realm.ObjectPrototype;
-        InstallProperties();
     }
 
-    private void InstallProperties()
+    [JsProperty("href")]
+    public string Href => _getCurrentUri()?.ToString() ?? "";
+
+    [JsProperty("href", IsSetter = true)]
+    public void SetHref(string value) => _navigate(value);
+
+    [JsProperty("protocol")]
+    public string Protocol
     {
-        this.DefineGetterSetter("href",
-            () => new JsString(_getCurrentUri()?.ToString() ?? ""),
-            v => _navigate(v.ToJsString()));
-
-        this.DefineGetter("protocol", () =>
+        get
         {
             var uri = _getCurrentUri();
-            return new JsString(uri is not null ? uri.Scheme + ":" : ":");
-        });
-
-        this.DefineGetter("host", () =>
-        {
-            var uri = _getCurrentUri();
-            if (uri is null) return new JsString("");
-            var port = uri.IsDefaultPort ? "" : $":{uri.Port}";
-            return new JsString(uri.Host + port);
-        });
-
-        this.DefineGetter("hostname", () => new JsString(_getCurrentUri()?.Host ?? ""));
-
-        this.DefineGetter("port", () =>
-        {
-            var uri = _getCurrentUri();
-            if (uri is null || uri.IsDefaultPort) return new JsString("");
-            return new JsString(uri.Port.ToString(System.Globalization.CultureInfo.InvariantCulture));
-        });
-
-        this.DefineGetter("pathname", () => new JsString(_getCurrentUri()?.AbsolutePath ?? "/"));
-        this.DefineGetter("search", () => new JsString(_getCurrentUri()?.Query ?? ""));
-        this.DefineGetter("hash", () => new JsString(_getCurrentUri()?.Fragment ?? ""));
-
-        this.DefineGetter("origin", () =>
-        {
-            var uri = _getCurrentUri();
-            if (uri is null) return new JsString("");
-            var port = uri.IsDefaultPort ? "" : $":{uri.Port}";
-            return new JsString($"{uri.Scheme}://{uri.Host}{port}");
-        });
-
-        this.DefineMethod("assign", 1, args =>
-        {
-            if (args.Length > 0) _navigate(args[0].ToJsString());
-            return Undefined;
-        });
-
-        this.DefineMethod("replace", 1, args =>
-        {
-            if (args.Length > 0) _replace(args[0].ToJsString());
-            return Undefined;
-        });
-
-        this.DefineMethod("reload", 0, _ =>
-        {
-            _reload();
-            return Undefined;
-        });
-
-        this.DefineMethod("toString", 0, _ => new JsString(_getCurrentUri()?.ToString() ?? ""));
+            return uri is not null ? uri.Scheme + ":" : ":";
+        }
     }
+
+    [JsProperty("host")]
+    public string Host
+    {
+        get
+        {
+            var uri = _getCurrentUri();
+            if (uri is null) return "";
+            var port = uri.IsDefaultPort ? "" : $":{uri.Port}";
+            return uri.Host + port;
+        }
+    }
+
+    [JsProperty("hostname")]
+    public string Hostname => _getCurrentUri()?.Host ?? "";
+
+    [JsProperty("port")]
+    public string Port
+    {
+        get
+        {
+            var uri = _getCurrentUri();
+            if (uri is null || uri.IsDefaultPort) return "";
+            return uri.Port.ToString(CultureInfo.InvariantCulture);
+        }
+    }
+
+    [JsProperty("pathname")]
+    public string Pathname => _getCurrentUri()?.AbsolutePath ?? "/";
+
+    [JsProperty("search")]
+    public string Search => _getCurrentUri()?.Query ?? "";
+
+    [JsProperty("hash")]
+    public string Hash => _getCurrentUri()?.Fragment ?? "";
+
+    [JsProperty("origin")]
+    public string Origin
+    {
+        get
+        {
+            var uri = _getCurrentUri();
+            if (uri is null) return "";
+            var port = uri.IsDefaultPort ? "" : $":{uri.Port}";
+            return $"{uri.Scheme}://{uri.Host}{port}";
+        }
+    }
+
+    [JsMethod("assign")]
+    public void Assign(string url) => _navigate(url);
+
+    [JsMethod("replace")]
+    public void Replace(string url) => _replace(url);
+
+    [JsMethod("reload")]
+    public void Reload() => _reload();
+
+    [JsMethod("toString")]
+    public string ToLocationString() => _getCurrentUri()?.ToString() ?? "";
 }
