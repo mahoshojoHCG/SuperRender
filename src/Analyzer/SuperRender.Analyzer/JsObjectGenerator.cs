@@ -265,6 +265,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         bool constructable = true;
         int explicitLength = -1;
         string? prototypeField = null;
+        bool inlinePrototype = false;
         string? global = null;
         string? toStringTag = null;
 
@@ -281,6 +282,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
                 case "Constructable" when na.Value.Value is bool cs: constructable = cs; break;
                 case "Length" when na.Value.Value is int ln: explicitLength = ln; break;
                 case "Prototype" when na.Value.Value is string pf: prototypeField = pf; break;
+                case "InlinePrototype" when na.Value.Value is bool ip: inlinePrototype = ip; break;
                 case "Global" when na.Value.Value is string gg: global = gg; break;
                 case "ToStringTag" when na.Value.Value is string ts: toStringTag = ts; break;
             }
@@ -320,7 +322,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             }
         }
 
-        var autoLength = isLegacy ? 0 : parameters.Count(static p => p.Kind != ParamKind.ArgsArray);
+        var autoLength = isLegacy ? 0 : parameters.Count(static p => p.Kind != ParamKind.ArgsArray && p.Kind != ParamKind.Realm);
         var length = explicitLength >= 0 ? explicitLength : autoLength;
 
         return new ConstructorModel(
@@ -328,6 +330,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             callable,
             constructable,
             prototypeField ?? $"{name}Prototype",
+            inlinePrototype,
             global,
             toStringTag ?? name,
             length,
@@ -386,6 +389,15 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
 
                 parameters.Add(new ParamModel(p.Name, p.Type.ToDisplayString(), kind));
             }
+        }
+
+        if (!m.IsStatic && parameters.Any(p => p.Kind == ParamKind.Realm))
+        {
+            diagnostics.Add(Diagnostic.Create(
+                InvalidConstructorShape,
+                m.Locations.FirstOrDefault(),
+                $"[JsMethod] on {className}.{m.Name}: Realm parameter is only supported on [JsConstructor] and [JsStaticMethod]."));
+            return null;
         }
 
         var retKind = ClassifyReturn(m.ReturnType);
@@ -452,7 +464,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         //   legacy mode: 0 (source signature carries no arity info)
         var length = isLegacy
             ? 0
-            : parameters.Count(static p => p.Kind != ParamKind.ArgsArray);
+            : parameters.Count(static p => p.Kind != ParamKind.ArgsArray && p.Kind != ParamKind.Realm);
 
         return new MethodModel(
             jsName ?? m.Name,
@@ -579,6 +591,9 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
     private static bool IsJsValue(ITypeSymbol t) =>
         t.Name == "JsValue" && t.ContainingNamespace?.ToDisplayString() == Ns;
 
+    private static bool IsRealm(ITypeSymbol t) =>
+        t.Name == "Realm" && t.ContainingNamespace?.ToDisplayString() == Ns;
+
     private static bool IsJsObject(ITypeSymbol t) =>
         t.Name == "JsObject" && t.ContainingNamespace?.ToDisplayString() == Ns;
 
@@ -626,6 +641,11 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
 
     private static ParamKind ClassifyParam(ITypeSymbol t, bool isLast)
     {
+        if (IsRealm(t))
+        {
+            return ParamKind.Realm;
+        }
+
         if (IsJsValue(t))
         {
             return ParamKind.JsValue;
@@ -755,6 +775,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
     {
         return kind switch
         {
+            ParamKind.Realm => $"var {localName} = realm;",
             ParamKind.JsValue => $"var {localName} = {argExpr};",
             ParamKind.JsObject =>
                 $"var {localName}__raw = {argExpr};\n" +
@@ -994,7 +1015,14 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         sb.AppendLine("    {");
 
         // Prototype lookup
-        sb.Append("        var proto = realm.").Append(c.PrototypeField).AppendLine(";");
+        if (c.InlinePrototype)
+        {
+            sb.AppendLine("        var proto = new JsDynamicObject { Prototype = realm.ObjectPrototype };");
+        }
+        else
+        {
+            sb.Append("        var proto = realm.").Append(c.PrototypeField).AppendLine(";");
+        }
 
         sb.AppendLine("        var ctor = new JsFunction");
         sb.AppendLine("        {");
@@ -1112,28 +1140,35 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         else
         {
             var callArgs = new List<string>();
+            var jsIdx = 0;
             for (var i = 0; i < c.Parameters.Length; i++)
             {
                 var p = c.Parameters[i];
                 var local = "__p" + i;
-                if (p.Kind == ParamKind.ArgsArray)
+                if (p.Kind == ParamKind.Realm)
                 {
-                    if (i == 0)
+                    sb.Append("            var ").Append(local).AppendLine(" = realm;");
+                }
+                else if (p.Kind == ParamKind.ArgsArray)
+                {
+                    if (jsIdx == 0)
                     {
                         sb.Append("            var ").Append(local).AppendLine(" = __args;");
                     }
                     else
                     {
                         sb.Append("            var ").Append(local)
-                          .Append(" = __args.Length > ").Append(i).Append(" ? __args[")
-                          .Append(i).AppendLine("..] : System.Array.Empty<JsValue>();");
+                          .Append(" = __args.Length > ").Append(jsIdx).Append(" ? __args[")
+                          .Append(jsIdx).AppendLine("..] : System.Array.Empty<JsValue>();");
                     }
+                    jsIdx++;
                 }
                 else
                 {
-                    var argExpr = $"(__args.Length > {i} ? __args[{i}] : JsValue.Undefined)";
-                    var convert = ConvertArg(p.Kind, p.TypeDisplay, argExpr, local, c.Name, i);
+                    var argExpr = $"(__args.Length > {jsIdx} ? __args[{jsIdx}] : JsValue.Undefined)";
+                    var convert = ConvertArg(p.Kind, p.TypeDisplay, argExpr, local, c.Name, jsIdx);
                     sb.Append("            ").AppendLine(convert);
+                    jsIdx++;
                 }
                 callArgs.Add(local);
             }
@@ -1157,27 +1192,34 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         sb.AppendLine("            static (__thisArg, __args) =>");
         sb.AppendLine("            {");
         var callArgs = new List<string>();
+        var jsIdx = 0;
         for (var i = 0; i < m.Parameters.Length; i++)
         {
             var p = m.Parameters[i];
             var local = "__p" + i;
-            if (p.Kind == ParamKind.ArgsArray)
+            if (p.Kind == ParamKind.Realm)
             {
-                if (i == 0)
+                sb.Append("                var ").Append(local).AppendLine(" = realm;");
+            }
+            else if (p.Kind == ParamKind.ArgsArray)
+            {
+                if (jsIdx == 0)
                 {
                     sb.Append("                var ").Append(local).AppendLine(" = __args;");
                 }
                 else
                 {
                     sb.Append("                var ").Append(local).Append(" = __args.Length > ")
-                      .Append(i).Append(" ? __args[").Append(i).AppendLine("..] : System.Array.Empty<JsValue>();");
+                      .Append(jsIdx).Append(" ? __args[").Append(jsIdx).AppendLine("..] : System.Array.Empty<JsValue>();");
                 }
+                jsIdx++;
             }
             else
             {
-                var argExpr = $"(__args.Length > {i} ? __args[{i}] : JsValue.Undefined)";
-                var convert = ConvertArg(p.Kind, p.TypeDisplay, argExpr, local, m.JsName, i);
+                var argExpr = $"(__args.Length > {jsIdx} ? __args[{jsIdx}] : JsValue.Undefined)";
+                var convert = ConvertArg(p.Kind, p.TypeDisplay, argExpr, local, m.JsName, jsIdx);
                 sb.Append("                ").AppendLine(convert);
+                jsIdx++;
             }
             callArgs.Add(local);
         }
@@ -1215,30 +1257,38 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             return;
         }
 
-        sb.AppendLine("            static (__thisArg, __args) =>");
+        var hasRealm = m.Parameters.Any(p => p.Kind == ParamKind.Realm);
+        sb.Append("            ").Append(hasRealm ? string.Empty : "static ").AppendLine("(__thisArg, __args) =>");
         sb.AppendLine("            {");
         var callArgs = new List<string>();
+        var jsIdx = 0;
         for (var i = 0; i < m.Parameters.Length; i++)
         {
             var p = m.Parameters[i];
             var local = "__p" + i;
-            if (p.Kind == ParamKind.ArgsArray)
+            if (p.Kind == ParamKind.Realm)
             {
-                if (i == 0)
+                sb.Append("                var ").Append(local).AppendLine(" = realm;");
+            }
+            else if (p.Kind == ParamKind.ArgsArray)
+            {
+                if (jsIdx == 0)
                 {
                     sb.Append("                var ").Append(local).AppendLine(" = __args;");
                 }
                 else
                 {
                     sb.Append("                var ").Append(local).Append(" = __args.Length > ")
-                      .Append(i).Append(" ? __args[").Append(i).AppendLine("..] : System.Array.Empty<JsValue>();");
+                      .Append(jsIdx).Append(" ? __args[").Append(jsIdx).AppendLine("..] : System.Array.Empty<JsValue>();");
                 }
+                jsIdx++;
             }
             else
             {
-                var argExpr = $"(__args.Length > {i} ? __args[{i}] : JsValue.Undefined)";
-                var convert = ConvertArg(p.Kind, p.TypeDisplay, argExpr, local, m.JsName, i);
+                var argExpr = $"(__args.Length > {jsIdx} ? __args[{jsIdx}] : JsValue.Undefined)";
+                var convert = ConvertArg(p.Kind, p.TypeDisplay, argExpr, local, m.JsName, jsIdx);
                 sb.Append("                ").AppendLine(convert);
+                jsIdx++;
             }
             callArgs.Add(local);
         }
@@ -1647,6 +1697,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         JsObject,
         IJsTypeInterface,
         ArgsArray,
+        Realm,
         PString,
         PBool,
         PDouble,
@@ -1706,6 +1757,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         bool Callable,
         bool Constructable,
         string PrototypeField,
+        bool InlinePrototype,
         string? Global,
         string? ToStringTag,
         int Length,
@@ -1794,6 +1846,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             public bool Constructable { get; set; } = true;
             public int Length { get; set; } = -1;
             public string? Prototype { get; set; }
+            public bool InlinePrototype { get; set; }
             public string? Global { get; set; }
             public string? ToStringTag { get; set; }
         }
