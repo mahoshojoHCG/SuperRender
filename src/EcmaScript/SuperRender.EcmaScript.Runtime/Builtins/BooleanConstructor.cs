@@ -2,49 +2,43 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public static class BooleanConstructor
+// Primitive-wrapper shape validated end-to-end with the generator:
+//   * [JsCall] handles call-form coercion to a primitive (not a wrapper).
+//   * Legacy [JsMethod] shape is required for toString/valueOf since `thisArg`
+//     may be either the wrapper object or a JsBoolean primitive — the typed
+//     coercion layer would reject the primitive receiver.
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007
+[JsObject]
+public sealed partial class JsBooleanObject : JsDynamicObject
 {
-    public static void Install(Realm realm)
+    [JsConstructor("Boolean", Length = 1)]
+    public JsBooleanObject(JsValue[] args)
     {
-        var proto = realm.BooleanPrototype;
+        var val = args.Length > 0 ? args[0] : Undefined;
+        DefineOwnProperty("[[BooleanData]]",
+            PropertyDescriptor.Data(val.ToBoolean() ? JsValue.True : JsValue.False, writable: false, enumerable: false, configurable: false));
+    }
 
-        var ctor = new JsFunction
-        {
-            Name = "Boolean",
-            Length = 1,
-            IsConstructor = true,
-            Prototype = realm.FunctionPrototype,
-            PrototypeObject = proto,
-            CallTarget = (_, args) =>
-            {
-                var val = BuiltinHelper.Arg(args, 0);
-                return val.ToBoolean() ? JsValue.True : JsValue.False;
-            },
-            ConstructTarget = args =>
-            {
-                var val = BuiltinHelper.Arg(args, 0);
-                var wrapper = new JsDynamicObject { Prototype = realm.BooleanPrototype };
-                wrapper.DefineOwnProperty("[[BooleanData]]",
-                    PropertyDescriptor.Data(val.ToBoolean() ? JsValue.True : JsValue.False, writable: false, enumerable: false, configurable: false));
-                return wrapper;
-            }
-        };
+    [JsCall]
+    public static JsValue Call(JsValue thisArg, JsValue[] args)
+    {
+        _ = thisArg;
+        var val = args.Length > 0 ? args[0] : Undefined;
+        return val.ToBoolean() ? JsValue.True : JsValue.False;
+    }
 
-        BuiltinHelper.DefineProperty(proto, "constructor", ctor);
+    [JsMethod("toString")]
+    public JsValue BooleanToString(JsValue thisArg, JsValue[] args)
+    {
+        _ = args;
+        return new JsString(GetBooleanValue(thisArg) ? "true" : "false");
+    }
 
-        BuiltinHelper.DefineMethod(proto, "toString", (thisArg, _) =>
-        {
-            var b = GetBooleanValue(thisArg);
-            return new JsString(b ? "true" : "false");
-        }, 0);
-
-        BuiltinHelper.DefineMethod(proto, "valueOf", (thisArg, _) =>
-        {
-            var b = GetBooleanValue(thisArg);
-            return b ? JsValue.True : JsValue.False;
-        }, 0);
-
-        realm.InstallGlobal("Boolean", ctor);
+    [JsMethod("valueOf")]
+    public JsValue BooleanValueOf(JsValue thisArg, JsValue[] args)
+    {
+        _ = args;
+        return GetBooleanValue(thisArg) ? JsValue.True : JsValue.False;
     }
 
     private static bool GetBooleanValue(JsValue thisArg)
@@ -65,4 +59,10 @@ public static class BooleanConstructor
 
         throw new Errors.JsTypeError("Boolean.prototype.valueOf requires that 'this' be a Boolean", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
+}
+#pragma warning restore JSGEN005, JSGEN006, JSGEN007
+
+public static class BooleanConstructor
+{
+    public static void Install(Realm realm) => JsBooleanObject.__InstallConstructor(realm);
 }
