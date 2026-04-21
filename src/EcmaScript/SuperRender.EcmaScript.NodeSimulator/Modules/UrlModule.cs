@@ -6,84 +6,88 @@ namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 /// Node.js `url` module. The WHATWG `URL`/`URLSearchParams` are provided by the engine; this
 /// module adds the legacy parse/format/resolve helpers and the fileURL/httpOptions bridges.
 /// </summary>
-public static class UrlModule
+[JsObject]
+public sealed partial class UrlModule : JsObjectBase
 {
-    private static PropertyDescriptor MethodDesc(string name, Func<JsValue, JsValue[], JsValue> impl, int length) =>
-        PropertyDescriptor.Data(JsFunction.CreateNative(name, impl, length), writable: true, enumerable: false, configurable: true);
+    private readonly Realm _realm;
 
-    public static JsDynamicObject Create(Realm realm)
+    public UrlModule(Realm realm)
     {
-        var obj = new JsDynamicObject();
+        _realm = realm;
+        Prototype = realm.ObjectPrototype;
+    }
 
-        if (realm.GlobalObject.Get("URL") is JsFunction urlCtor)
-            obj.DefineOwnProperty("URL", PropertyDescriptor.Data(urlCtor));
-        if (realm.GlobalObject.Get("URLSearchParams") is JsFunction paramsCtor)
-            obj.DefineOwnProperty("URLSearchParams", PropertyDescriptor.Data(paramsCtor));
+    public static UrlModule Create(Realm realm) => new(realm);
 
-        obj.DefineOwnProperty("parse", MethodDesc("parse", (_, args) =>
-        {
-            var input = RequireString(args, 0, "urlString");
-            var parseQuery = args.Length > 1 && args[1].ToBoolean();
-            return LegacyParse(input, parseQuery);
-        }, 3));
+    [JsProperty("URL")]
+    public JsValue URL => _realm.GlobalObject.Get("URL");
 
-        obj.DefineOwnProperty("format", MethodDesc("format", (_, args) =>
-        {
-            if (args.Length == 0) return new JsString("");
-            if (args[0] is JsString s) return new JsString(s.Value);
-            if (args[0] is JsDynamicObject o) return new JsString(LegacyFormat(o));
-            throw new Runtime.Errors.JsTypeError("url.format requires a string or object");
-        }, 1));
+    [JsProperty("URLSearchParams")]
+    public JsValue URLSearchParams => _realm.GlobalObject.Get("URLSearchParams");
 
-        obj.DefineOwnProperty("resolve", MethodDesc("resolve", (_, args) =>
-        {
-            var from = RequireString(args, 0, "from");
-            var to = RequireString(args, 1, "to");
-            return new JsString(Resolve(from, to));
-        }, 2));
+    [JsMethod("parse")]
+    public static JsValue ParseMethod(JsValue _, JsValue[] args)
+    {
+        var input = RequireString(args, 0, "urlString");
+        var parseQuery = args.Length > 1 && args[1].ToBoolean();
+        return LegacyParse(input, parseQuery);
+    }
 
-        obj.DefineOwnProperty("fileURLToPath", MethodDesc("fileURLToPath", (_, args) =>
-        {
-            var arg = args.Length > 0 ? args[0] : JsValue.Undefined;
-            string url = arg is JsString js ? js.Value
-                : arg is JsDynamicObject jo && jo.Get("href") is JsString hs ? hs.Value
-                : throw new Runtime.Errors.JsTypeError("fileURLToPath requires a URL");
-            return new JsString(FileUrlToPath(url));
-        }, 1));
+    [JsMethod("format")]
+    public static JsValue FormatMethod(JsValue _, JsValue[] args)
+    {
+        if (args.Length == 0) return new JsString("");
+        if (args[0] is JsString s) return new JsString(s.Value);
+        if (args[0] is JsDynamicObject o) return new JsString(LegacyFormat(o));
+        throw new Runtime.Errors.JsTypeError("url.format requires a string or object");
+    }
 
-        obj.DefineOwnProperty("pathToFileURL", MethodDesc("pathToFileURL", (_, args) =>
-        {
-            var path = RequireString(args, 0, "path");
-            var href = PathToFileUrl(path);
-            if (realm.GlobalObject.Get("URL") is JsFunction ctor)
-                return ctor.Construct([new JsString(href)]);
-            var stub = new JsDynamicObject();
-            stub.DefineOwnProperty("href", PropertyDescriptor.Data(new JsString(href)));
-            return stub;
-        }, 1));
+    [JsMethod("resolve")]
+    public static string ResolveMethod(string from, string to) => Resolve(from, to);
 
-        obj.DefineOwnProperty("urlToHttpOptions", MethodDesc("urlToHttpOptions", (_, args) =>
-        {
-            if (args.Length == 0 || args[0] is not JsDynamicObject u)
-                throw new Runtime.Errors.JsTypeError("urlToHttpOptions requires a URL object");
-            return UrlToHttpOptions(u);
-        }, 1));
+    [JsMethod("fileURLToPath")]
+    public static JsValue FileUrlToPathMethod(JsValue _, JsValue[] args)
+    {
+        var arg = args.Length > 0 ? args[0] : JsValue.Undefined;
+        string url = arg is JsString js ? js.Value
+            : arg is JsDynamicObject jo && jo.Get("href") is JsString hs ? hs.Value
+            : throw new Runtime.Errors.JsTypeError("fileURLToPath requires a URL");
+        return new JsString(FileUrlToPath(url));
+    }
 
-        obj.DefineOwnProperty("domainToASCII", MethodDesc("domainToASCII", (_, args) =>
-        {
-            var s = args.Length > 0 ? args[0].ToJsString() : "";
-            try { return new JsString(new System.Globalization.IdnMapping().GetAscii(s)); }
-            catch (ArgumentException) { return new JsString(""); }
-        }, 1));
+    [JsMethod("pathToFileURL")]
+    public JsValue PathToFileUrlMethod(string path)
+    {
+        var href = PathToFileUrl(path);
+        if (_realm.GlobalObject.Get("URL") is JsFunction ctor)
+            return ctor.Construct([new JsString(href)]);
+        var stub = new JsDynamicObject();
+        stub.DefineOwnProperty("href", PropertyDescriptor.Data(new JsString(href)));
+        return stub;
+    }
 
-        obj.DefineOwnProperty("domainToUnicode", MethodDesc("domainToUnicode", (_, args) =>
-        {
-            var s = args.Length > 0 ? args[0].ToJsString() : "";
-            try { return new JsString(new System.Globalization.IdnMapping().GetUnicode(s)); }
-            catch (ArgumentException) { return new JsString(""); }
-        }, 1));
+    [JsMethod("urlToHttpOptions")]
+    public static JsValue UrlToHttpOptionsMethod(JsValue _, JsValue[] args)
+    {
+        if (args.Length == 0 || args[0] is not JsDynamicObject u)
+            throw new Runtime.Errors.JsTypeError("urlToHttpOptions requires a URL object");
+        return UrlToHttpOptions(u);
+    }
 
-        return obj;
+    [JsMethod("domainToASCII")]
+    public static string DomainToASCII(JsValue v)
+    {
+        var s = v.ToJsString();
+        try { return new System.Globalization.IdnMapping().GetAscii(s); }
+        catch (ArgumentException) { return ""; }
+    }
+
+    [JsMethod("domainToUnicode")]
+    public static string DomainToUnicode(JsValue v)
+    {
+        var s = v.ToJsString();
+        try { return new System.Globalization.IdnMapping().GetUnicode(s); }
+        catch (ArgumentException) { return ""; }
     }
 
     private static string RequireString(JsValue[] args, int index, string param)

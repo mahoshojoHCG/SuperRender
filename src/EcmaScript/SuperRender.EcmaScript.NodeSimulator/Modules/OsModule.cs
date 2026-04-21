@@ -10,42 +10,46 @@ namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 /// <summary>
 /// Node.js `os` module. Values come from <see cref="System.Environment"/> where available.
 /// </summary>
-public static class OsModule
+[JsObject]
+public sealed partial class OsModule : JsObjectBase
 {
-    private static PropertyDescriptor MethodDesc(string name, Func<JsValue, JsValue[], JsValue> impl, int length) =>
-        PropertyDescriptor.Data(JsFunction.CreateNative(name, impl, length), writable: true, enumerable: false, configurable: true);
-
-    public static JsDynamicObject Create()
+    public OsModule(Realm realm)
     {
-        var o = new JsDynamicObject();
-        o.DefineOwnProperty("EOL", PropertyDescriptor.Data(new JsString(System.Environment.NewLine)));
-        o.DefineOwnProperty("platform", MethodDesc("platform", (_, _) => new JsString(GetPlatform()), 0));
-        o.DefineOwnProperty("arch", MethodDesc("arch", (_, _) => new JsString(GetArch()), 0));
-        o.DefineOwnProperty("type", MethodDesc("type", (_, _) => new JsString(GetType_()), 0));
-        o.DefineOwnProperty("release", MethodDesc("release", (_, _) => new JsString(System.Environment.OSVersion.Version.ToString()), 0));
-        o.DefineOwnProperty("version", MethodDesc("version", (_, _) => new JsString(System.Environment.OSVersion.VersionString), 0));
-        o.DefineOwnProperty("hostname", MethodDesc("hostname", (_, _) => new JsString(System.Environment.MachineName), 0));
-        o.DefineOwnProperty("homedir", MethodDesc("homedir", (_, _) => new JsString(System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile)), 0));
-        o.DefineOwnProperty("tmpdir", MethodDesc("tmpdir", (_, _) => new JsString(Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar)), 0));
-        o.DefineOwnProperty("endianness", MethodDesc("endianness", (_, _) => new JsString(BitConverter.IsLittleEndian ? "LE" : "BE"), 0));
-        o.DefineOwnProperty("totalmem", MethodDesc("totalmem", (_, _) => JsNumber.Create(GC.GetGCMemoryInfo().TotalAvailableMemoryBytes), 0));
-        o.DefineOwnProperty("freemem", MethodDesc("freemem", (_, _) =>
-            JsNumber.Create(Math.Max(0, GC.GetGCMemoryInfo().TotalAvailableMemoryBytes - GC.GetTotalMemory(forceFullCollection: false))), 0));
-        o.DefineOwnProperty("uptime", MethodDesc("uptime", (_, _) => JsNumber.Create(System.Environment.TickCount64 / 1000.0), 0));
-        o.DefineOwnProperty("loadavg", MethodDesc("loadavg", (_, _) =>
-        {
-            var (a, b, c) = GetLoadAverage();
-            var arr = new JsArray();
-            arr.Push(JsNumber.Create(a));
-            arr.Push(JsNumber.Create(b));
-            arr.Push(JsNumber.Create(c));
-            return arr;
-        }, 0));
-        o.DefineOwnProperty("cpus", MethodDesc("cpus", (_, _) => BuildCpusArray(), 0));
-        o.DefineOwnProperty("userInfo", MethodDesc("userInfo", (_, _) => BuildUserInfo(), 1));
-        o.DefineOwnProperty("networkInterfaces", MethodDesc("networkInterfaces", (_, _) => BuildNetworkInterfaces(), 0));
-        return o;
+        Prototype = realm.ObjectPrototype;
     }
+
+    public static OsModule Create(Realm realm) => new(realm);
+
+    [JsProperty("EOL")] public static string EOL => System.Environment.NewLine;
+
+    [JsMethod("platform")] public static string Platform() => GetPlatform();
+    [JsMethod("arch")] public static string Arch() => GetArch();
+    [JsMethod("type")] public static string Type() => GetType_();
+    [JsMethod("release")] public static string Release() => System.Environment.OSVersion.Version.ToString();
+    [JsMethod("version")] public static string Version() => System.Environment.OSVersion.VersionString;
+    [JsMethod("hostname")] public static string Hostname() => System.Environment.MachineName;
+    [JsMethod("homedir")] public static string Homedir() => System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile);
+    [JsMethod("tmpdir")] public static string Tmpdir() => Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar);
+    [JsMethod("endianness")] public static string Endianness() => BitConverter.IsLittleEndian ? "LE" : "BE";
+    [JsMethod("totalmem")] public static double Totalmem() => GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+    [JsMethod("freemem")] public static double Freemem() =>
+        Math.Max(0, GC.GetGCMemoryInfo().TotalAvailableMemoryBytes - GC.GetTotalMemory(forceFullCollection: false));
+    [JsMethod("uptime")] public static double Uptime() => System.Environment.TickCount64 / 1000.0;
+
+    [JsMethod("loadavg")]
+    public static JsValue Loadavg()
+    {
+        var (a, b, c) = GetLoadAverage();
+        var arr = new JsArray();
+        arr.Push(JsNumber.Create(a));
+        arr.Push(JsNumber.Create(b));
+        arr.Push(JsNumber.Create(c));
+        return arr;
+    }
+
+    [JsMethod("cpus")] public static JsValue Cpus() => BuildCpusArray();
+    [JsMethod("userInfo")] public static JsValue UserInfo() => BuildUserInfo();
+    [JsMethod("networkInterfaces")] public static JsValue NetworkInterfaces() => BuildNetworkInterfaces();
 
     public static string GetPlatform()
     {

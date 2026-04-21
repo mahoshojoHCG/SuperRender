@@ -8,109 +8,114 @@ namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 /// Node.js `util` module. Implements format / inspect / promisify / callbackify and
 /// the isDeep* / types.* predicates needed by common library code.
 /// </summary>
-public static class UtilModule
+[JsObject]
+public sealed partial class UtilModule : JsObjectBase
 {
-    private static PropertyDescriptor MethodDesc(string name, Func<JsValue, JsValue[], JsValue> impl, int length) =>
-        PropertyDescriptor.Data(JsFunction.CreateNative(name, impl, length), writable: true, enumerable: false, configurable: true);
+    private readonly Realm _realm;
+    private UtilTypesObject? _types;
+
+    public UtilModule(Realm realm)
+    {
+        _realm = realm;
+        Prototype = realm.ObjectPrototype;
+    }
+
+    public static UtilModule Create(Realm realm) => new(realm);
 
     private static JsValue Arg(JsValue[] args, int index) => index < args.Length ? args[index] : JsValue.Undefined;
 
-    public static JsDynamicObject Create(Realm realm)
+    [JsMethod("format")]
+    public static JsValue FormatMethod(JsValue _, JsValue[] args) => new JsString(Format(args));
+
+    [JsMethod("formatWithOptions")]
+    public static JsValue FormatWithOptions(JsValue _, JsValue[] args)
     {
-        var o = new JsDynamicObject();
-        o.DefineOwnProperty("format", MethodDesc("format", (_, args) => new JsString(Format(args)), 0));
-        o.DefineOwnProperty("formatWithOptions", MethodDesc("formatWithOptions", (_, args) =>
-        {
-            var rest = args.Length > 0 ? args[1..] : [];
-            return new JsString(Format(rest));
-        }, 0));
-        o.DefineOwnProperty("inspect", MethodDesc("inspect", (_, args) => new JsString(Inspect(Arg(args, 0), depth: 2)), 2));
-        o.DefineOwnProperty("isDeepStrictEqual", MethodDesc("isDeepStrictEqual", (_, args) =>
-            DeepEqual(Arg(args, 0), Arg(args, 1), strict: true) ? JsValue.True : JsValue.False, 2));
-
-        o.DefineOwnProperty("promisify", MethodDesc("promisify", (_, args) =>
-        {
-            if (Arg(args, 0) is not JsFunction fn)
-                throw new Runtime.Errors.JsTypeError("promisify: first argument must be a function");
-            return JsFunction.CreateNative(fn.Name + "Async", (thisArg, pArgs) =>
-            {
-                if (realm.GlobalObject.Get("Promise") is not JsFunction promiseCtor)
-                    throw new Runtime.Errors.JsTypeError("Promise is not available");
-                var executor = JsFunction.CreateNative("executor", (_, exArgs) =>
-                {
-                    var resolve = (JsFunction)exArgs[0];
-                    var reject = (JsFunction)exArgs[1];
-                    var cbArgs = new JsValue[pArgs.Length + 1];
-                    Array.Copy(pArgs, cbArgs, pArgs.Length);
-                    cbArgs[^1] = JsFunction.CreateNative("cb", (_, cbr) =>
-                    {
-                        var err = Arg(cbr, 0);
-                        var val = Arg(cbr, 1);
-                        if (err is not JsNull and not JsUndefined) reject.Call(JsValue.Undefined, [err]);
-                        else resolve.Call(JsValue.Undefined, [val]);
-                        return JsValue.Undefined;
-                    }, 2);
-                    try { fn.Call(thisArg, cbArgs); }
-                    catch (Exception ex) { reject.Call(JsValue.Undefined, [new JsString(ex.Message)]); }
-                    return JsValue.Undefined;
-                }, 2);
-                return promiseCtor.Construct([executor]);
-            }, fn.Length);
-        }, 1));
-
-        o.DefineOwnProperty("callbackify", MethodDesc("callbackify", (_, args) =>
-        {
-            if (Arg(args, 0) is not JsFunction fn)
-                throw new Runtime.Errors.JsTypeError("callbackify: first argument must be a function");
-            return JsFunction.CreateNative(fn.Name + "Cb", (thisArg, cbArgs) =>
-            {
-                if (cbArgs.Length == 0 || cbArgs[^1] is not JsFunction cb)
-                    throw new Runtime.Errors.JsTypeError("last argument must be a callback");
-                var rest = cbArgs[..^1];
-                var result = fn.Call(thisArg, rest);
-                if (result is JsDynamicObject p && p.Get("then") is JsFunction thenFn)
-                {
-                    thenFn.Call(result, [
-                        JsFunction.CreateNative("onResolved", (_, r) => { cb.Call(JsValue.Undefined, [JsValue.Null, Arg(r, 0)]); return JsValue.Undefined; }, 1),
-                        JsFunction.CreateNative("onRejected", (_, r) => { cb.Call(JsValue.Undefined, [Arg(r, 0)]); return JsValue.Undefined; }, 1),
-                    ]);
-                }
-                else
-                {
-                    cb.Call(JsValue.Undefined, [JsValue.Null, result]);
-                }
-                return JsValue.Undefined;
-            }, fn.Length + 1);
-        }, 1));
-
-        o.DefineOwnProperty("deprecate", MethodDesc("deprecate", (_, args) =>
-        {
-            if (Arg(args, 0) is not JsFunction fn) return Arg(args, 0);
-            return fn;
-        }, 2));
-
-        // util.types
-        var types = new JsDynamicObject();
-        types.DefineOwnProperty("isDate", MethodDesc("isDate", (_, args) =>
-            (Arg(args, 0) is JsDynamicObject o2 && o2.Prototype == realm.DatePrototype) ? JsValue.True : JsValue.False, 1));
-        types.DefineOwnProperty("isRegExp", MethodDesc("isRegExp", (_, args) => Arg(args, 0) is JsRegExp ? JsValue.True : JsValue.False, 1));
-        types.DefineOwnProperty("isPromise", MethodDesc("isPromise", (_, args) =>
-            (Arg(args, 0) is JsDynamicObject o2 && o2.Prototype == realm.PromisePrototype) ? JsValue.True : JsValue.False, 1));
-        types.DefineOwnProperty("isMap", MethodDesc("isMap", (_, args) =>
-            (Arg(args, 0) is JsDynamicObject o2 && o2.Prototype == realm.MapPrototype) ? JsValue.True : JsValue.False, 1));
-        types.DefineOwnProperty("isSet", MethodDesc("isSet", (_, args) =>
-            (Arg(args, 0) is JsDynamicObject o2 && o2.Prototype == realm.SetPrototype) ? JsValue.True : JsValue.False, 1));
-        types.DefineOwnProperty("isNativeError", MethodDesc("isNativeError", (_, args) =>
-            Arg(args, 0) is JsDynamicObject e && IsError(e, realm) ? JsValue.True : JsValue.False, 1));
-        o.DefineOwnProperty("types", PropertyDescriptor.Data(types));
-
-        o.DefineOwnProperty("TextEncoder", PropertyDescriptor.Data(realm.GlobalObject.Get("TextEncoder")));
-        o.DefineOwnProperty("TextDecoder", PropertyDescriptor.Data(realm.GlobalObject.Get("TextDecoder")));
-
-        return o;
+        var rest = args.Length > 0 ? args[1..] : [];
+        return new JsString(Format(rest));
     }
 
-    private static bool IsError(JsDynamicObject o, Realm realm)
+    [JsMethod("inspect")]
+    public static JsValue InspectMethod(JsValue _, JsValue[] args) => new JsString(Inspect(Arg(args, 0), depth: 2));
+
+    [JsMethod("isDeepStrictEqual")]
+    public static JsValue IsDeepStrictEqualMethod(JsValue _, JsValue[] args) =>
+        DeepEqual(Arg(args, 0), Arg(args, 1), strict: true) ? JsValue.True : JsValue.False;
+
+    [JsMethod("promisify")]
+    public JsValue Promisify(JsValue _, JsValue[] args)
+    {
+        if (Arg(args, 0) is not JsFunction fn)
+            throw new Runtime.Errors.JsTypeError("promisify: first argument must be a function");
+        var realm = _realm;
+        return JsFunction.CreateNative(fn.Name + "Async", (thisArg, pArgs) =>
+        {
+            if (realm.GlobalObject.Get("Promise") is not JsFunction promiseCtor)
+                throw new Runtime.Errors.JsTypeError("Promise is not available");
+            var executor = JsFunction.CreateNative("executor", (_, exArgs) =>
+            {
+                var resolve = (JsFunction)exArgs[0];
+                var reject = (JsFunction)exArgs[1];
+                var cbArgs = new JsValue[pArgs.Length + 1];
+                Array.Copy(pArgs, cbArgs, pArgs.Length);
+                cbArgs[^1] = JsFunction.CreateNative("cb", (_, cbr) =>
+                {
+                    var err = Arg(cbr, 0);
+                    var val = Arg(cbr, 1);
+                    if (err is not JsNull and not JsUndefined) reject.Call(JsValue.Undefined, [err]);
+                    else resolve.Call(JsValue.Undefined, [val]);
+                    return JsValue.Undefined;
+                }, 2);
+                try { fn.Call(thisArg, cbArgs); }
+                catch (Exception ex) { reject.Call(JsValue.Undefined, [new JsString(ex.Message)]); }
+                return JsValue.Undefined;
+            }, 2);
+            return promiseCtor.Construct([executor]);
+        }, fn.Length);
+    }
+
+    [JsMethod("callbackify")]
+    public static JsValue Callbackify(JsValue _, JsValue[] args)
+    {
+        if (Arg(args, 0) is not JsFunction fn)
+            throw new Runtime.Errors.JsTypeError("callbackify: first argument must be a function");
+        return JsFunction.CreateNative(fn.Name + "Cb", (thisArg, cbArgs) =>
+        {
+            if (cbArgs.Length == 0 || cbArgs[^1] is not JsFunction cb)
+                throw new Runtime.Errors.JsTypeError("last argument must be a callback");
+            var rest = cbArgs[..^1];
+            var result = fn.Call(thisArg, rest);
+            if (result is JsDynamicObject p && p.Get("then") is JsFunction thenFn)
+            {
+                thenFn.Call(result, [
+                    JsFunction.CreateNative("onResolved", (_, r) => { cb.Call(JsValue.Undefined, [JsValue.Null, Arg(r, 0)]); return JsValue.Undefined; }, 1),
+                    JsFunction.CreateNative("onRejected", (_, r) => { cb.Call(JsValue.Undefined, [Arg(r, 0)]); return JsValue.Undefined; }, 1),
+                ]);
+            }
+            else
+            {
+                cb.Call(JsValue.Undefined, [JsValue.Null, result]);
+            }
+            return JsValue.Undefined;
+        }, fn.Length + 1);
+    }
+
+    [JsMethod("deprecate")]
+    public static JsValue Deprecate(JsValue _, JsValue[] args)
+    {
+        if (Arg(args, 0) is not JsFunction fn) return Arg(args, 0);
+        return fn;
+    }
+
+    [JsProperty("types")]
+    public UtilTypesObject Types => _types ??= new UtilTypesObject(_realm);
+
+    [JsProperty("TextEncoder")]
+    public JsValue TextEncoder => _realm.GlobalObject.Get("TextEncoder");
+
+    [JsProperty("TextDecoder")]
+    public JsValue TextDecoder => _realm.GlobalObject.Get("TextDecoder");
+
+    internal static bool IsError(JsDynamicObject o, Realm realm)
     {
         var proto = o.Prototype;
         while (proto is not null)
@@ -238,4 +243,39 @@ public static class UtilModule
         }
         return strict ? a.StrictEquals(b) : a.AbstractEquals(b);
     }
+}
+
+[JsObject]
+public sealed partial class UtilTypesObject : JsObjectBase
+{
+    private readonly Realm _realm;
+
+    public UtilTypesObject(Realm realm)
+    {
+        _realm = realm;
+        Prototype = realm.ObjectPrototype;
+    }
+
+    [JsMethod("isDate")]
+    public JsValue IsDate(JsValue v) =>
+        (v is JsDynamicObject o && o.Prototype == _realm.DatePrototype) ? JsValue.True : JsValue.False;
+
+    [JsMethod("isRegExp")]
+    public static JsValue IsRegExp(JsValue v) => v is JsRegExp ? JsValue.True : JsValue.False;
+
+    [JsMethod("isPromise")]
+    public JsValue IsPromise(JsValue v) =>
+        (v is JsDynamicObject o && o.Prototype == _realm.PromisePrototype) ? JsValue.True : JsValue.False;
+
+    [JsMethod("isMap")]
+    public JsValue IsMap(JsValue v) =>
+        (v is JsDynamicObject o && o.Prototype == _realm.MapPrototype) ? JsValue.True : JsValue.False;
+
+    [JsMethod("isSet")]
+    public JsValue IsSet(JsValue v) =>
+        (v is JsDynamicObject o && o.Prototype == _realm.SetPrototype) ? JsValue.True : JsValue.False;
+
+    [JsMethod("isNativeError")]
+    public JsValue IsNativeError(JsValue v) =>
+        v is JsDynamicObject e && UtilModule.IsError(e, _realm) ? JsValue.True : JsValue.False;
 }
