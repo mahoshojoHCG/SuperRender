@@ -138,7 +138,7 @@ public sealed partial class AtomicsObject : JsObject
     [JsMethod("waitAsync")]
     public JsValue WaitAsync(JsValue[] args)
     {
-        var promise = new JsPromiseObject { Prototype = _realm.PromisePrototype };
+        var promise = new JsPromise { Prototype = _realm.PromisePrototype };
         var result = new JsDynamicObject { Prototype = _realm.ObjectPrototype };
         result.Set("value", new JsString("not-equal"));
         PromiseConstructor.ResolvePromise(promise, result, _realm);

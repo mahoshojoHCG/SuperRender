@@ -7,6 +7,7 @@ public static class PromiseConstructor
     public static void Install(Realm realm)
     {
         var proto = realm.PromisePrototype;
+        JsPromise.DefaultPrototype = proto;
 
         var ctor = new JsFunction
         {
@@ -23,19 +24,17 @@ public static class PromiseConstructor
                     throw new Errors.JsTypeError("Promise resolver is not a function", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                 }
 
-                var promise = new JsPromiseObject { Prototype = realm.PromisePrototype };
+                var promise = new JsPromise(proto);
 
                 var resolveFn = JsFunction.CreateNative("resolve", (_, resolveArgs) =>
                 {
-                    var value = BuiltinHelper.Arg(resolveArgs, 0);
-                    ResolvePromise(promise, value, realm);
+                    promise.Resolve(BuiltinHelper.Arg(resolveArgs, 0));
                     return JsValue.Undefined;
                 }, 1);
 
                 var rejectFn = JsFunction.CreateNative("reject", (_, rejectArgs) =>
                 {
-                    var reason = BuiltinHelper.Arg(rejectArgs, 0);
-                    RejectPromise(promise, reason);
+                    promise.Reject(BuiltinHelper.Arg(rejectArgs, 0));
                     return JsValue.Undefined;
                 }, 1);
 
@@ -43,9 +42,9 @@ public static class PromiseConstructor
                 {
                     executorFn.Call(JsValue.Undefined, [resolveFn, rejectFn]);
                 }
-                catch (Exception ex) when (ex is Errors.JsErrorBase)
+                catch (Errors.JsErrorBase ex)
                 {
-                    RejectPromise(promise, new JsString(ex.Message));
+                    promise.Reject(new JsString(ex.Message));
                 }
 
                 return promise;
@@ -56,53 +55,28 @@ public static class PromiseConstructor
             }
         };
 
-        // Prototype methods
+        // Prototype pointer wiring — the SG on JsPromise already emits per-instance .then/.catch/.finally;
+        // these prototype methods exist for explicit Promise.prototype.then.call(p, ...) usage.
         BuiltinHelper.DefineProperty(proto, "constructor", ctor);
 
         BuiltinHelper.DefineMethod(proto, "then", (thisArg, args) =>
         {
-            var promise = RequirePromise(thisArg);
-            var onFulfilled = BuiltinHelper.Arg(args, 0) as JsFunction;
-            var onRejected = BuiltinHelper.Arg(args, 1) as JsFunction;
-            return PromiseThen(promise, onFulfilled, onRejected, realm);
+            var p = RequirePromise(thisArg, "then");
+            return p.Then(BuiltinHelper.Arg(args, 0), BuiltinHelper.Arg(args, 1));
         }, 2);
 
         BuiltinHelper.DefineMethod(proto, "catch", (thisArg, args) =>
         {
-            var promise = RequirePromise(thisArg);
-            var onRejected = BuiltinHelper.Arg(args, 0) as JsFunction;
-            return PromiseThen(promise, null, onRejected, realm);
+            var p = RequirePromise(thisArg, "catch");
+            return p.Catch(BuiltinHelper.Arg(args, 0));
         }, 1);
 
         BuiltinHelper.DefineMethod(proto, "finally", (thisArg, args) =>
         {
-            var promise = RequirePromise(thisArg);
-            var onFinally = BuiltinHelper.Arg(args, 0) as JsFunction;
-
-            JsFunction? thenHandler = null;
-            JsFunction? catchHandler = null;
-
-            if (onFinally is not null)
-            {
-                thenHandler = JsFunction.CreateNative("", (_, thenArgs) =>
-                {
-                    var value = BuiltinHelper.Arg(thenArgs, 0);
-                    onFinally.Call(JsValue.Undefined, []);
-                    return value;
-                }, 1);
-
-                catchHandler = JsFunction.CreateNative("", (_, catchArgs) =>
-                {
-                    var reason = BuiltinHelper.Arg(catchArgs, 0);
-                    onFinally.Call(JsValue.Undefined, []);
-                    throw new PromiseRejectedException(reason);
-                }, 1);
-            }
-
-            return PromiseThen(promise, thenHandler, catchHandler, realm);
+            var p = RequirePromise(thisArg, "finally");
+            return p.Finally(BuiltinHelper.Arg(args, 0));
         }, 1);
 
-        // Symbol.toStringTag
         proto.DefineSymbolProperty(JsSymbol.ToStringTag,
             PropertyDescriptor.Data(new JsString("Promise"), writable: false, enumerable: false, configurable: true));
 
@@ -110,39 +84,26 @@ public static class PromiseConstructor
         BuiltinHelper.DefineMethod(ctor, "resolve", (_, args) =>
         {
             var value = BuiltinHelper.Arg(args, 0);
-            if (value is JsPromiseObject)
-            {
-                return value;
-            }
-
-            var promise = new JsPromiseObject { Prototype = realm.PromisePrototype };
-            ResolvePromise(promise, value, realm);
-            return promise;
+            if (value is JsPromise) return value;
+            return JsPromise.Resolved(value);
         }, 1);
 
         BuiltinHelper.DefineMethod(ctor, "reject", (_, args) =>
-        {
-            var reason = BuiltinHelper.Arg(args, 0);
-            var promise = new JsPromiseObject { Prototype = realm.PromisePrototype };
-            RejectPromise(promise, reason);
-            return promise;
-        }, 1);
+            JsPromise.Rejected(BuiltinHelper.Arg(args, 0)), 1);
 
         BuiltinHelper.DefineMethod(ctor, "withResolvers", (_, _) =>
         {
-            var promise = new JsPromiseObject { Prototype = realm.PromisePrototype };
+            var promise = new JsPromise(proto);
 
             var resolveFn = JsFunction.CreateNative("resolve", (_, resolveArgs) =>
             {
-                var value = BuiltinHelper.Arg(resolveArgs, 0);
-                ResolvePromise(promise, value, realm);
+                promise.Resolve(BuiltinHelper.Arg(resolveArgs, 0));
                 return JsValue.Undefined;
             }, 1);
 
             var rejectFn = JsFunction.CreateNative("reject", (_, rejectArgs) =>
             {
-                var reason = BuiltinHelper.Arg(rejectArgs, 0);
-                RejectPromise(promise, reason);
+                promise.Reject(BuiltinHelper.Arg(rejectArgs, 0));
                 return JsValue.Undefined;
             }, 1);
 
@@ -161,13 +122,13 @@ public static class PromiseConstructor
                 throw new Errors.JsTypeError("Promise.all requires an iterable", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
-            var resultPromise = new JsPromiseObject { Prototype = realm.PromisePrototype };
+            var resultPromise = new JsPromise(proto);
             var results = new JsValue[arr.DenseLength];
             var remaining = arr.DenseLength;
 
             if (remaining == 0)
             {
-                ResolvePromise(resultPromise, new JsArray(results) { Prototype = realm.ArrayPrototype }, realm);
+                resultPromise.Resolve(new JsArray(results) { Prototype = realm.ArrayPrototype });
                 return resultPromise;
             }
 
@@ -176,26 +137,24 @@ public static class PromiseConstructor
                 var index = i;
                 var item = arr.GetIndex(i);
 
-                if (item is JsPromiseObject itemPromise)
+                if (item is JsPromise itemPromise)
                 {
-                    PromiseThen(itemPromise,
-                        JsFunction.CreateNative("", (_, resolveArgs) =>
+                    itemPromise.Then(
+                        JsFunction.CreateNative(string.Empty, (_, resolveArgs) =>
                         {
                             results[index] = BuiltinHelper.Arg(resolveArgs, 0);
                             remaining--;
                             if (remaining == 0)
                             {
-                                ResolvePromise(resultPromise, new JsArray(results) { Prototype = realm.ArrayPrototype }, realm);
+                                resultPromise.Resolve(new JsArray(results) { Prototype = realm.ArrayPrototype });
                             }
-
                             return JsValue.Undefined;
                         }, 1),
-                        JsFunction.CreateNative("", (_, rejectArgs) =>
+                        JsFunction.CreateNative(string.Empty, (_, rejectArgs) =>
                         {
-                            RejectPromise(resultPromise, BuiltinHelper.Arg(rejectArgs, 0));
+                            resultPromise.Reject(BuiltinHelper.Arg(rejectArgs, 0));
                             return JsValue.Undefined;
-                        }, 1),
-                        realm);
+                        }, 1));
                 }
                 else
                 {
@@ -203,7 +162,7 @@ public static class PromiseConstructor
                     remaining--;
                     if (remaining == 0)
                     {
-                        ResolvePromise(resultPromise, new JsArray(results) { Prototype = realm.ArrayPrototype }, realm);
+                        resultPromise.Resolve(new JsArray(results) { Prototype = realm.ArrayPrototype });
                     }
                 }
             }
@@ -219,29 +178,28 @@ public static class PromiseConstructor
                 throw new Errors.JsTypeError("Promise.race requires an iterable", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
-            var resultPromise = new JsPromiseObject { Prototype = realm.PromisePrototype };
+            var resultPromise = new JsPromise(proto);
 
             for (var i = 0; i < arr.DenseLength; i++)
             {
                 var item = arr.GetIndex(i);
-                if (item is JsPromiseObject itemPromise)
+                if (item is JsPromise itemPromise)
                 {
-                    PromiseThen(itemPromise,
-                        JsFunction.CreateNative("", (_, resolveArgs) =>
+                    itemPromise.Then(
+                        JsFunction.CreateNative(string.Empty, (_, resolveArgs) =>
                         {
-                            ResolvePromise(resultPromise, BuiltinHelper.Arg(resolveArgs, 0), realm);
+                            resultPromise.Resolve(BuiltinHelper.Arg(resolveArgs, 0));
                             return JsValue.Undefined;
                         }, 1),
-                        JsFunction.CreateNative("", (_, rejectArgs) =>
+                        JsFunction.CreateNative(string.Empty, (_, rejectArgs) =>
                         {
-                            RejectPromise(resultPromise, BuiltinHelper.Arg(rejectArgs, 0));
+                            resultPromise.Reject(BuiltinHelper.Arg(rejectArgs, 0));
                             return JsValue.Undefined;
-                        }, 1),
-                        realm);
+                        }, 1));
                 }
                 else
                 {
-                    ResolvePromise(resultPromise, item, realm);
+                    resultPromise.Resolve(item);
                     break;
                 }
             }
@@ -257,13 +215,13 @@ public static class PromiseConstructor
                 throw new Errors.JsTypeError("Promise.allSettled requires an iterable", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
-            var resultPromise = new JsPromiseObject { Prototype = realm.PromisePrototype };
+            var resultPromise = new JsPromise(proto);
             var results = new JsValue[arr.DenseLength];
             var remaining = arr.DenseLength;
 
             if (remaining == 0)
             {
-                ResolvePromise(resultPromise, new JsArray(results) { Prototype = realm.ArrayPrototype }, realm);
+                resultPromise.Resolve(new JsArray(results) { Prototype = realm.ArrayPrototype });
                 return resultPromise;
             }
 
@@ -272,49 +230,46 @@ public static class PromiseConstructor
                 var index = i;
                 var item = arr.GetIndex(i);
 
-                if (item is JsPromiseObject itemPromise)
+                if (item is JsPromise itemPromise)
                 {
-                    PromiseThen(itemPromise,
-                        JsFunction.CreateNative("", (_, resolveArgs) =>
+                    itemPromise.Then(
+                        JsFunction.CreateNative(string.Empty, (_, resolveArgs) =>
                         {
-                            var result = new JsDynamicObject();
-                            result.Set("status", new JsString("fulfilled"));
-                            result.Set("value", BuiltinHelper.Arg(resolveArgs, 0));
-                            results[index] = result;
+                            var r = new JsDynamicObject();
+                            r.Set("status", new JsString("fulfilled"));
+                            r.Set("value", BuiltinHelper.Arg(resolveArgs, 0));
+                            results[index] = r;
                             remaining--;
                             if (remaining == 0)
                             {
-                                ResolvePromise(resultPromise, new JsArray(results) { Prototype = realm.ArrayPrototype }, realm);
+                                resultPromise.Resolve(new JsArray(results) { Prototype = realm.ArrayPrototype });
                             }
-
                             return JsValue.Undefined;
                         }, 1),
-                        JsFunction.CreateNative("", (_, rejectArgs) =>
+                        JsFunction.CreateNative(string.Empty, (_, rejectArgs) =>
                         {
-                            var result = new JsDynamicObject();
-                            result.Set("status", new JsString("rejected"));
-                            result.Set("reason", BuiltinHelper.Arg(rejectArgs, 0));
-                            results[index] = result;
+                            var r = new JsDynamicObject();
+                            r.Set("status", new JsString("rejected"));
+                            r.Set("reason", BuiltinHelper.Arg(rejectArgs, 0));
+                            results[index] = r;
                             remaining--;
                             if (remaining == 0)
                             {
-                                ResolvePromise(resultPromise, new JsArray(results) { Prototype = realm.ArrayPrototype }, realm);
+                                resultPromise.Resolve(new JsArray(results) { Prototype = realm.ArrayPrototype });
                             }
-
                             return JsValue.Undefined;
-                        }, 1),
-                        realm);
+                        }, 1));
                 }
                 else
                 {
-                    var result = new JsDynamicObject();
-                    result.Set("status", new JsString("fulfilled"));
-                    result.Set("value", item);
-                    results[index] = result;
+                    var r = new JsDynamicObject();
+                    r.Set("status", new JsString("fulfilled"));
+                    r.Set("value", item);
+                    results[index] = r;
                     remaining--;
                     if (remaining == 0)
                     {
-                        ResolvePromise(resultPromise, new JsArray(results) { Prototype = realm.ArrayPrototype }, realm);
+                        resultPromise.Resolve(new JsArray(results) { Prototype = realm.ArrayPrototype });
                     }
                 }
             }
@@ -330,7 +285,7 @@ public static class PromiseConstructor
                 throw new Errors.JsTypeError("Promise.any requires an iterable", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
-            var resultPromise = new JsPromiseObject { Prototype = realm.PromisePrototype };
+            var resultPromise = new JsPromise(proto);
             var errors = new JsValue[arr.DenseLength];
             var remaining = arr.DenseLength;
 
@@ -339,7 +294,7 @@ public static class PromiseConstructor
                 var aggError = new JsDynamicObject { Prototype = realm.ErrorPrototype };
                 aggError.Set("message", new JsString("All promises were rejected"));
                 aggError.Set("errors", new JsArray(errors) { Prototype = realm.ArrayPrototype });
-                RejectPromise(resultPromise, aggError);
+                resultPromise.Reject(aggError);
                 return resultPromise;
             }
 
@@ -348,15 +303,15 @@ public static class PromiseConstructor
                 var index = i;
                 var item = arr.GetIndex(i);
 
-                if (item is JsPromiseObject itemPromise)
+                if (item is JsPromise itemPromise)
                 {
-                    PromiseThen(itemPromise,
-                        JsFunction.CreateNative("", (_, resolveArgs) =>
+                    itemPromise.Then(
+                        JsFunction.CreateNative(string.Empty, (_, resolveArgs) =>
                         {
-                            ResolvePromise(resultPromise, BuiltinHelper.Arg(resolveArgs, 0), realm);
+                            resultPromise.Resolve(BuiltinHelper.Arg(resolveArgs, 0));
                             return JsValue.Undefined;
                         }, 1),
-                        JsFunction.CreateNative("", (_, rejectArgs) =>
+                        JsFunction.CreateNative(string.Empty, (_, rejectArgs) =>
                         {
                             errors[index] = BuiltinHelper.Arg(rejectArgs, 0);
                             remaining--;
@@ -365,16 +320,14 @@ public static class PromiseConstructor
                                 var aggError = new JsDynamicObject { Prototype = realm.ErrorPrototype };
                                 aggError.Set("message", new JsString("All promises were rejected"));
                                 aggError.Set("errors", new JsArray(errors) { Prototype = realm.ArrayPrototype });
-                                RejectPromise(resultPromise, aggError);
+                                resultPromise.Reject(aggError);
                             }
-
                             return JsValue.Undefined;
-                        }, 1),
-                        realm);
+                        }, 1));
                 }
                 else
                 {
-                    ResolvePromise(resultPromise, item, realm);
+                    resultPromise.Resolve(item);
                     break;
                 }
             }
@@ -385,180 +338,22 @@ public static class PromiseConstructor
         realm.InstallGlobal("Promise", ctor);
     }
 
-    public static void ResolvePromise(JsPromiseObject promise, JsValue value, Realm realm)
+    private static JsPromise RequirePromise(JsValue value, string member)
     {
-        if (promise.State != JsPromiseObject.PromiseState.Pending)
-        {
-            return;
-        }
-
-        // If value is a thenable, chain
-        if (value is JsPromiseObject thenablePromise)
-        {
-            PromiseThen(thenablePromise,
-                JsFunction.CreateNative("", (_, resolveArgs) =>
-                {
-                    ResolvePromise(promise, BuiltinHelper.Arg(resolveArgs, 0), realm);
-                    return JsValue.Undefined;
-                }, 1),
-                JsFunction.CreateNative("", (_, rejectArgs) =>
-                {
-                    RejectPromise(promise, BuiltinHelper.Arg(rejectArgs, 0));
-                    return JsValue.Undefined;
-                }, 1),
-                realm);
-            return;
-        }
-
-        promise.State = JsPromiseObject.PromiseState.Fulfilled;
-        promise.Result = value;
-        TriggerReactions(promise);
-    }
-
-    public static void RejectPromise(JsPromiseObject promise, JsValue reason)
-    {
-        if (promise.State != JsPromiseObject.PromiseState.Pending)
-        {
-            return;
-        }
-
-        promise.State = JsPromiseObject.PromiseState.Rejected;
-        promise.Result = reason;
-        TriggerReactions(promise);
-    }
-
-    public static JsPromiseObject PromiseThen(JsPromiseObject promise, JsFunction? onFulfilled, JsFunction? onRejected, Realm realm)
-    {
-        var resultPromise = new JsPromiseObject { Prototype = realm.PromisePrototype };
-
-        var reaction = new PromiseReaction(resultPromise, onFulfilled, onRejected, realm);
-
-        if (promise.State == JsPromiseObject.PromiseState.Pending)
-        {
-            promise.Reactions.Add(reaction);
-        }
-        else
-        {
-            MicrotaskScheduler.Enqueue(() => ProcessReaction(reaction, promise.State, promise.Result));
-        }
-
-        return resultPromise;
-    }
-
-    private static void TriggerReactions(JsPromiseObject promise)
-    {
-        var reactions = promise.Reactions.ToArray();
-        promise.Reactions.Clear();
-
-        foreach (var reaction in reactions)
-        {
-            var state = promise.State;
-            var result = promise.Result;
-            MicrotaskScheduler.Enqueue(() => ProcessReaction(reaction, state, result));
-        }
-    }
-
-    private static void ProcessReaction(PromiseReaction reaction, JsPromiseObject.PromiseState state, JsValue value)
-    {
-        var handler = state == JsPromiseObject.PromiseState.Fulfilled
-            ? reaction.OnFulfilled
-            : reaction.OnRejected;
-
-        try
-        {
-            if (handler is not null)
-            {
-                var result = handler.Call(JsValue.Undefined, [value]);
-                ResolvePromise(reaction.ResultPromise, result, reaction.Realm);
-            }
-            else if (state == JsPromiseObject.PromiseState.Fulfilled)
-            {
-                ResolvePromise(reaction.ResultPromise, value, reaction.Realm);
-            }
-            else
-            {
-                RejectPromise(reaction.ResultPromise, value);
-            }
-        }
-        catch (PromiseRejectedException ex)
-        {
-            RejectPromise(reaction.ResultPromise, ex.Reason);
-        }
-        catch (Errors.JsErrorBase ex)
-        {
-            RejectPromise(reaction.ResultPromise, new JsString(ex.Message));
-        }
-    }
-
-    private static JsPromiseObject RequirePromise(JsValue value)
-    {
-        if (value is JsPromiseObject promise)
+        if (value is JsPromise promise)
         {
             return promise;
         }
 
-        throw new Errors.JsTypeError("Method requires that 'this' be a Promise", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
+        throw new Errors.JsTypeError(
+            $"Method Promise.prototype.{member} called on incompatible receiver",
+            ExecutionContext.CurrentLine,
+            ExecutionContext.CurrentColumn);
     }
 
-    internal sealed record PromiseReaction(
-        JsPromiseObject ResultPromise,
-        JsFunction? OnFulfilled,
-        JsFunction? OnRejected,
-        Realm Realm);
-}
-
-public sealed class JsPromiseObject : JsDynamicObject
-{
-    public enum PromiseState
-    {
-        Pending,
-        Fulfilled,
-        Rejected
-    }
-
-    internal PromiseState State { get; set; } = PromiseState.Pending;
-    internal JsValue Result { get; set; } = Undefined;
-    internal List<PromiseConstructor.PromiseReaction> Reactions { get; } = [];
-}
-
-public sealed class PromiseRejectedException : Exception
-{
-    public JsValue Reason { get; }
-
-    public PromiseRejectedException(JsValue reason)
-        : base("Promise rejected")
-    {
-        Reason = reason;
-    }
-}
-
-public static class MicrotaskScheduler
-{
-    private static readonly Queue<Action> Tasks = new();
-    private static bool _draining;
-
-    internal static void Enqueue(Action task)
-    {
-        Tasks.Enqueue(task);
-        if (!_draining)
-        {
-            Drain();
-        }
-    }
-
-    private static void Drain()
-    {
-        _draining = true;
-        try
-        {
-            while (Tasks.Count > 0)
-            {
-                Tasks.Dequeue()();
-            }
-        }
-        finally
-        {
-            _draining = false;
-        }
-    }
+    // Back-compat static forwarders for callers still using the old API surface.
+    public static void ResolvePromise(JsPromise promise, JsValue value, Realm _) => promise.Resolve(value);
+    public static void RejectPromise(JsPromise promise, JsValue reason) => promise.Reject(reason);
+    public static JsPromise PromiseThen(JsPromise promise, JsFunction? onFulfilled, JsFunction? onRejected, Realm _)
+        => promise.AttachHandlers(onFulfilled, onRejected);
 }

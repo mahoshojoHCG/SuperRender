@@ -56,7 +56,7 @@ internal static class JsFetchApi
             }
 
             // Create a pending promise
-            var promise = new JsPromiseObject { Prototype = realm.PromisePrototype };
+            var promise = new JsPromise { Prototype = realm.PromisePrototype };
 
             // Start async fetch — fire and forget, result comes via main-thread queue
             Task.Run(async () =>
@@ -131,7 +131,7 @@ internal sealed partial class JsResponseWrapper : JsObject
     [JsMethod("text")]
     public JsValue Text()
     {
-        var p = new JsPromiseObject { Prototype = _realm.PromisePrototype };
+        var p = new JsPromise { Prototype = _realm.PromisePrototype };
         PromiseConstructor.ResolvePromise(p, new JsString(_result.Body), _realm);
         return p;
     }
@@ -139,7 +139,7 @@ internal sealed partial class JsResponseWrapper : JsObject
     [JsMethod("json")]
     public JsValue Json()
     {
-        var p = new JsPromiseObject { Prototype = _realm.PromisePrototype };
+        var p = new JsPromise { Prototype = _realm.PromisePrototype };
         try
         {
             var parsed = ParseJson(_result.Body);

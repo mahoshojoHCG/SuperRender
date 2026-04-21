@@ -500,7 +500,7 @@ public static class RuntimeHelpers
             return JsValue.False;
         }
 
-        if (obj is not JsDynamicObject jsObj)
+        if (obj is not JsObject jsObj)
         {
             return JsValue.False;
         }
@@ -1070,7 +1070,7 @@ public static class RuntimeHelpers
         JsDynamicObject promisePrototype,
         Realm realm)
     {
-        var outerPromise = new JsPromiseObject { Prototype = promisePrototype };
+        var outerPromise = new JsPromise { Prototype = promisePrototype };
         var coroutine = new GeneratorCoroutine();
 
         void Advance(JsValue sent, bool isThrow)
@@ -1095,7 +1095,7 @@ public static class RuntimeHelpers
                 }
 
                 // The yielded value is what was awaited
-                if (result.value is JsPromiseObject promise)
+                if (result.value is JsPromise promise)
                 {
                     SuperRender.EcmaScript.Runtime.Builtins.PromiseConstructor.PromiseThen(promise,
                         JsFunction.CreateNative("", (_, a) =>
@@ -1135,7 +1135,7 @@ public static class RuntimeHelpers
         {
             SuperRender.EcmaScript.Runtime.Builtins.PromiseConstructor.ResolvePromise(outerPromise, initial.Value, realm);
         }
-        else if (initial.Value is JsPromiseObject initPromise)
+        else if (initial.Value is JsPromise initPromise)
         {
             SuperRender.EcmaScript.Runtime.Builtins.PromiseConstructor.PromiseThen(initPromise,
                 JsFunction.CreateNative("", (_, a) =>

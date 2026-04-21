@@ -89,7 +89,7 @@ public sealed partial class ZlibModule : JsDynamicObject
             promises.DefineOwnProperty(name, PropertyDescriptor.Data(
                 JsFunction.CreateNative(name, (_, args) =>
                 {
-                    var promise = new JsPromiseObject { Prototype = realm.PromisePrototype };
+                    var promise = new JsPromise { Prototype = realm.PromisePrototype };
                     try
                     {
                         var input = ExtractBytes(args);

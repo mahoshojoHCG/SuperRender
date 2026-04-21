@@ -159,14 +159,14 @@ public static class EventsModule
         }, 0));
     }
 
-    private static JsPromiseObject StaticOnce(Realm realm, JsValue[] args)
+    private static JsPromise StaticOnce(Realm realm, JsValue[] args)
     {
         if (args.Length < 1 || args[0] is not JsDynamicObject emitter)
             throw new Runtime.Errors.JsTypeError("emitter must be an EventEmitter");
         if (args.Length < 2 || args[1] is not JsString evtStr)
             throw new Runtime.Errors.JsTypeError("The \"name\" argument must be of type string");
 
-        var promise = new JsPromiseObject { Prototype = realm.PromisePrototype };
+        var promise = new JsPromise { Prototype = realm.PromisePrototype };
         var settled = false;
 
         JsFunction? resolveListener = null;

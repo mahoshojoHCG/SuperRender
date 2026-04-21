@@ -17,7 +17,7 @@ public class PromiseWithResolversTests
         var promise = engine.GetValue("promise");
         var resolve = engine.GetValue("resolve");
         var reject = engine.GetValue("reject");
-        Assert.IsAssignableFrom<SuperRender.EcmaScript.Runtime.JsDynamicObject>(promise);
+        Assert.IsAssignableFrom<SuperRender.EcmaScript.Runtime.JsObject>(promise);
         Assert.IsAssignableFrom<SuperRender.EcmaScript.Runtime.JsFunction>(resolve);
         Assert.IsAssignableFrom<SuperRender.EcmaScript.Runtime.JsFunction>(reject);
     }

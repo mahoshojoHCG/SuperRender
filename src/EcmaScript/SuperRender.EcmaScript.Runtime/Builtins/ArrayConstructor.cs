@@ -79,7 +79,7 @@ public static class ArrayConstructor
             var mapFn = BuiltinHelper.Arg(args, 1) as JsFunction;
 
             // Return a promise that resolves to the array
-            var promise = new JsPromiseObject { Prototype = realm.PromisePrototype };
+            var promise = new JsPromise { Prototype = realm.PromisePrototype };
 
             try
             {

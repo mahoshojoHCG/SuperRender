@@ -30,7 +30,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor UnsupportedReturnType = new(
         "JSGEN002",
         "Unsupported return type for [JsMethod]/[JsProperty]",
-        "Return type '{0}' on {1}.{2} is not supported. Use void, a JsValue-derived type, or a C# primitive.",
+        "Return type '{0}' on {1}.{2} is not supported. Use void, a JsValue-derived type, a C# primitive, JsOptional<T>, Task, or Task<T>.",
         "SuperRender.Analyzer",
         DiagnosticSeverity.Error,
         true);
@@ -272,6 +272,24 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
 
             innerDisplay = innerType.ToDisplayString();
         }
+        else if (retKind == ReturnKind.RTaskOfT && IsTaskOfT(m.ReturnType, out var taskInnerType) && taskInnerType is not null)
+        {
+            innerKind = ClassifyReturn(taskInnerType);
+            if (innerKind == ReturnKind.Unsupported || innerKind == ReturnKind.Void
+                || innerKind == ReturnKind.ROptional || innerKind == ReturnKind.RTask
+                || innerKind == ReturnKind.RTaskOfT)
+            {
+                diagnostics.Add(Diagnostic.Create(
+                    UnsupportedReturnType,
+                    m.Locations.FirstOrDefault(),
+                    m.ReturnType.ToDisplayString(),
+                    className,
+                    m.Name));
+                return null;
+            }
+
+            innerDisplay = taskInnerType.ToDisplayString();
+        }
 
         // Auto-derive function.length from signature:
         //   typed mode: count of parameters excluding a trailing JsValue[] rest slot
@@ -305,7 +323,8 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         var isStatic = prop.IsStatic;
 
         var getterKind = ClassifyReturn(valueType);
-        if (getterKind == ReturnKind.Unsupported || getterKind == ReturnKind.Void)
+        if (getterKind == ReturnKind.Unsupported || getterKind == ReturnKind.Void
+            || getterKind == ReturnKind.RTask || getterKind == ReturnKind.RTaskOfT)
         {
             diagnostics.Add(Diagnostic.Create(
                 UnsupportedReturnType,
@@ -506,6 +525,25 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         return false;
     }
 
+    private static bool IsTask(ITypeSymbol t)
+    {
+        if (t is not INamedTypeSymbol nts) return false;
+        if (nts.Name != "Task") return false;
+        if (nts.ContainingNamespace?.ToDisplayString() != "System.Threading.Tasks") return false;
+        return nts.TypeArguments.Length == 0;
+    }
+
+    private static bool IsTaskOfT(ITypeSymbol t, out ITypeSymbol? inner)
+    {
+        inner = null;
+        if (t is not INamedTypeSymbol nts) return false;
+        if (nts.Name != "Task") return false;
+        if (nts.ContainingNamespace?.ToDisplayString() != "System.Threading.Tasks") return false;
+        if (nts.TypeArguments.Length != 1) return false;
+        inner = nts.TypeArguments[0];
+        return true;
+    }
+
     private static ReturnKind ClassifyReturn(ITypeSymbol t)
     {
         if (t.SpecialType == SpecialType.System_Void)
@@ -516,6 +554,16 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         if (IsJsOptional(t, out _))
         {
             return ReturnKind.ROptional;
+        }
+
+        if (IsTask(t))
+        {
+            return ReturnKind.RTask;
+        }
+
+        if (IsTaskOfT(t, out _))
+        {
+            return ReturnKind.RTaskOfT;
         }
 
         if (IsJsValueDerived(t))
@@ -584,6 +632,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         {
             ReturnKind.JsValue => valueExpr,
             ReturnKind.RIJsTypeInterface => $"global::SuperRender.EcmaScript.Runtime.Interop.InteropConversions.UnwrapIJsType({valueExpr})",
+            ReturnKind.RTask => $"global::SuperRender.EcmaScript.Runtime.Builtins.JsPromise.FromTask({valueExpr})",
             ReturnKind.RString => valueExpr,
             ReturnKind.RBool => valueExpr,
             ReturnKind.RDouble => valueExpr,
@@ -916,6 +965,8 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
     {
         ReturnKind.Void => "void",
         ReturnKind.ROptional => TsReturnType(innerKind) + " | undefined",
+        ReturnKind.RTask => "Promise<void>",
+        ReturnKind.RTaskOfT => "Promise<" + TsReturnType(innerKind) + ">",
         ReturnKind.RString => "string",
         ReturnKind.RBool => "boolean",
         ReturnKind.RDouble or ReturnKind.RFloat or ReturnKind.RInt32 or ReturnKind.RInt64
@@ -1033,6 +1084,11 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             sb.Append("                        var __r = ").Append(call).AppendLine(";");
             var innerWrapped = WrapReturn(m.Return.InnerKind, m.Return.InnerTypeDisplay ?? string.Empty, "__r.Value!");
             sb.Append("                        return __r.HasValue ? ").Append(innerWrapped).AppendLine(" : JsValue.Undefined;");
+        }
+        else if (m.Return.Kind == ReturnKind.RTaskOfT)
+        {
+            sb.Append("                        return global::SuperRender.EcmaScript.Runtime.Builtins.JsPromise.FromTask(")
+              .Append(call).AppendLine(");");
         }
         else
         {
@@ -1154,6 +1210,8 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         JsValue,
         RIJsTypeInterface,
         ROptional,
+        RTask,
+        RTaskOfT,
         RString,
         RBool,
         RDouble,

@@ -164,7 +164,7 @@ public sealed partial class JsCompiler
     {
         // TODO: for-await-of — When node.IsAwait is true, call RuntimeHelpers.GetAsyncIterator()
         // which checks Symbol.asyncIterator first, then falls back to Symbol.iterator.
-        // After each IteratorNext, if the result is a JsPromiseObject, await it via coroutine yield.
+        // After each IteratorNext, if the result is a JsPromise, await it via coroutine yield.
         // Deferred: requires async iterator protocol and coroutine integration.
         return CompileForOfIterator(node.Left, node.Right, node.Body);
     }
