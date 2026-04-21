@@ -72,6 +72,20 @@ public abstract class JsValue : IDynamicMetaObjectProvider
     public DynamicMetaObject GetMetaObject(Expression parameter) =>
         new JsValueMetaObject(parameter, this);
 
+    public static implicit operator JsValue(bool value) => value ? True : False;
+    public static implicit operator JsValue(sbyte value) => JsNumber.Create(value);
+    public static implicit operator JsValue(byte value) => JsNumber.Create(value);
+    public static implicit operator JsValue(short value) => JsNumber.Create(value);
+    public static implicit operator JsValue(ushort value) => JsNumber.Create(value);
+    public static implicit operator JsValue(int value) => JsNumber.Create(value);
+    public static implicit operator JsValue(uint value) => JsNumber.Create(value);
+    public static implicit operator JsValue(long value) => JsNumber.Create(value);
+    public static implicit operator JsValue(ulong value) => JsNumber.Create(value);
+    public static implicit operator JsValue(float value) => JsNumber.Create(value);
+    public static implicit operator JsValue(double value) => JsNumber.Create(value);
+    public static implicit operator JsValue(decimal value) => JsNumber.Create((double)value);
+    public static implicit operator JsValue(string? value) => value is null ? Null : new JsString(value);
+
     public static JsValue FromObject(object? value) => value switch
     {
         null => Null,
