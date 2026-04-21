@@ -113,11 +113,8 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
                 }
                 else if (attrName == JsPropertyAttr)
                 {
-                    var model = BuildProperty(member, attr, cls.Name, diagnostics);
-                    if (model is not null)
-                    {
-                        properties.Add(model);
-                    }
+                    var models = BuildProperty(member, attr, cls.Name, diagnostics);
+                    properties.AddRange(models);
                 }
             }
         }
@@ -218,88 +215,38 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             new ReturnModel(m.ReturnType.ToDisplayString(), retKind, innerKind, innerDisplay));
     }
 
-    private static PropertyModel? BuildProperty(ISymbol member, AttributeData attr, string className, List<Diagnostic> diagnostics)
+    private static IEnumerable<PropertyModel> BuildProperty(ISymbol member, AttributeData attr, string className, List<Diagnostic> diagnostics)
     {
         var jsName = attr.ConstructorArguments.Length > 0
             ? attr.ConstructorArguments[0].Value as string
             : member.Name;
-        var isSetter = false;
-        foreach (var named in attr.NamedArguments)
+
+        if (member is not IPropertySymbol prop)
         {
-            if (named.Key == "IsSetter" && named.Value.Value is bool b)
-            {
-                isSetter = b;
-            }
+            yield break;
         }
 
-        ITypeSymbol valueType;
-        bool isCsharpProperty = member is IPropertySymbol;
-        bool isStatic;
+        var valueType = prop.Type;
+        var isStatic = prop.IsStatic;
 
-        if (member is IPropertySymbol prop)
+        var getterKind = ClassifyReturn(valueType);
+        if (getterKind == ReturnKind.Unsupported || getterKind == ReturnKind.Void)
         {
-            valueType = prop.Type;
-            isStatic = prop.IsStatic;
-            if (isSetter)
-            {
-                diagnostics.Add(Diagnostic.Create(
-                    UnsupportedParamType,
-                    member.Locations.FirstOrDefault(),
-                    "property",
-                    className,
-                    member.Name));
-                return null;
-            }
-        }
-        else if (member is IMethodSymbol methodSym)
-        {
-            isStatic = methodSym.IsStatic;
-            if (isSetter)
-            {
-                if (methodSym.Parameters.Length != 1)
-                {
-                    diagnostics.Add(Diagnostic.Create(
-                        UnsupportedParamType,
-                        member.Locations.FirstOrDefault(),
-                        "setter with != 1 parameter",
-                        className,
-                        member.Name));
-                    return null;
-                }
-
-                valueType = methodSym.Parameters[0].Type;
-            }
-            else
-            {
-                valueType = methodSym.ReturnType;
-            }
-        }
-        else
-        {
-            return null;
+            diagnostics.Add(Diagnostic.Create(
+                UnsupportedReturnType,
+                member.Locations.FirstOrDefault(),
+                valueType.ToDisplayString(),
+                className,
+                member.Name));
+            yield break;
         }
 
-        if (isSetter)
+        ReturnKind innerKind = ReturnKind.Void;
+        string? innerDisplay = null;
+        if (getterKind == ReturnKind.ROptional && IsJsOptional(valueType, out var innerType) && innerType is not null)
         {
-            var kind = ClassifyParam(valueType, true);
-            if (kind == ParamKind.Unsupported || kind == ParamKind.ArgsArray)
-            {
-                diagnostics.Add(Diagnostic.Create(
-                    UnsupportedParamType,
-                    member.Locations.FirstOrDefault(),
-                    valueType.ToDisplayString(),
-                    className,
-                    member.Name));
-                return null;
-            }
-
-            return new PropertyModel(jsName ?? member.Name, member.Name, isCsharpProperty, isStatic, true,
-                valueType.ToDisplayString(), (ParamKind?)kind, null);
-        }
-        else
-        {
-            var kind = ClassifyReturn(valueType);
-            if (kind == ReturnKind.Unsupported || kind == ReturnKind.Void)
+            innerKind = ClassifyReturn(innerType);
+            if (innerKind == ReturnKind.Unsupported || innerKind == ReturnKind.Void || innerKind == ReturnKind.ROptional)
             {
                 diagnostics.Add(Diagnostic.Create(
                     UnsupportedReturnType,
@@ -307,30 +254,31 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
                     valueType.ToDisplayString(),
                     className,
                     member.Name));
-                return null;
+                yield break;
             }
 
-            ReturnKind innerKind = ReturnKind.Void;
-            string? innerDisplay = null;
-            if (kind == ReturnKind.ROptional && IsJsOptional(valueType, out var innerType) && innerType is not null)
+            innerDisplay = innerType.ToDisplayString();
+        }
+
+        yield return new PropertyModel(jsName ?? member.Name, member.Name, true, isStatic, false,
+            valueType.ToDisplayString(), null, (ReturnKind?)getterKind, innerKind, innerDisplay);
+
+        if (prop.SetMethod is not null)
+        {
+            var setterKind = ClassifyParam(valueType, true);
+            if (setterKind == ParamKind.Unsupported || setterKind == ParamKind.ArgsArray)
             {
-                innerKind = ClassifyReturn(innerType);
-                if (innerKind == ReturnKind.Unsupported || innerKind == ReturnKind.Void || innerKind == ReturnKind.ROptional)
-                {
-                    diagnostics.Add(Diagnostic.Create(
-                        UnsupportedReturnType,
-                        member.Locations.FirstOrDefault(),
-                        valueType.ToDisplayString(),
-                        className,
-                        member.Name));
-                    return null;
-                }
-
-                innerDisplay = innerType.ToDisplayString();
+                diagnostics.Add(Diagnostic.Create(
+                    UnsupportedParamType,
+                    member.Locations.FirstOrDefault(),
+                    valueType.ToDisplayString(),
+                    className,
+                    member.Name));
+                yield break;
             }
 
-            return new PropertyModel(jsName ?? member.Name, member.Name, isCsharpProperty, isStatic, false,
-                valueType.ToDisplayString(), null, (ReturnKind?)kind, innerKind, innerDisplay);
+            yield return new PropertyModel(jsName ?? member.Name, member.Name, true, isStatic, true,
+                valueType.ToDisplayString(), (ParamKind?)setterKind, null);
         }
     }
 
@@ -675,9 +623,17 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
                 continue;
             }
 
+            if (p.IsSetter)
+            {
+                // Setters are paired with their getter via C# property syntax in the interface; skip.
+                continue;
+            }
+
             if (p.IsCsharpProperty)
             {
-                sb.Append("    ").Append(p.ValueTypeDisplay).Append(' ').Append(p.CsharpName).AppendLine(" { get; }");
+                var hasSetter = model.Properties.Any(x => x.IsSetter && x.CsharpName == p.CsharpName);
+                sb.Append("    ").Append(p.ValueTypeDisplay).Append(' ').Append(p.CsharpName)
+                  .AppendLine(hasSetter ? " { get; set; }" : " { get; }");
             }
             else
             {
@@ -974,7 +930,14 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             var local = "__v";
             var convert = ConvertArg(kind, s.ValueTypeDisplay, "value", local, s.JsName, 0);
             sb.Append("                ").AppendLine(convert);
-            sb.Append("                ").Append(target).Append('.').Append(s.CsharpName).Append('(').Append(local).AppendLine(");");
+            if (s.IsCsharpProperty)
+            {
+                sb.Append("                ").Append(target).Append('.').Append(s.CsharpName).Append(" = ").Append(local).AppendLine(";");
+            }
+            else
+            {
+                sb.Append("                ").Append(target).Append('.').Append(s.CsharpName).Append('(').Append(local).AppendLine(");");
+            }
             sb.AppendLine("                return;");
             sb.AppendLine("            }");
         }
@@ -1102,12 +1065,18 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             public string Name { get; }
         }
 
-        [AttributeUsage(AttributeTargets.Method | AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
+        [AttributeUsage(AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
         internal sealed class JsPropertyAttribute : Attribute
         {
             public JsPropertyAttribute(string name) { Name = name; }
             public string Name { get; }
-            public bool IsSetter { get; set; }
+        }
+
+        [Flags]
+        internal enum JsPropertyAccess
+        {
+            Get = 1,
+            Set = 2
         }
         """;
 }

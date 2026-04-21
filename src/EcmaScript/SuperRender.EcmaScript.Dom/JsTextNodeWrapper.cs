@@ -18,16 +18,18 @@ internal sealed partial class JsTextNodeWrapper : JsNodeWrapper
     }
 
     [JsProperty("data")]
-    public string Data => _textNode.Data;
-
-    [JsProperty("data", IsSetter = true)]
-    public void SetData(string value) => _textNode.Data = value;
+    public string Data
+    {
+        get => _textNode.Data;
+        set => _textNode.Data = value;
+    }
 
     [JsProperty("nodeValue")]
-    public string NodeValue => _textNode.Data;
-
-    [JsProperty("nodeValue", IsSetter = true)]
-    public void SetNodeValue(string value) => _textNode.Data = value;
+    public string NodeValue
+    {
+        get => _textNode.Data;
+        set => _textNode.Data = value;
+    }
 
     [JsProperty("length")]
     public int Length => _textNode.Data.Length;

@@ -44,14 +44,12 @@ internal sealed partial class JsDocumentWrapper : JsElementWrapper
             var titleElement = FindElement(_document, HtmlTagNames.Title);
             return titleElement?.InnerText ?? "";
         }
-    }
-
-    [JsProperty("title", IsSetter = true)]
-    public void SetTitle(string value)
-    {
-        var titleElement = FindElement(_document, HtmlTagNames.Title);
-        if (titleElement is not null)
-            titleElement.InnerText = value;
+        set
+        {
+            var titleElement = FindElement(_document, HtmlTagNames.Title);
+            if (titleElement is not null)
+                titleElement.InnerText = value;
+        }
     }
 
     [JsMethod("createElement")]

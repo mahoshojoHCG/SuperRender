@@ -57,14 +57,12 @@ internal partial class JsNodeWrapper : JsDynamicObject
             if (DomNode is TextNode t) return new JsString(t.Data);
             return JsValue.Null;
         }
-    }
-
-    [JsProperty("textContent", IsSetter = true)]
-    public void SetTextContent(JsValue value)
-    {
-        var text = value.ToJsString();
-        if (DomNode is Element e) e.InnerText = text;
-        else if (DomNode is TextNode t) t.Data = text;
+        set
+        {
+            var text = value.ToJsString();
+            if (DomNode is Element e) e.InnerText = text;
+            else if (DomNode is TextNode t) t.Data = text;
+        }
     }
 
     [JsMethod("appendChild")]

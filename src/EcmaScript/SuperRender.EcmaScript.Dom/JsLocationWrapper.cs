@@ -30,10 +30,11 @@ internal sealed partial class JsLocationWrapper : JsObject
     }
 
     [JsProperty("href")]
-    public string Href => _getCurrentUri()?.ToString() ?? "";
-
-    [JsProperty("href", IsSetter = true)]
-    public void SetHref(string value) => _navigate(value);
+    public string Href
+    {
+        get => _getCurrentUri()?.ToString() ?? "";
+        set => _navigate(value);
+    }
 
     [JsProperty("protocol")]
     public string Protocol

@@ -22,16 +22,18 @@ internal partial class JsElementWrapper : JsNodeWrapper
     public string TagName => _element.TagName.ToUpperInvariant();
 
     [JsProperty("id")]
-    public string Id => _element.Id ?? "";
-
-    [JsProperty("id", IsSetter = true)]
-    public void SetId(string value) => _element.SetAttribute(HtmlAttributeNames.Id, value);
+    public string Id
+    {
+        get => _element.Id ?? "";
+        set => _element.SetAttribute(HtmlAttributeNames.Id, value);
+    }
 
     [JsProperty("className")]
-    public string ClassName => _element.GetAttribute(HtmlAttributeNames.Class) ?? "";
-
-    [JsProperty("className", IsSetter = true)]
-    public void SetClassName(string value) => _element.SetAttribute(HtmlAttributeNames.Class, value);
+    public string ClassName
+    {
+        get => _element.GetAttribute(HtmlAttributeNames.Class) ?? "";
+        set => _element.SetAttribute(HtmlAttributeNames.Class, value);
+    }
 
     [JsProperty("classList")]
     public JsValue ClassList
@@ -67,25 +69,27 @@ internal partial class JsElementWrapper : JsNodeWrapper
     }
 
     [JsProperty("innerText")]
-    public string InnerText => _element.InnerText;
-
-    [JsProperty("innerText", IsSetter = true)]
-    public void SetInnerText(string value) => _element.InnerText = value;
+    public string InnerText
+    {
+        get => _element.InnerText;
+        set => _element.InnerText = value;
+    }
 
     [JsProperty("innerHTML")]
-    public string InnerHTML => ReconstructInnerHtml(_element);
-
-    [JsProperty("innerHTML", IsSetter = true)]
-    public void SetInnerHTML(string value)
+    public string InnerHTML
     {
-        while (_element.Children.Count > 0)
-            _element.RemoveChild(_element.Children[0]);
-        var parser = new HtmlParser(value);
-        var doc = parser.Parse();
-        if (doc.Body is not null)
+        get => ReconstructInnerHtml(_element);
+        set
         {
-            foreach (var child in doc.Body.Children.ToList())
-                _element.AppendChild(child);
+            while (_element.Children.Count > 0)
+                _element.RemoveChild(_element.Children[0]);
+            var parser = new HtmlParser(value);
+            var doc = parser.Parse();
+            if (doc.Body is not null)
+            {
+                foreach (var child in doc.Body.Children.ToList())
+                    _element.AppendChild(child);
+            }
         }
     }
 
