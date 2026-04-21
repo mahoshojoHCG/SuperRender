@@ -59,11 +59,9 @@ internal sealed partial class JsHistoryWrapper : JsObject
     }
 #pragma warning restore JSGEN006
 
-#pragma warning disable JSGEN005 // arbitrary JS state value — spec pass-through
-#pragma warning disable JSGEN006 // arbitrary JS state value — spec pass-through
-#pragma warning disable JSGEN007 // arbitrary JS state value — spec pass-through
+#pragma warning disable JSGEN005 // variadic: state + title + optional url
     [JsMethod("pushState")]
-    public JsValue PushState(JsValue _, JsValue[] args)
+    public void PushState(JsValue[] args)
     {
         var state = args.Length > 0 ? args[0] : JsValue.Null;
         var url = args.Length > 2 && args[2] is not JsUndefined && args[2] is not JsNull
@@ -78,11 +76,10 @@ internal sealed partial class JsHistoryWrapper : JsObject
         _entries.Add(new HistoryEntry { Url = newUri, State = state });
         _currentIndex = _entries.Count - 1;
         _updateAddressBar(newUri);
-        return JsValue.Undefined;
     }
 
     [JsMethod("replaceState")]
-    public JsValue ReplaceState(JsValue _, JsValue[] args)
+    public void ReplaceState(JsValue[] args)
     {
         var state = args.Length > 0 ? args[0] : JsValue.Null;
         var url = args.Length > 2 && args[2] is not JsUndefined && args[2] is not JsNull
@@ -102,10 +99,7 @@ internal sealed partial class JsHistoryWrapper : JsObject
         }
 
         _updateAddressBar(newUri);
-        return JsValue.Undefined;
     }
-#pragma warning restore JSGEN007
-#pragma warning restore JSGEN006
 #pragma warning restore JSGEN005
 
     [JsMethod("back")]

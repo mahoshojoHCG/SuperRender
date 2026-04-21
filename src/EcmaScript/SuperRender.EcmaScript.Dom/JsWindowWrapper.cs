@@ -55,64 +55,49 @@ internal sealed partial class JsWindowWrapper : JsDynamicObject
     [JsProperty("innerHeight")] public double InnerHeight => _innerHeight;
     [JsProperty("devicePixelRatio")] public double DevicePixelRatio => _devicePixelRatio;
 
-#pragma warning disable JSGEN005 // legacy variadic: callback + optional args
-#pragma warning disable JSGEN006 // legacy variadic: callback + optional args
-#pragma warning disable JSGEN007 // legacy variadic: callback + optional args
+#pragma warning disable JSGEN005 // variadic: callback + optional delay
     [JsMethod("setTimeout")]
-    public JsValue SetTimeout(JsValue _, JsValue[] args)
+    public int SetTimeout(JsValue[] args)
     {
         if (args.Length > 0 && args[0] is JsFunction callback)
         {
             var delay = args.Length > 1 ? args[1].ToNumber() : 0;
-            var id = _timerQueue.SetTimeout(() => callback.Call(JsValue.Undefined, []), delay);
-            return JsNumber.Create(id);
+            return _timerQueue.SetTimeout(() => callback.Call(JsValue.Undefined, []), delay);
         }
-        return JsNumber.Create(0);
+        return 0;
     }
-#pragma warning restore JSGEN007
-#pragma warning restore JSGEN006
 #pragma warning restore JSGEN005
 
     [JsMethod("clearTimeout")]
     public void ClearTimeout(int id) => _timerQueue.Cancel(id);
 
-#pragma warning disable JSGEN005 // legacy variadic: callback + optional args
-#pragma warning disable JSGEN006 // legacy variadic: callback + optional args
-#pragma warning disable JSGEN007 // legacy variadic: callback + optional args
+#pragma warning disable JSGEN005 // variadic: callback + optional interval
     [JsMethod("setInterval")]
-    public JsValue SetInterval(JsValue _, JsValue[] args)
+    public int SetInterval(JsValue[] args)
     {
         if (args.Length > 0 && args[0] is JsFunction callback)
         {
             var interval = args.Length > 1 ? args[1].ToNumber() : 0;
-            var id = _timerQueue.SetInterval(() => callback.Call(JsValue.Undefined, []), interval);
-            return JsNumber.Create(id);
+            return _timerQueue.SetInterval(() => callback.Call(JsValue.Undefined, []), interval);
         }
-        return JsNumber.Create(0);
+        return 0;
     }
-#pragma warning restore JSGEN007
-#pragma warning restore JSGEN006
 #pragma warning restore JSGEN005
 
     [JsMethod("clearInterval")]
     public void ClearInterval(int id) => _timerQueue.Cancel(id);
 
-#pragma warning disable JSGEN005 // legacy variadic: callback + optional args
-#pragma warning disable JSGEN006 // legacy variadic: callback + optional args
-#pragma warning disable JSGEN007 // legacy variadic: callback + optional args
+#pragma warning disable JSGEN005 // variadic: callback
     [JsMethod("requestAnimationFrame")]
-    public JsValue RequestAnimationFrame(JsValue _, JsValue[] args)
+    public int RequestAnimationFrame(JsValue[] args)
     {
         if (args.Length > 0 && args[0] is JsFunction callback)
         {
-            var id = _timerQueue.RequestAnimationFrame(
+            return _timerQueue.RequestAnimationFrame(
                 () => callback.Call(JsValue.Undefined, [JsNumber.Create(_timerQueue.NowMs)]));
-            return JsNumber.Create(id);
         }
-        return JsNumber.Create(0);
+        return 0;
     }
-#pragma warning restore JSGEN007
-#pragma warning restore JSGEN006
 #pragma warning restore JSGEN005
 
     [JsMethod("cancelAnimationFrame")]

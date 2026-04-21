@@ -126,15 +126,10 @@ internal sealed partial class JsResponseWrapper : JsObject
     public JsValue Headers => _headers;
 #pragma warning restore JSGEN006
 
-#pragma warning disable JSGEN006 // returns JsPromise — no typed Promise<T> yet
     [JsMethod("text")]
-    public JsValue Text()
-    {
-        var p = new JsPromise { Prototype = _realm.PromisePrototype };
-        PromiseConstructor.ResolvePromise(p, new JsString(_result.Body), _realm);
-        return p;
-    }
+    public Task<string> Text() => Task.FromResult(_result.Body);
 
+#pragma warning disable JSGEN006 // returns JsPromise — no typed Promise<T> yet
     [JsMethod("json")]
     public JsValue Json()
     {

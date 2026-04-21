@@ -83,13 +83,13 @@ public sealed partial class MathObject : JsObject
     [JsMethod("pow")]
     public static double Pow(double b, double e) => Math.Pow(b, e);
 
-#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // legacy variadic: arbitrary-arity numeric fold
+#pragma warning disable JSGEN005 // variadic: arbitrary-arity numeric fold
     [JsMethod("max")]
-    public static JsValue Max(JsValue _, JsValue[] args)
+    public static double Max(JsValue[] args)
     {
         if (args.Length == 0)
         {
-            return JsNumber.NegativeInfinity;
+            return double.NegativeInfinity;
         }
 
         var result = double.NegativeInfinity;
@@ -98,7 +98,7 @@ public sealed partial class MathObject : JsObject
             var n = arg.ToNumber();
             if (double.IsNaN(n))
             {
-                return JsNumber.NaN;
+                return double.NaN;
             }
 
             if (n > result || (n == 0 && result == 0 && !double.IsNegative(n)))
@@ -107,15 +107,15 @@ public sealed partial class MathObject : JsObject
             }
         }
 
-        return JsNumber.Create(result);
+        return result;
     }
 
     [JsMethod("min")]
-    public static JsValue Min(JsValue _, JsValue[] args)
+    public static double Min(JsValue[] args)
     {
         if (args.Length == 0)
         {
-            return JsNumber.PositiveInfinity;
+            return double.PositiveInfinity;
         }
 
         var result = double.PositiveInfinity;
@@ -124,7 +124,7 @@ public sealed partial class MathObject : JsObject
             var n = arg.ToNumber();
             if (double.IsNaN(n))
             {
-                return JsNumber.NaN;
+                return double.NaN;
             }
 
             if (n < result || (n == 0 && result == 0 && double.IsNegative(n)))
@@ -133,15 +133,15 @@ public sealed partial class MathObject : JsObject
             }
         }
 
-        return JsNumber.Create(result);
+        return result;
     }
 
     [JsMethod("hypot")]
-    public static JsValue Hypot(JsValue _, JsValue[] args)
+    public static double Hypot(JsValue[] args)
     {
         if (args.Length == 0)
         {
-            return JsNumber.Zero;
+            return 0.0;
         }
 
         var sum = 0.0;
@@ -150,15 +150,15 @@ public sealed partial class MathObject : JsObject
             var n = arg.ToNumber();
             if (double.IsInfinity(n))
             {
-                return JsNumber.PositiveInfinity;
+                return double.PositiveInfinity;
             }
 
             sum += n * n;
         }
 
-        return JsNumber.Create(Math.Sqrt(sum));
+        return Math.Sqrt(sum);
     }
-#pragma warning restore JSGEN005, JSGEN006, JSGEN007
+#pragma warning restore JSGEN005
 
     [JsMethod("random")]
     public static double Random() => System.Random.Shared.NextDouble();

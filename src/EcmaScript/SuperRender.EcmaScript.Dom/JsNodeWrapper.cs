@@ -146,26 +146,23 @@ internal partial class JsNodeWrapper : JsDynamicObject
     }
 #pragma warning restore JSGEN005
 
-#pragma warning disable JSGEN005 // legacy variadic: callback + optional args
-#pragma warning disable JSGEN006 // legacy variadic: callback + optional args
-#pragma warning disable JSGEN007 // legacy variadic: callback + optional args
+#pragma warning disable JSGEN005 // variadic: type + handler + optional capture
     [JsMethod("addEventListener")]
-    public JsValue AddEventListener(JsValue _, JsValue[] args)
+    public void AddEventListener(JsValue[] args)
     {
-        if (args.Length < 2 || args[1] is not JsFunction handler) return JsValue.Undefined;
+        if (args.Length < 2 || args[1] is not JsFunction handler) return;
         var type = args[0].ToJsString();
         bool capture = args.Length > 2 && args[2].ToBoolean();
         Action<DomEvent> wrapper = evt =>
             handler.Call(JsValue.Undefined, [new JsEventWrapper(evt, Cache, Cache.Realm)]);
         Cache.StoreEventHandler(DomNode, type, handler, capture, wrapper);
         DomNode.AddEventListener(type, wrapper, capture);
-        return JsValue.Undefined;
     }
 
     [JsMethod("removeEventListener")]
-    public JsValue RemoveEventListener(JsValue _, JsValue[] args)
+    public void RemoveEventListener(JsValue[] args)
     {
-        if (args.Length < 2 || args[1] is not JsFunction handler) return JsValue.Undefined;
+        if (args.Length < 2 || args[1] is not JsFunction handler) return;
         var type = args[0].ToJsString();
         bool capture = args.Length > 2 && args[2].ToBoolean();
         var wrapper = Cache.RetrieveEventHandler(DomNode, type, handler, capture);
@@ -174,10 +171,7 @@ internal partial class JsNodeWrapper : JsDynamicObject
             DomNode.RemoveEventListener(type, wrapper, capture);
             Cache.RemoveEventHandler(DomNode, type, handler, capture);
         }
-        return JsValue.Undefined;
     }
-#pragma warning restore JSGEN007
-#pragma warning restore JSGEN006
 #pragma warning restore JSGEN005
 
 #pragma warning disable JSGEN005 // JsValue param: caller may pass null/primitive

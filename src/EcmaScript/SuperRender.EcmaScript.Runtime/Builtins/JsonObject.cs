@@ -29,12 +29,12 @@ public sealed partial class JsonObject : JsObject
         return base.TryGetSymbolProperty(symbol, out value);
     }
 
-#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // legacy variadic: reviver/replacer callbacks + optional args
+#pragma warning disable JSGEN005 // variadic: optional reviver callback
+#pragma warning disable JSGEN006 // parsed JSON may be any type
     [JsMethod("parse")]
-    public static JsValue Parse(JsValue _, JsValue[] args)
+    public static JsValue Parse(string text, JsValue[] rest)
     {
-        var text = BuiltinHelper.Arg(args, 0).ToJsString();
-        var reviver = BuiltinHelper.Arg(args, 1);
+        var reviver = rest.Length > 0 ? rest[0] : JsValue.Undefined;
 
         JsValue result;
         try
@@ -56,7 +56,8 @@ public sealed partial class JsonObject : JsObject
 
         return result;
     }
-#pragma warning restore JSGEN005, JSGEN006, JSGEN007
+#pragma warning restore JSGEN006
+#pragma warning restore JSGEN005
 
 #pragma warning disable JSGEN005 // legacy variadic: reviver/replacer callbacks + optional args
     [JsMethod("stringify")]

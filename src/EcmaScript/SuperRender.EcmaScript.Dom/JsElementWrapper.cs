@@ -179,19 +179,13 @@ internal partial class JsElementWrapper : JsNodeWrapper
     public JsValue Closest(string selector) => Cache.WrapNullable(_element.Closest(selector));
 #pragma warning restore JSGEN006
 
-#pragma warning disable JSGEN005 // legacy variadic: optional positional args
-#pragma warning disable JSGEN006 // legacy variadic: optional positional args
-#pragma warning disable JSGEN007 // legacy variadic: optional positional args
+#pragma warning disable JSGEN005 // variadic: optional force parameter
     [JsMethod("toggleAttribute")]
-    public JsValue ToggleAttribute(JsValue _, JsValue[] args)
+    public bool ToggleAttribute(string name, JsValue[] rest)
     {
-        if (args.Length < 1) return JsValue.False;
-        var name = args[0].ToJsString();
-        bool? force = args.Length > 1 ? args[1].ToBoolean() : null;
-        return _element.ToggleAttribute(name, force) ? JsValue.True : JsValue.False;
+        bool? force = rest.Length > 0 ? rest[0].ToBoolean() : null;
+        return _element.ToggleAttribute(name, force);
     }
-#pragma warning restore JSGEN007
-#pragma warning restore JSGEN006
 #pragma warning restore JSGEN005
 
 #pragma warning disable JSGEN005 // legacy variadic: optional positional args

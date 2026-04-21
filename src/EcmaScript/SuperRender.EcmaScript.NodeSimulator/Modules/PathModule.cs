@@ -32,13 +32,13 @@ public sealed partial class PathModule : JsDynamicObject
     [JsProperty("delimiter")]
     public string Delimiter => _win32 ? ";" : ":";
 
-#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // legacy variadic: Node.js path API — variable number of path segments
+#pragma warning disable JSGEN005 // variadic: variable number of path segments
     [JsMethod("join")]
-    public JsValue JoinMethod(JsValue _, JsValue[] args) => new JsString(Join(CollectStrings(args), _win32));
+    public string JoinMethod(JsValue[] args) => Join(CollectStrings(args), _win32);
 
     [JsMethod("resolve")]
-    public JsValue ResolveMethod(JsValue _, JsValue[] args) => new JsString(Resolve(CollectStrings(args), _win32));
-#pragma warning restore JSGEN005, JSGEN006, JSGEN007
+    public string ResolveMethod(JsValue[] args) => Resolve(CollectStrings(args), _win32);
+#pragma warning restore JSGEN005
 
     [JsMethod("normalize")]
     public string NormalizeMethod(string path) => Normalize(path, _win32);
@@ -49,15 +49,14 @@ public sealed partial class PathModule : JsDynamicObject
     [JsMethod("dirname")]
     public string DirnameMethod(string path) => Dirname(path, _win32);
 
-#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // legacy variadic: optional positional args
+#pragma warning disable JSGEN005 // variadic: optional ext parameter
     [JsMethod("basename")]
-    public JsValue BasenameMethod(JsValue _, JsValue[] args)
+    public string BasenameMethod(string path, JsValue[] rest)
     {
-        var p = RequireString(args, 0, "path");
-        var ext = args.Length > 1 && args[1] is JsString es ? es.Value : null;
-        return new JsString(Basename(p, ext, _win32));
+        var ext = rest.Length > 0 && rest[0] is JsString es ? es.Value : null;
+        return Basename(path, ext, _win32);
     }
-#pragma warning restore JSGEN005, JSGEN006, JSGEN007
+#pragma warning restore JSGEN005
 
     [JsMethod("extname")]
     public string ExtnameMethod(string path) => Extname(path, _win32);
@@ -70,26 +69,18 @@ public sealed partial class PathModule : JsDynamicObject
     public JsValue ParseMethod(string path) => Parse(path, _win32);
 #pragma warning restore JSGEN006
 
-#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // legacy variadic: optional positional args
+#pragma warning disable JSGEN005 // JsObject param: path.format requires an object
     [JsMethod("format")]
-    public JsValue FormatMethod(JsValue _, JsValue[] args)
+    public string FormatMethod(JsObject obj)
     {
-        if (args.Length == 0 || args[0] is not JsDynamicObject o)
+        if (obj is not JsDynamicObject o)
             throw new Runtime.Errors.JsTypeError("path.format requires an object");
-        return new JsString(Format(o, _win32));
+        return Format(o, _win32);
     }
+#pragma warning restore JSGEN005
 
     [JsMethod("toNamespacedPath")]
-    public static JsValue ToNamespacedPathMethod(JsValue _, JsValue[] args) =>
-        args.Length > 0 ? args[0] : JsValue.Undefined;
-#pragma warning restore JSGEN005, JSGEN006, JSGEN007
-
-    private static string RequireString(JsValue[] args, int index, string param)
-    {
-        var v = index < args.Length ? args[index] : JsValue.Undefined;
-        if (v is JsString s) return s.Value;
-        throw new Runtime.Errors.JsTypeError($"The \"{param}\" argument must be of type string");
-    }
+    public static string ToNamespacedPathMethod(string path) => path;
 
     private static string[] CollectStrings(JsValue[] args)
     {
