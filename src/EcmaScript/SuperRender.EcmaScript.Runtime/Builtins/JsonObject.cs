@@ -135,10 +135,10 @@ public sealed partial class JsonObject : JsObject
         }
     }
 
-    private static JsValue InternalizeJsonValue(JsDynamicObject holder, string name, JsFunction reviver)
+    private static JsValue InternalizeJsonValue(JsObject holder, string name, JsFunction reviver)
     {
         var val = holder.Get(name);
-        if (val is JsDynamicObject obj)
+        if (val is JsObject obj)
         {
             if (obj is JsArray arr)
             {
@@ -179,7 +179,7 @@ public sealed partial class JsonObject : JsObject
     private static string? SerializeValue(string key, JsValue value, JsFunction? replacerFn,
         HashSet<string>? propertyList, string indent, string currentIndent)
     {
-        if (value is JsDynamicObject objWithToJson)
+        if (value is JsObject objWithToJson)
         {
             var toJsonFn = objWithToJson.Get("toJSON");
             if (toJsonFn is JsFunction toJson)
@@ -230,7 +230,7 @@ public sealed partial class JsonObject : JsObject
             return null;
         }
 
-        if (value is JsDynamicObject obj)
+        if (value is JsObject obj)
         {
             return SerializeObject(obj, replacerFn, propertyList, indent, currentIndent);
         }
@@ -281,7 +281,7 @@ public sealed partial class JsonObject : JsObject
         return sb.ToString();
     }
 
-    private static string SerializeObject(JsDynamicObject obj, JsFunction? replacerFn,
+    private static string SerializeObject(JsObject obj, JsFunction? replacerFn,
         HashSet<string>? propertyList, string indent, string currentIndent)
     {
         var keys = propertyList is not null

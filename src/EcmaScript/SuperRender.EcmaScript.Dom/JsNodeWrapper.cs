@@ -8,7 +8,7 @@ namespace SuperRender.EcmaScript.Dom;
 /// JS wrapper for a DOM Node. Exposes the standard DOM Node API.
 /// </summary>
 [JsObject]
-internal partial class JsNodeWrapper : JsDynamicObject
+internal partial class JsNodeWrapper : JsObject
 {
     protected readonly Node DomNode;
     protected readonly NodeWrapperCache Cache;

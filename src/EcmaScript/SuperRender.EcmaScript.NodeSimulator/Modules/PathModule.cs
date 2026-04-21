@@ -6,9 +6,11 @@ namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 /// Node.js `path` module. Provides posix + win32 variants plus the platform-default namespace.
 /// </summary>
 [JsObject]
-public sealed partial class PathModule : JsDynamicObject
+public sealed partial class PathModule : JsObject
 {
     private readonly bool _win32;
+    private JsValue? _posix;
+    private JsValue? _win32Module;
 
     public PathModule(bool win32)
     {
@@ -21,10 +23,18 @@ public sealed partial class PathModule : JsDynamicObject
     {
         var isWin = OperatingSystem.IsWindows();
         var obj = new PathModule(isWin);
-        obj.DefineOwnProperty("posix", PropertyDescriptor.Data(new PathModule(win32: false)));
-        obj.DefineOwnProperty("win32", PropertyDescriptor.Data(new PathModule(win32: true)));
+        obj._posix = new PathModule(win32: false);
+        obj._win32Module = new PathModule(win32: true);
         return obj;
     }
+
+#pragma warning disable JSGEN006 // sub-module: may be PathModule or undefined
+    [JsProperty("posix")]
+    public JsValue Posix => _posix ?? JsValue.Undefined;
+
+    [JsProperty("win32")]
+    public JsValue Win32 => _win32Module ?? JsValue.Undefined;
+#pragma warning restore JSGEN006
 
     [JsProperty("sep")]
     public string Sep => _win32 ? "\\" : "/";

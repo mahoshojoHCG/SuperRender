@@ -202,7 +202,7 @@ public sealed class MapConstructor : IJsInstallable
 /// <summary>
 /// Internal Map storage that uses SameValueZero comparison.
 /// </summary>
-internal sealed class JsMapObject : JsDynamicObject
+internal sealed class JsMapObject : JsObject
 {
     // Use a list-of-entries to preserve insertion order
     private readonly List<KeyValuePair<JsValue, JsValue>> _entries = [];

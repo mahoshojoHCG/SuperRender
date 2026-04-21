@@ -153,8 +153,8 @@ public sealed class ObjectConstructor : IJsInstallable
         BuiltinHelper.DefineMethod(ctor, "create", (_, args) =>
         {
             var protoArg = BuiltinHelper.Arg(args, 0);
-            JsDynamicObject? protoObj = null;
-            if (protoArg is JsDynamicObject p)
+            JsObject? protoObj = null;
+            if (protoArg is JsObject p)
             {
                 protoObj = p;
             }
@@ -165,7 +165,7 @@ public sealed class ObjectConstructor : IJsInstallable
 
             var obj = new JsDynamicObject { Prototype = protoObj };
 
-            if (args.Length > 1 && args[1] is JsDynamicObject props)
+            if (args.Length > 1 && args[1] is JsObject props)
             {
                 DefinePropertiesFromDescriptors(obj, props);
             }
@@ -175,7 +175,12 @@ public sealed class ObjectConstructor : IJsInstallable
 
         BuiltinHelper.DefineMethod(ctor, "defineProperty", (_, args) =>
         {
-            var obj = RequireObject(BuiltinHelper.Arg(args, 0));
+            var target = RequireObject(BuiltinHelper.Arg(args, 0));
+            if (target is not JsDynamicObject obj)
+            {
+                throw new Errors.JsTypeError("Object.defineProperty called on non-object", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
+            }
+
             var prop = BuiltinHelper.Arg(args, 1).ToJsString();
             var descObj = RequireObject(BuiltinHelper.Arg(args, 2));
             var desc = ToPropertyDescriptor(descObj);
@@ -223,7 +228,7 @@ public sealed class ObjectConstructor : IJsInstallable
             {
                 obj.Prototype = null;
             }
-            else if (protoArg is JsDynamicObject p)
+            else if (protoArg is JsObject p)
             {
                 obj.Prototype = p;
             }
@@ -276,7 +281,7 @@ public sealed class ObjectConstructor : IJsInstallable
 
         BuiltinHelper.DefineMethod(proto, "hasOwnProperty", (thisArg, args) =>
         {
-            if (thisArg is not JsDynamicObject obj)
+            if (thisArg is not JsObject obj)
             {
                 return JsValue.False;
             }
@@ -297,7 +302,7 @@ public sealed class ObjectConstructor : IJsInstallable
                 return new JsString("[object Null]");
             }
 
-            if (thisArg is JsDynamicObject obj && obj.TryGetSymbolProperty(JsSymbol.ToStringTag, out var tag) && tag is JsString tagStr)
+            if (thisArg is JsObject obj && obj.TryGetSymbolProperty(JsSymbol.ToStringTag, out var tag) && tag is JsString tagStr)
             {
                 return new JsString("[object " + tagStr.Value + "]");
             }
@@ -307,7 +312,7 @@ public sealed class ObjectConstructor : IJsInstallable
                 JsArray => "Array",
                 JsFunction => "Function",
                 JsRegExp => "RegExp",
-                JsDynamicObject => "Object",
+                JsObject => "Object",
                 JsBoolean => "Boolean",
                 JsNumber => "Number",
                 JsString => "String",
@@ -325,13 +330,13 @@ public sealed class ObjectConstructor : IJsInstallable
 
         BuiltinHelper.DefineMethod(proto, "isPrototypeOf", (thisArg, args) =>
         {
-            if (thisArg is not JsDynamicObject protoObj)
+            if (thisArg is not JsObject protoObj)
             {
                 return JsValue.False;
             }
 
             var target = BuiltinHelper.Arg(args, 0);
-            if (target is not JsDynamicObject targetObj)
+            if (target is not JsObject targetObj)
             {
                 return JsValue.False;
             }
@@ -352,7 +357,7 @@ public sealed class ObjectConstructor : IJsInstallable
 
         BuiltinHelper.DefineMethod(proto, "propertyIsEnumerable", (thisArg, args) =>
         {
-            if (thisArg is not JsDynamicObject obj)
+            if (thisArg is not JsObject obj)
             {
                 return JsValue.False;
             }
@@ -367,9 +372,9 @@ public sealed class ObjectConstructor : IJsInstallable
         realm.InstallGlobal("Object", ctor);
     }
 
-    private static JsDynamicObject RequireObject(JsValue value)
+    private static JsObject RequireObject(JsValue value)
     {
-        if (value is JsDynamicObject obj)
+        if (value is JsObject obj)
         {
             return obj;
         }
@@ -399,7 +404,7 @@ public sealed class ObjectConstructor : IJsInstallable
         return x.StrictEquals(y);
     }
 
-    private static PropertyDescriptor ToPropertyDescriptor(JsDynamicObject desc)
+    private static PropertyDescriptor ToPropertyDescriptor(JsObject desc)
     {
         var hasValue = desc.HasProperty("value");
         var hasWritable = desc.HasProperty("writable");
@@ -453,12 +458,12 @@ public sealed class ObjectConstructor : IJsInstallable
         return obj;
     }
 
-    private static void DefinePropertiesFromDescriptors(JsDynamicObject target, JsDynamicObject props)
+    private static void DefinePropertiesFromDescriptors(JsDynamicObject target, JsObject props)
     {
         foreach (var key in props.OwnPropertyKeys())
         {
             var descObj = props.Get(key);
-            if (descObj is JsDynamicObject descObjTyped)
+            if (descObj is JsObject descObjTyped)
             {
                 var desc = ToPropertyDescriptor(descObjTyped);
                 target.DefineOwnProperty(key, desc);

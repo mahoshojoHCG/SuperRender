@@ -209,8 +209,7 @@ public sealed class DomBridge
         {
             var fetchFn = JsFetchApi.Create(_fetchAsync, _enqueueMainThread, _engine.Realm);
             _engine.SetValue("fetch", fetchFn);
-            _windowWrapper.DefineOwnProperty("fetch",
-                Runtime.PropertyDescriptor.Data(fetchFn));
+            _windowWrapper.InstallFetch(fetchFn);
         }
 
         // Forward location to global scope

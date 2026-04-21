@@ -161,7 +161,7 @@ public sealed class ConsoleObject : IJsInstallable
             return "[Function: " + fn.Name + "]";
         }
 
-        if (value is JsDynamicObject)
+        if (value is JsObject)
         {
             return Inspect(value, 1);
         }
@@ -184,7 +184,7 @@ public sealed class ConsoleObject : IJsInstallable
 
     private static string Inspect(JsValue value, int depth)
     {
-        if (depth <= 0 || value is not JsDynamicObject obj)
+        if (depth <= 0 || value is not JsObject obj)
         {
             return value.ToJsString();
         }

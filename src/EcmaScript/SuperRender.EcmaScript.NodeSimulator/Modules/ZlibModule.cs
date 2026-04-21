@@ -9,19 +9,29 @@ namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 /// deflate-raw, and brotli, backed by <c>System.IO.Compression</c>.
 /// </summary>
 [JsObject]
-public sealed partial class ZlibModule : JsDynamicObject
+public sealed partial class ZlibModule : JsObject
 {
     private enum Kind { Gzip, Deflate, DeflateRaw, Brotli }
 
     private readonly Realm _realm;
+    private readonly JsValue _promises;
+    private readonly JsValue _constants;
 
     public ZlibModule(Realm realm)
     {
         _realm = realm;
         Prototype = realm.ObjectPrototype;
-        DefineOwnProperty("promises", PropertyDescriptor.Data(BuildPromises(realm)));
-        DefineOwnProperty("constants", PropertyDescriptor.Data(BuildConstants()));
+        _promises = BuildPromises(realm);
+        _constants = BuildConstants();
     }
+
+#pragma warning disable JSGEN006 // sub-object: promises/constants are JsDynamicObject
+    [JsProperty("promises")]
+    public JsValue Promises => _promises;
+
+    [JsProperty("constants")]
+    public JsValue Constants => _constants;
+#pragma warning restore JSGEN006
 
     public static ZlibModule Create(Realm realm) => new(realm);
 

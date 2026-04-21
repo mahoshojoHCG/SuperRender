@@ -11,7 +11,7 @@ namespace SuperRender.EcmaScript.Dom;
 /// </summary>
 internal sealed class NodeWrapperCache
 {
-    private readonly ConditionalWeakTable<Node, JsDynamicObject> _cache = new();
+    private readonly ConditionalWeakTable<Node, JsNodeWrapper> _cache = new();
     private readonly Realm _realm;
     private readonly Dictionary<EventHandlerKey, Action<DomEvent>> _eventHandlerMap = [];
 
@@ -22,7 +22,7 @@ internal sealed class NodeWrapperCache
         _realm = realm;
     }
 
-    public JsDynamicObject GetOrCreate(Node node)
+    public JsNodeWrapper GetOrCreate(Node node)
     {
         if (_cache.TryGetValue(node, out var wrapper))
             return wrapper;

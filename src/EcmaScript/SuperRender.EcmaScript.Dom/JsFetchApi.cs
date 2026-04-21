@@ -40,7 +40,7 @@ internal static class JsFetchApi
                     body = bodyVal.ToJsString();
 
                 var headersVal = options.Get("headers");
-                if (headersVal is JsDynamicObject headersObj)
+                if (headersVal is JsObject headersObj)
                 {
                     headers = [];
                     foreach (var key in headersObj.OwnPropertyKeys())

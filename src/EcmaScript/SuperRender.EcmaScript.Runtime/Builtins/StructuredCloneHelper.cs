@@ -12,11 +12,11 @@ public sealed partial class StructuredCloneHelper : IJsInstallable
     [JsMethod("structuredClone")]
     internal static JsValue StructuredCloneImpl(JsValue value, Realm realm)
     {
-        var seen = new Dictionary<JsDynamicObject, JsDynamicObject>(ReferenceEqualityComparer.Instance);
+        var seen = new Dictionary<JsObject, JsObject>(ReferenceEqualityComparer.Instance);
         return Clone(value, realm, seen);
     }
 
-    private static JsValue Clone(JsValue value, Realm realm, Dictionary<JsDynamicObject, JsDynamicObject> seen)
+    private static JsValue Clone(JsValue value, Realm realm, Dictionary<JsObject, JsObject> seen)
     {
         // Primitives pass through
         if (value is JsUndefined or JsNull or JsBoolean or JsNumber or JsString)
@@ -28,7 +28,7 @@ public sealed partial class StructuredCloneHelper : IJsInstallable
         if (value is JsSymbol)
             throw new Errors.JsTypeError("Cannot clone a Symbol", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
 
-        if (value is not JsDynamicObject obj)
+        if (value is not JsObject obj)
             return value;
 
         // Circular reference check
@@ -83,7 +83,7 @@ public sealed partial class StructuredCloneHelper : IJsInstallable
         }
 
         // Clone Date
-        if (obj is JsDynamicObject dateObj && dateObj.HasProperty("[[DateValue]]"))
+        if (obj is JsObject dateObj && dateObj.HasProperty("[[DateValue]]"))
         {
             var dateValue = dateObj.Get("[[DateValue]]");
             var cloneDate = new JsDynamicObject { Prototype = realm.DatePrototype };
@@ -108,10 +108,10 @@ public sealed partial class StructuredCloneHelper : IJsInstallable
         return clone;
     }
 
-    private sealed class ReferenceEqualityComparer : IEqualityComparer<JsDynamicObject>
+    private sealed class ReferenceEqualityComparer : IEqualityComparer<JsObject>
     {
         public static readonly ReferenceEqualityComparer Instance = new();
-        public bool Equals(JsDynamicObject? x, JsDynamicObject? y) => ReferenceEquals(x, y);
-        public int GetHashCode(JsDynamicObject obj) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);
+        public bool Equals(JsObject? x, JsObject? y) => ReferenceEquals(x, y);
+        public int GetHashCode(JsObject obj) => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(obj);
     }
 }

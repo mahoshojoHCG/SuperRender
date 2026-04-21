@@ -172,9 +172,9 @@ public sealed partial class UtilModule : JsObject
         return sb.ToString();
     }
 
-    public static string Inspect(JsValue value, int depth) => Inspect(value, depth, new HashSet<JsDynamicObject>());
+    public static string Inspect(JsValue value, int depth) => Inspect(value, depth, new HashSet<JsObject>());
 
-    private static string Inspect(JsValue value, int depth, HashSet<JsDynamicObject> seen)
+    private static string Inspect(JsValue value, int depth, HashSet<JsObject> seen)
     {
         switch (value)
         {
@@ -195,7 +195,7 @@ public sealed partial class UtilModule : JsObject
                     return "[ " + string.Join(", ", parts) + " ]";
                 }
                 finally { seen.Remove(arr); }
-            case JsDynamicObject o:
+            case JsObject o:
                 if (depth < 0) return "[Object]";
                 if (!seen.Add(o)) return "[Circular]";
                 try
@@ -226,7 +226,7 @@ public sealed partial class UtilModule : JsObject
     public static bool DeepEqual(JsValue a, JsValue b, bool strict)
     {
         if (ReferenceEquals(a, b)) return true;
-        if (a is JsDynamicObject oa && b is JsDynamicObject ob)
+        if (a is JsObject oa && b is JsObject ob)
         {
             if (a is JsArray aa && b is JsArray ba)
             {

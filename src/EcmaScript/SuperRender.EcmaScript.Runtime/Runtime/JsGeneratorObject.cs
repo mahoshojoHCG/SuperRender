@@ -6,13 +6,13 @@ namespace SuperRender.EcmaScript.Runtime;
 /// The generator body is deferred — it does not execute until the first next() call,
 /// matching the ECMAScript specification.
 /// </summary>
-public sealed class JsGeneratorObject : JsDynamicObject
+public sealed class JsGeneratorObject : JsObject
 {
     private readonly GeneratorCoroutine _coroutine;
     private readonly Action? _startAction;
     private bool _started;
 
-    public JsGeneratorObject(GeneratorCoroutine coroutine, Action startAction, JsDynamicObject generatorPrototype)
+    public JsGeneratorObject(GeneratorCoroutine coroutine, Action startAction, JsObject generatorPrototype)
     {
         _coroutine = coroutine;
         _startAction = startAction;

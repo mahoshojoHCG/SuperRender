@@ -246,7 +246,7 @@ public sealed partial class DateConstructor : IJsInstallable
 
     private static double GetDateMs(JsValue thisArg)
     {
-        if (thisArg is JsDynamicObject obj)
+        if (thisArg is JsObject obj)
         {
             var data = obj.GetOwnProperty("[[DateValue]]");
             if (data?.Value is JsNumber num)

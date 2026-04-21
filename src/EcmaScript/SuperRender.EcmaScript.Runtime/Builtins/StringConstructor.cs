@@ -495,7 +495,7 @@ public sealed class StringConstructor : IJsInstallable
     private static string GetStringValue(JsValue thisArg)
     {
         if (thisArg is JsString s) return s.Value;
-        if (thisArg is JsDynamicObject obj)
+        if (thisArg is JsObject obj)
         {
             var data = obj.GetOwnProperty("[[StringData]]");
             if (data?.Value is JsString strData) return strData.Value;

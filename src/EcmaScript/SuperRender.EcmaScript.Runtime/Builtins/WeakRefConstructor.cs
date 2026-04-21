@@ -3,20 +3,20 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using SuperRender.EcmaScript.Runtime;
 
 [JsObject]
-public sealed partial class JsWeakRefObject : JsDynamicObject
+public sealed partial class JsWeakRefObject : JsObject
 {
-    private readonly WeakReference<JsDynamicObject> _target;
+    private readonly WeakReference<JsObject> _target;
 
     [JsConstructor("WeakRef", Length = 1, Callable = false)]
     public JsWeakRefObject(JsValue[] args)
     {
         var target = args.Length > 0 ? args[0] : Undefined;
-        if (target is not JsDynamicObject targetObj)
+        if (target is not JsObject targetObj)
         {
             throw new Errors.JsTypeError("WeakRef target must be an object", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
         }
 
-        _target = new WeakReference<JsDynamicObject>(targetObj);
+        _target = new WeakReference<JsObject>(targetObj);
     }
 
 #pragma warning disable JSGEN006 // returns stored value of any type

@@ -172,7 +172,7 @@ public sealed class BigIntConstructor : IJsInstallable
             return bi;
         }
 
-        if (thisArg is JsDynamicObject obj)
+        if (thisArg is JsObject obj)
         {
             var data = obj.GetOwnProperty("[[BigIntData]]");
             if (data?.Value is JsBigInt biData)

@@ -233,7 +233,7 @@ public sealed class SetConstructor : IJsInstallable
 /// <summary>
 /// Internal Set storage that uses SameValueZero comparison and preserves insertion order.
 /// </summary>
-internal sealed class JsSetObject : JsDynamicObject
+internal sealed class JsSetObject : JsObject
 {
     private readonly List<JsValue> _values = [];
 

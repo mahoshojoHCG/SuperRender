@@ -6,7 +6,7 @@ namespace SuperRender.EcmaScript.Compiler;
 
 /// <summary>
 /// DLR binder for property set access on JS values.
-/// Delegates to <see cref="JsDynamicObject.Set(string, JsValue)"/> when the target is a JsDynamicObject;
+/// Delegates to <see cref="JsObject.Set(string, JsValue)"/> when the target is a JsObject;
 /// otherwise silently ignores the assignment (non-strict mode behavior).
 /// </summary>
 public sealed class JsSetMemberBinder : SetMemberBinder
@@ -23,13 +23,13 @@ public sealed class JsSetMemberBinder : SetMemberBinder
         var restrictions = BindingRestrictions.GetTypeRestriction(target.Expression, target.LimitType);
 
         Expr result;
-        if (typeof(JsDynamicObject).IsAssignableFrom(target.LimitType))
+        if (typeof(JsObject).IsAssignableFrom(target.LimitType))
         {
-            var self = Expr.Convert(target.Expression, typeof(JsDynamicObject));
+            var self = Expr.Convert(target.Expression, typeof(JsObject));
             var val = Expr.Convert(value.Expression, typeof(JsValue));
             var call = Expr.Call(
                 self,
-                typeof(JsDynamicObject).GetMethod(nameof(JsDynamicObject.Set), [typeof(string), typeof(JsValue)])!,
+                typeof(JsObject).GetMethod(nameof(JsObject.Set), [typeof(string), typeof(JsValue)])!,
                 Expr.Constant(Name),
                 val);
             // SetMember must return the value that was assigned
@@ -37,7 +37,7 @@ public sealed class JsSetMemberBinder : SetMemberBinder
         }
         else
         {
-            // Not a JsDynamicObject — return the value as-is (no-op set)
+            // Not a JsObject — return the value as-is (no-op set)
             result = Expr.Convert(value.Expression, typeof(JsValue));
         }
 

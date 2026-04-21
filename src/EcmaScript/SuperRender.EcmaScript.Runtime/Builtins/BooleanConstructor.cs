@@ -3,14 +3,15 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using SuperRender.EcmaScript.Runtime;
 
 [JsObject]
-public sealed partial class JsBooleanObject : JsDynamicObject
+public sealed partial class JsBooleanObject : JsObject
 {
+    internal JsValue BooleanData { get; }
+
     [JsConstructor("Boolean", Length = 1)]
     public JsBooleanObject(JsValue[] args)
     {
         var val = args.Length > 0 ? args[0] : Undefined;
-        DefineOwnProperty("[[BooleanData]]",
-            PropertyDescriptor.Data(val.ToBoolean() ? JsValue.True : JsValue.False, writable: false, enumerable: false, configurable: false));
+        BooleanData = val.ToBoolean() ? JsValue.True : JsValue.False;
     }
 
 #pragma warning disable JSGEN005, JSGEN006, JSGEN007 // primitive-wrapper: thisArg may be primitive or wrapper object
@@ -44,10 +45,9 @@ public sealed partial class JsBooleanObject : JsDynamicObject
             return b.Value;
         }
 
-        if (thisArg is JsDynamicObject obj)
+        if (thisArg is JsBooleanObject boolObj)
         {
-            var data = obj.GetOwnProperty("[[BooleanData]]");
-            if (data?.Value is JsBoolean boolData)
+            if (boolObj.BooleanData is JsBoolean boolData)
             {
                 return boolData.Value;
             }

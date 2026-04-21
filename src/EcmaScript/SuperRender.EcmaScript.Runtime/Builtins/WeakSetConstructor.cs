@@ -4,9 +4,9 @@ using System.Runtime.CompilerServices;
 using SuperRender.EcmaScript.Runtime;
 
 [JsObject]
-public sealed partial class JsWeakSetObject : JsDynamicObject
+public sealed partial class JsWeakSetObject : JsObject
 {
-    private readonly ConditionalWeakTable<JsDynamicObject, JsDynamicObject> _table = new();
+    private readonly ConditionalWeakTable<JsObject, JsObject> _table = new();
     private static readonly JsDynamicObject Sentinel = new();
 
     [JsConstructor("WeakSet", Length = 0, Callable = false)]
@@ -18,7 +18,7 @@ public sealed partial class JsWeakSetObject : JsDynamicObject
             for (var i = 0; i < arr.DenseLength; i++)
             {
                 var val = arr.GetIndex(i);
-                if (val is not JsDynamicObject objVal)
+                if (val is not JsObject objVal)
                 {
                     throw new Errors.JsTypeError("Invalid value used in weak set", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                 }
@@ -32,7 +32,7 @@ public sealed partial class JsWeakSetObject : JsDynamicObject
     [JsMethod("add")]
     public JsValue Add(JsValue value)
     {
-        if (value is not JsDynamicObject objVal)
+        if (value is not JsObject objVal)
         {
             throw new Errors.JsTypeError("Invalid value used in weak set", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
         }
@@ -46,13 +46,13 @@ public sealed partial class JsWeakSetObject : JsDynamicObject
     [JsMethod("has")]
     public bool Has(JsValue value)
     {
-        return value is JsDynamicObject objVal && _table.TryGetValue(objVal, out _);
+        return value is JsObject objVal && _table.TryGetValue(objVal, out _);
     }
 
     [JsMethod("delete")]
     public bool Delete(JsValue value)
     {
-        return value is JsDynamicObject objVal && _table.Remove(objVal);
+        return value is JsObject objVal && _table.Remove(objVal);
     }
 #pragma warning restore JSGEN005
 }

@@ -227,7 +227,7 @@ public sealed partial class NumberConstructor : IJsInstallable
             return n.Value;
         }
 
-        if (thisArg is JsDynamicObject obj)
+        if (thisArg is JsObject obj)
         {
             var data = obj.GetOwnProperty("[[NumberData]]");
             if (data?.Value is JsNumber numData)

@@ -3,7 +3,7 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using SuperRender.EcmaScript.Runtime;
 
 [JsObject]
-public sealed partial class JsFinalizationRegistryObject : JsDynamicObject
+public sealed partial class JsFinalizationRegistryObject : JsObject
 {
     private readonly JsFunction _callback;
     private readonly List<Registration> _registrations = [];
@@ -24,19 +24,19 @@ public sealed partial class JsFinalizationRegistryObject : JsDynamicObject
     [JsMethod("register")]
     public void Register(JsValue target, JsValue heldValue, params JsValue[] rest)
     {
-        if (target is not JsDynamicObject targetObj)
+        if (target is not JsObject targetObj)
         {
             throw new Errors.JsTypeError("FinalizationRegistry target must be an object", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
         }
 
-        var unregisterToken = rest.Length > 0 ? rest[0] as JsDynamicObject : null;
-        _registrations.Add(new Registration(new WeakReference<JsDynamicObject>(targetObj), heldValue, unregisterToken));
+        var unregisterToken = rest.Length > 0 ? rest[0] as JsObject : null;
+        _registrations.Add(new Registration(new WeakReference<JsObject>(targetObj), heldValue, unregisterToken));
     }
 
     [JsMethod("unregister")]
     public bool Unregister(JsValue tokenValue)
     {
-        if (tokenValue is not JsDynamicObject token)
+        if (tokenValue is not JsObject token)
         {
             throw new Errors.JsTypeError("unregister token must be an object", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
         }
@@ -79,5 +79,5 @@ public sealed partial class JsFinalizationRegistryObject : JsDynamicObject
         }
     }
 
-    private sealed record Registration(WeakReference<JsDynamicObject> Target, JsValue HeldValue, JsDynamicObject? UnregisterToken);
+    private sealed record Registration(WeakReference<JsObject> Target, JsValue HeldValue, JsObject? UnregisterToken);
 }

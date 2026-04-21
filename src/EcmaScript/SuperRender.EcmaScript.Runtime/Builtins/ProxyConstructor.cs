@@ -17,12 +17,12 @@ public sealed class ProxyConstructor : IJsInstallable
                 var target = BuiltinHelper.Arg(args, 0);
                 var handler = BuiltinHelper.Arg(args, 1);
 
-                if (target is not JsDynamicObject targetObj)
+                if (target is not JsObject targetObj)
                 {
                     throw new Errors.JsTypeError("Cannot create proxy with a non-object as target", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                 }
 
-                if (handler is not JsDynamicObject handlerObj)
+                if (handler is not JsObject handlerObj)
                 {
                     throw new Errors.JsTypeError("Cannot create proxy with a non-object as handler", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                 }
@@ -41,12 +41,12 @@ public sealed class ProxyConstructor : IJsInstallable
             var target = BuiltinHelper.Arg(args, 0);
             var handler = BuiltinHelper.Arg(args, 1);
 
-            if (target is not JsDynamicObject targetObj)
+            if (target is not JsObject targetObj)
             {
                 throw new Errors.JsTypeError("Cannot create proxy with a non-object as target", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
 
-            if (handler is not JsDynamicObject handlerObj)
+            if (handler is not JsObject handlerObj)
             {
                 throw new Errors.JsTypeError("Cannot create proxy with a non-object as handler", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
             }
@@ -68,12 +68,12 @@ public sealed class ProxyConstructor : IJsInstallable
     }
 }
 
-internal sealed class JsProxyObject : JsDynamicObject
+internal sealed class JsProxyObject : JsObject
 {
-    private JsDynamicObject? _target;
-    private JsDynamicObject? _handler;
+    private JsObject? _target;
+    private JsObject? _handler;
 
-    internal JsProxyObject(JsDynamicObject target, JsDynamicObject handler)
+    internal JsProxyObject(JsObject target, JsObject handler)
     {
         _target = target;
         _handler = handler;
@@ -145,5 +145,56 @@ internal sealed class JsProxyObject : JsDynamicObject
         }
 
         return _target!.Delete(name);
+    }
+
+    public override PropertyDescriptor? GetOwnProperty(string name)
+    {
+        EnsureNotRevoked();
+        var trap = _handler!.Get("getOwnPropertyDescriptor");
+        if (trap is JsFunction fn)
+        {
+            var result = fn.Call(_handler, [_target!, new JsString(name)]);
+            if (result is JsUndefined)
+            {
+                return null;
+            }
+
+            if (result is JsObject descObj)
+            {
+                var value = descObj.Get("value");
+                var writable = descObj.Get("writable").ToBoolean();
+                var enumerable = descObj.Get("enumerable").ToBoolean();
+                var configurable = descObj.Get("configurable").ToBoolean();
+                return PropertyDescriptor.Data(value, writable, enumerable, configurable);
+            }
+
+            return null;
+        }
+
+        return _target!.GetOwnProperty(name);
+    }
+
+    public override IEnumerable<string> OwnPropertyKeys()
+    {
+        EnsureNotRevoked();
+        var trap = _handler!.Get("ownKeys");
+        if (trap is JsFunction fn)
+        {
+            var result = fn.Call(_handler, [_target!]);
+            if (result is JsArray arr)
+            {
+                var keys = new List<string>(arr.DenseLength);
+                for (var i = 0; i < arr.DenseLength; i++)
+                {
+                    keys.Add(arr.GetIndex(i).ToJsString());
+                }
+
+                return keys;
+            }
+
+            return [];
+        }
+
+        return _target!.OwnPropertyKeys();
     }
 }

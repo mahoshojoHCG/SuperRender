@@ -9,17 +9,27 @@ namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 /// performed through <see cref="System.IO"/>.
 /// </summary>
 [JsObject]
-public sealed partial class FsModule : JsDynamicObject
+public sealed partial class FsModule : JsObject
 {
     private readonly Realm _realm;
+    private readonly JsValue _constants;
+    private readonly JsValue _promises;
 
     public FsModule(Realm realm)
     {
         _realm = realm;
         Prototype = realm.ObjectPrototype;
-        DefineOwnProperty("constants", PropertyDescriptor.Data(BuildConstants()));
-        DefineOwnProperty("promises", PropertyDescriptor.Data(CreatePromises(realm, this)));
+        _constants = BuildConstants();
+        _promises = CreatePromises(realm, this);
     }
+
+#pragma warning disable JSGEN006 // sub-object: constants/promises are JsDynamicObject
+    [JsProperty("constants")]
+    public JsValue FsConstants => _constants;
+
+    [JsProperty("promises")]
+    public JsValue FsPromises => _promises;
+#pragma warning restore JSGEN006
 
     public static FsModule Create(Realm realm) => new(realm);
 

@@ -42,7 +42,7 @@ internal static class ValueInspector
             JsRegExp re => Colorize(Red, "/" + re.Pattern + "/" + re.Flags),
             JsArray arr => InspectArray(arr, depth),
             JsFunction fn => InspectFunction(fn),
-            JsDynamicObject obj => InspectObject(obj, depth),
+            JsObject obj => InspectObject(obj, depth),
             _ => value.ToJsString()
         };
     }
@@ -93,7 +93,7 @@ internal static class ValueInspector
         return "[ " + string.Join(", ", parts) + " ]";
     }
 
-    private static string InspectObject(JsDynamicObject obj, int depth)
+    private static string InspectObject(JsObject obj, int depth)
     {
         var keys = obj.OwnPropertyKeys().ToArray();
         if (keys.Length == 0)

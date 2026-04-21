@@ -146,7 +146,11 @@ public abstract class JsObject : JsValue
         return false;
     }
 
-    protected virtual PropertyDescriptor? GetOwnPropertyDescriptor(string name) => null;
+    public virtual PropertyDescriptor? GetOwnProperty(string name) => null;
+
+    public virtual IEnumerable<string> OwnPropertyKeys() => [];
+
+    protected virtual PropertyDescriptor? GetOwnPropertyDescriptor(string name) => GetOwnProperty(name);
 
     protected virtual void DefineOwnPropertyCore(string name, PropertyDescriptor descriptor) =>
         throw new Errors.JsTypeError($"Cannot add property '{name}' to this object", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);

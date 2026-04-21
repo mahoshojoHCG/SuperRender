@@ -171,7 +171,7 @@ public sealed partial class ReflectObject : JsObject
         {
             target.Prototype = null;
         }
-        else if (proto is JsDynamicObject protoObj)
+        else if (proto is JsObject protoObj)
         {
             target.Prototype = protoObj;
         }
@@ -202,13 +202,18 @@ public sealed partial class ReflectObject : JsObject
     public static JsValue DefineProperty(JsValue _, JsValue[] args)
     {
         var target = RequireObject(BuiltinHelper.Arg(args, 0));
+        if (target is not JsDynamicObject dynTarget)
+        {
+            return JsValue.False;
+        }
+
         var propertyKey = BuiltinHelper.Arg(args, 1).ToJsString();
         var descObj = RequireObject(BuiltinHelper.Arg(args, 2));
 
         var desc = ToPropertyDescriptor(descObj);
         try
         {
-            target.DefineOwnProperty(propertyKey, desc);
+            dynTarget.DefineOwnProperty(propertyKey, desc);
             return JsValue.True;
         }
         catch (Errors.JsTypeError)
@@ -234,9 +239,9 @@ public sealed partial class ReflectObject : JsObject
     }
 #pragma warning restore JSGEN005
 
-    private static JsDynamicObject RequireObject(JsValue value)
+    private static JsObject RequireObject(JsValue value)
     {
-        if (value is JsDynamicObject obj)
+        if (value is JsObject obj)
         {
             return obj;
         }
@@ -244,7 +249,7 @@ public sealed partial class ReflectObject : JsObject
         throw new Errors.JsTypeError("Reflect method requires an object as the first argument", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 
-    private static PropertyDescriptor ToPropertyDescriptor(JsDynamicObject desc)
+    private static PropertyDescriptor ToPropertyDescriptor(JsObject desc)
     {
         var hasGet = desc.HasProperty("get");
         var hasSet = desc.HasProperty("set");

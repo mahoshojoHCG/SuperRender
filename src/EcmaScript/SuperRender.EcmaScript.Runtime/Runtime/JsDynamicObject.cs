@@ -38,10 +38,10 @@ public class JsDynamicObject : JsObject
         _properties[name] = descriptor;
     }
 
-    public PropertyDescriptor? GetOwnProperty(string name) =>
+    public override PropertyDescriptor? GetOwnProperty(string name) =>
         _properties.GetValueOrDefault(name);
 
-    public IEnumerable<string> OwnPropertyKeys() => _propertyOrder;
+    public override IEnumerable<string> OwnPropertyKeys() => _propertyOrder;
 
     public void DefineSymbolProperty(JsSymbol symbol, PropertyDescriptor descriptor) =>
         _symbolProperties[symbol] = descriptor;
@@ -66,7 +66,7 @@ public class JsDynamicObject : JsObject
     }
 
     protected override PropertyDescriptor? GetOwnPropertyDescriptor(string name) =>
-        _properties.GetValueOrDefault(name);
+        GetOwnProperty(name);
 
     protected override void DefineOwnPropertyCore(string name, PropertyDescriptor descriptor) =>
         DefineOwnProperty(name, descriptor);

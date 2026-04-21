@@ -30,7 +30,7 @@ public sealed partial class QueryStringModule : JsObject
     [JsMethod("stringify")]
     public static JsValue StringifyMethod(JsValue _, JsValue[] args)
     {
-        var o = args.Length > 0 && args[0] is JsDynamicObject j ? j : null;
+        var o = args.Length > 0 && args[0] is JsObject j ? j : null;
         var sep = args.Length > 1 && args[1] is JsString s1 ? s1.Value : "&";
         var eq = args.Length > 2 && args[2] is JsString s2 ? s2.Value : "=";
         return new JsString(Stringify(o, sep, eq));
@@ -83,7 +83,7 @@ public sealed partial class QueryStringModule : JsObject
         return result;
     }
 
-    internal static string Stringify(JsDynamicObject? obj, string sep, string eq)
+    internal static string Stringify(JsObject? obj, string sep, string eq)
     {
         if (obj is null) return "";
         var sb = new StringBuilder();

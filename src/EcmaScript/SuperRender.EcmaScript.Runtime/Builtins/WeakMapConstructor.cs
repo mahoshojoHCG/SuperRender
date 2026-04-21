@@ -4,9 +4,9 @@ using System.Runtime.CompilerServices;
 using SuperRender.EcmaScript.Runtime;
 
 [JsObject]
-public sealed partial class JsWeakMapObject : JsDynamicObject
+public sealed partial class JsWeakMapObject : JsObject
 {
-    private readonly ConditionalWeakTable<JsDynamicObject, JsValue> _table = new();
+    private readonly ConditionalWeakTable<JsObject, JsValue> _table = new();
 
     [JsConstructor("WeakMap", Length = 0, Callable = false)]
     public JsWeakMapObject(JsValue[] args)
@@ -23,7 +23,7 @@ public sealed partial class JsWeakMapObject : JsDynamicObject
                 }
 
                 var key = pair.GetIndex(0);
-                if (key is not JsDynamicObject keyObj)
+                if (key is not JsObject keyObj)
                 {
                     throw new Errors.JsTypeError("Invalid value used as weak map key", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
                 }
@@ -37,14 +37,14 @@ public sealed partial class JsWeakMapObject : JsDynamicObject
     [JsMethod("get")]
     public JsValue Get(JsValue key)
     {
-        if (key is not JsDynamicObject keyObj) return Undefined;
+        if (key is not JsObject keyObj) return Undefined;
         return _table.TryGetValue(keyObj, out var value) ? value : Undefined;
     }
 
     [JsMethod("set")]
     public JsValue Set(JsValue key, JsValue value)
     {
-        if (key is not JsDynamicObject keyObj)
+        if (key is not JsObject keyObj)
         {
             throw new Errors.JsTypeError("Invalid value used as weak map key", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
         }
@@ -58,13 +58,13 @@ public sealed partial class JsWeakMapObject : JsDynamicObject
     [JsMethod("has")]
     public bool Has(JsValue key)
     {
-        return key is JsDynamicObject keyObj && _table.TryGetValue(keyObj, out _);
+        return key is JsObject keyObj && _table.TryGetValue(keyObj, out _);
     }
 
     [JsMethod("delete")]
     public bool Delete(JsValue key)
     {
-        return key is JsDynamicObject keyObj && _table.Remove(keyObj);
+        return key is JsObject keyObj && _table.Remove(keyObj);
     }
 #pragma warning restore JSGEN005
 }

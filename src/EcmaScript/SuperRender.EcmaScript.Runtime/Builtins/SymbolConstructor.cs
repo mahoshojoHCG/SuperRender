@@ -104,7 +104,7 @@ public sealed partial class SymbolConstructor : IJsInstallable
             return sym;
         }
 
-        if (thisArg is JsDynamicObject obj)
+        if (thisArg is JsObject obj)
         {
             var data = obj.GetOwnProperty("[[SymbolData]]");
             if (data?.Value is JsSymbol symData)

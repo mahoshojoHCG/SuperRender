@@ -11,6 +11,8 @@ namespace SuperRender.EcmaScript.Dom;
 internal sealed partial class JsDocumentWrapper : JsElementWrapper
 {
     private readonly DomDocument _document;
+    private Func<string>? _getCookies;
+    private Action<string>? _setCookie;
 
     public JsDocumentWrapper(DomDocument document, NodeWrapperCache cache, Realm realm)
         : base(document.DocumentElement ?? CreateDummyElement(document), cache, realm)
@@ -25,9 +27,15 @@ internal sealed partial class JsDocumentWrapper : JsElementWrapper
     /// </summary>
     public void InstallCookie(Func<string> getCookies, Action<string> setCookie)
     {
-        this.DefineGetterSetter("cookie",
-            () => new JsString(getCookies()),
-            v => setCookie(v.ToJsString()));
+        _getCookies = getCookies;
+        _setCookie = setCookie;
+    }
+
+    [JsProperty("cookie")]
+    public string Cookie
+    {
+        get => _getCookies?.Invoke() ?? "";
+        set => _setCookie?.Invoke(value);
     }
 
     [JsProperty("nodeType")] public override double NodeType => 9;
