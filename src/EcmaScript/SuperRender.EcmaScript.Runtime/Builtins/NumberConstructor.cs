@@ -3,7 +3,7 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using System.Globalization;
 using SuperRender.EcmaScript.Runtime;
 
-public static partial class NumberConstructor
+public sealed partial class NumberConstructor : IJsInstallable
 {
     public static void Install(Realm realm)
     {

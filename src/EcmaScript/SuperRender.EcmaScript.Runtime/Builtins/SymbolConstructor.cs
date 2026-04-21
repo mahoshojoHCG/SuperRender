@@ -2,7 +2,7 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public static partial class SymbolConstructor
+public sealed partial class SymbolConstructor : IJsInstallable
 {
     private static readonly Dictionary<string, JsSymbol> GlobalRegistry = new(StringComparer.Ordinal);
 

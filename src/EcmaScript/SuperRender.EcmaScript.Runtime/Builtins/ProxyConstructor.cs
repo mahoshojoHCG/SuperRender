@@ -2,7 +2,7 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public static class ProxyConstructor
+public sealed class ProxyConstructor : IJsInstallable
 {
     public static void Install(Realm realm)
     {

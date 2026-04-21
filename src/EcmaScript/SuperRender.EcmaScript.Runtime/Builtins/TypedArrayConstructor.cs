@@ -3,7 +3,7 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using System.Globalization;
 using SuperRender.EcmaScript.Runtime;
 
-public static class TypedArrayConstructor
+public sealed class TypedArrayConstructor : IJsInstallable
 {
     private static readonly (string Name, int BytesPerElement, Func<byte[], int, double> Getter, Action<byte[], int, double> Setter)[] TypedArrayTypes =
     [

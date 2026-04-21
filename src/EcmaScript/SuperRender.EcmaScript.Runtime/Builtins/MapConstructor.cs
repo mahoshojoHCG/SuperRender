@@ -2,7 +2,7 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public static class MapConstructor
+public sealed class MapConstructor : IJsInstallable
 {
     public static void Install(Realm realm)
     {

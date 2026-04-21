@@ -4,7 +4,7 @@ using System.Globalization;
 using SuperRender.EcmaScript.Runtime;
 
 [JsObject]
-public sealed partial class IntlObject : JsDynamicObject
+public sealed partial class IntlObject : JsDynamicObject, IJsInstallable
 {
     private static readonly JsString ToStringTagValue = new("Intl");
 

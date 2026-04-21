@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Numerics;
 using SuperRender.EcmaScript.Runtime;
 
-public static class BigIntConstructor
+public sealed class BigIntConstructor : IJsInstallable
 {
     public static void Install(Realm realm)
     {

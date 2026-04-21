@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using SuperRender.EcmaScript.Runtime;
 
-public static class ConsoleObject
+public sealed class ConsoleObject : IJsInstallable
 {
     private static TextWriter _output = Console.Out;
     private static TextWriter _errorOutput = Console.Error;

@@ -191,37 +191,38 @@ public sealed class JsEngine
 
     private void InstallBuiltins()
     {
-        ObjectConstructor.Install(_realm);
-        FunctionConstructor.Install(_realm);
-        ArrayConstructor.Install(_realm);
-        StringConstructor.Install(_realm);
-        NumberConstructor.Install(_realm);
-        BooleanConstructor.Install(_realm);
-        SymbolConstructor.Install(_realm);
-        MathObject.Install(_realm);
-        JsonObject.Install(_realm);
-        DateConstructor.Install(_realm);
-        RegExpConstructor.Install(_realm);
-        ErrorConstructor.Install(_realm);
-        MapConstructor.Install(_realm);
-        SetConstructor.Install(_realm);
-        SuperRender.EcmaScript.Runtime.Builtins.JsWeakMapObject.__InstallConstructor(_realm);
-        SuperRender.EcmaScript.Runtime.Builtins.JsWeakSetObject.__InstallConstructor(_realm);
-        PromiseConstructor.Install(_realm);
-        ProxyConstructor.Install(_realm);
-        ReflectObject.Install(_realm);
-        ConsoleObject.Install(_realm);
-        IteratorConstructor.Install(_realm);
-        SuperRender.EcmaScript.Runtime.Builtins.JsWeakRefObject.__InstallConstructor(_realm);
-        SuperRender.EcmaScript.Runtime.Builtins.JsFinalizationRegistryObject.__InstallConstructor(_realm);
-        StructuredCloneHelper.Install(_realm);
-        BigIntConstructor.Install(_realm);
-        IntlObject.Install(_realm);
-        TemporalObject.Install(_realm);
-        ArrayBufferConstructor.Install(_realm);
-        TypedArrayConstructor.Install(_realm);
-        AtomicsObject.Install(_realm);
-        ShadowRealmConstructor.Install(_realm);
+        _realm
+            .Install<ObjectConstructor>()
+            .Install<FunctionConstructor>()
+            .Install<ArrayConstructor>()
+            .Install<StringConstructor>()
+            .Install<NumberConstructor>()
+            .Install<JsBooleanObject>()
+            .Install<SymbolConstructor>()
+            .Install<MathObject>()
+            .Install<JsonObject>()
+            .Install<DateConstructor>()
+            .Install<RegExpConstructor>()
+            .Install<ErrorConstructor>()
+            .Install<MapConstructor>()
+            .Install<SetConstructor>()
+            .Install<JsWeakMapObject>()
+            .Install<JsWeakSetObject>()
+            .Install<PromiseConstructor>()
+            .Install<ProxyConstructor>()
+            .Install<ReflectObject>()
+            .Install<ConsoleObject>()
+            .Install<IteratorConstructor>()
+            .Install<JsWeakRefObject>()
+            .Install<JsFinalizationRegistryObject>()
+            .Install<StructuredCloneHelper>()
+            .Install<BigIntConstructor>()
+            .Install<IntlObject>()
+            .Install<TemporalObject>()
+            .Install<ArrayBufferConstructor>()
+            .Install<TypedArrayConstructor>()
+            .Install<AtomicsObject>()
+            .Install<ShadowRealmConstructor>();
     }
 
     private void InstallEval()

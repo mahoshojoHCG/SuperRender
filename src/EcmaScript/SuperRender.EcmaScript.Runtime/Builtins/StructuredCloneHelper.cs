@@ -2,7 +2,7 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public static partial class StructuredCloneHelper
+public sealed partial class StructuredCloneHelper : IJsInstallable
 {
     public static void Install(Realm realm)
     {

@@ -2,7 +2,7 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public static partial class FunctionConstructor
+public sealed partial class FunctionConstructor : IJsInstallable
 {
     public static void Install(Realm realm)
     {

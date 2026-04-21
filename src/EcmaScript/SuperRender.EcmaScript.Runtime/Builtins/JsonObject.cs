@@ -6,6 +6,7 @@ using System.Text.Json;
 using SuperRender.EcmaScript.Runtime;
 
 [JsObject]
+[JsGlobalInstall("JSON")]
 public sealed partial class JsonObject : JsObject
 {
     private static readonly JsString ToStringTagValue = new("JSON");
@@ -15,8 +16,6 @@ public sealed partial class JsonObject : JsObject
         Prototype = realm.ObjectPrototype;
         Extensible = false;
     }
-
-    public static void Install(Realm realm) => realm.InstallGlobal("JSON", new JsonObject(realm));
 
     public override bool TryGetSymbolProperty(JsSymbol symbol, out JsValue value)
     {

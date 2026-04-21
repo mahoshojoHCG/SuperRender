@@ -2,7 +2,7 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public static class ShadowRealmConstructor
+public sealed class ShadowRealmConstructor : IJsInstallable
 {
     public static void Install(Realm realm)
     {
@@ -23,23 +23,23 @@ public static class ShadowRealmConstructor
                 // Copy the eval factory from parent realm
                 shadowRealm.EvalFactory = realm.EvalFactory;
 
-                // Install standard builtins in the shadow realm
-                ObjectConstructor.Install(shadowRealm);
-                FunctionConstructor.Install(shadowRealm);
-                ArrayConstructor.Install(shadowRealm);
-                StringConstructor.Install(shadowRealm);
-                NumberConstructor.Install(shadowRealm);
-                BooleanConstructor.Install(shadowRealm);
-                SymbolConstructor.Install(shadowRealm);
-                MathObject.Install(shadowRealm);
-                JsonObject.Install(shadowRealm);
-                DateConstructor.Install(shadowRealm);
-                RegExpConstructor.Install(shadowRealm);
-                ErrorConstructor.Install(shadowRealm);
-                MapConstructor.Install(shadowRealm);
-                SetConstructor.Install(shadowRealm);
-                PromiseConstructor.Install(shadowRealm);
-                ConsoleObject.Install(shadowRealm);
+                shadowRealm
+                    .Install<ObjectConstructor>()
+                    .Install<FunctionConstructor>()
+                    .Install<ArrayConstructor>()
+                    .Install<StringConstructor>()
+                    .Install<NumberConstructor>()
+                    .Install<JsBooleanObject>()
+                    .Install<SymbolConstructor>()
+                    .Install<MathObject>()
+                    .Install<JsonObject>()
+                    .Install<DateConstructor>()
+                    .Install<RegExpConstructor>()
+                    .Install<ErrorConstructor>()
+                    .Install<MapConstructor>()
+                    .Install<SetConstructor>()
+                    .Install<PromiseConstructor>()
+                    .Install<ConsoleObject>();
 
                 var srObj = new JsDynamicObject { Prototype = proto };
                 srObj.Set("[[ShadowRealm]]", new JsShadowRealmData(shadowRealm));

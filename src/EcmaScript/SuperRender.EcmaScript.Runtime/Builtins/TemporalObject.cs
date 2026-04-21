@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 using SuperRender.EcmaScript.Runtime;
 
 [JsObject]
-public sealed partial class TemporalObject : JsDynamicObject
+public sealed partial class TemporalObject : JsDynamicObject, IJsInstallable
 {
     private static readonly JsString ToStringTagValue = new("Temporal");
 

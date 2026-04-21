@@ -3,6 +3,7 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using SuperRender.EcmaScript.Runtime;
 
 [JsObject]
+[JsGlobalInstall("Reflect")]
 public sealed partial class ReflectObject : JsObject
 {
     private static readonly JsString ToStringTagValue = new("Reflect");
@@ -12,8 +13,6 @@ public sealed partial class ReflectObject : JsObject
         Prototype = realm.ObjectPrototype;
         Extensible = false;
     }
-
-    public static void Install(Realm realm) => realm.InstallGlobal("Reflect", new ReflectObject(realm));
 
     public override bool TryGetSymbolProperty(JsSymbol symbol, out JsValue value)
     {

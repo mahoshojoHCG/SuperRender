@@ -136,6 +136,12 @@ public sealed class Realm
         GlobalEnvironment.CreateAndInitializeBinding("Infinity", false, JsNumber.PositiveInfinity);
     }
 
+    public Realm Install<T>() where T : IJsInstallable
+    {
+        T.Install(this);
+        return this;
+    }
+
     public void InstallGlobal(string name, JsValue value)
     {
         GlobalObject.DefineOwnProperty(name, PropertyDescriptor.Data(value, writable: true, enumerable: false, configurable: true));

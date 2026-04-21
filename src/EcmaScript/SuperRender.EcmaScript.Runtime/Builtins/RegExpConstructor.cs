@@ -3,7 +3,7 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using System.Text.RegularExpressions;
 using SuperRender.EcmaScript.Runtime;
 
-public static class RegExpConstructor
+public sealed class RegExpConstructor : IJsInstallable
 {
     public static void Install(Realm realm)
     {

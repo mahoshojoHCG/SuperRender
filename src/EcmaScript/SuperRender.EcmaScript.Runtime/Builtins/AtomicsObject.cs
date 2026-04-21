@@ -3,6 +3,7 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using SuperRender.EcmaScript.Runtime;
 
 [JsObject]
+[JsGlobalInstall("Atomics")]
 public sealed partial class AtomicsObject : JsObject
 {
     private static readonly JsString ToStringTagValue = new("Atomics");
@@ -15,8 +16,6 @@ public sealed partial class AtomicsObject : JsObject
         Prototype = realm.ObjectPrototype;
         Extensible = false;
     }
-
-    public static void Install(Realm realm) => realm.InstallGlobal("Atomics", new AtomicsObject(realm));
 
     public override bool TryGetSymbolProperty(JsSymbol symbol, out JsValue value)
     {

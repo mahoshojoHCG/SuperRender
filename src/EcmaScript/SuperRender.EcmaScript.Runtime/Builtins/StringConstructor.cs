@@ -3,7 +3,7 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using System.Text;
 using SuperRender.EcmaScript.Runtime;
 
-public static class StringConstructor
+public sealed class StringConstructor : IJsInstallable
 {
     public static void Install(Realm realm)
     {

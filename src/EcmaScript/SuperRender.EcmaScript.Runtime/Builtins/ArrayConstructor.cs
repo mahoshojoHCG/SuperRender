@@ -3,7 +3,7 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using System.Globalization;
 using SuperRender.EcmaScript.Runtime;
 
-public static class ArrayConstructor
+public sealed class ArrayConstructor : IJsInstallable
 {
     public static void Install(Realm realm)
     {

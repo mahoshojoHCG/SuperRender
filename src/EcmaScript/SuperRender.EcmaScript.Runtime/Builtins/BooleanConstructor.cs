@@ -56,8 +56,3 @@ public sealed partial class JsBooleanObject : JsDynamicObject
         throw new Errors.JsTypeError("Boolean.prototype.valueOf requires that 'this' be a Boolean", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 }
-
-public static class BooleanConstructor
-{
-    public static void Install(Realm realm) => JsBooleanObject.__InstallConstructor(realm);
-}

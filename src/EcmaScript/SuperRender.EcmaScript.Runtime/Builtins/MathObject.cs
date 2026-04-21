@@ -3,6 +3,7 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using SuperRender.EcmaScript.Runtime;
 
 [JsObject]
+[JsGlobalInstall("Math")]
 public sealed partial class MathObject : JsObject
 {
     private static readonly JsString ToStringTagValue = new("Math");
@@ -12,8 +13,6 @@ public sealed partial class MathObject : JsObject
         Prototype = realm.ObjectPrototype;
         Extensible = false;
     }
-
-    public static void Install(Realm realm) => realm.InstallGlobal("Math", new MathObject(realm));
 
     public override bool TryGetSymbolProperty(JsSymbol symbol, out JsValue value)
     {

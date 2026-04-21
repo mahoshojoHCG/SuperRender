@@ -3,7 +3,7 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using System.Globalization;
 using SuperRender.EcmaScript.Runtime;
 
-public static partial class DateConstructor
+public sealed partial class DateConstructor : IJsInstallable
 {
     private static readonly DateTimeOffset Epoch = new(1970, 1, 1, 0, 0, 0, TimeSpan.Zero);
 

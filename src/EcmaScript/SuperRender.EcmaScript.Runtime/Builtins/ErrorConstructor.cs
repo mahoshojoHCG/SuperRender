@@ -2,7 +2,7 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public static class ErrorConstructor
+public sealed class ErrorConstructor : IJsInstallable
 {
     public static void Install(Realm realm)
     {
