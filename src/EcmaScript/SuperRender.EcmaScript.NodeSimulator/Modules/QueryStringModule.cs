@@ -7,46 +7,45 @@ namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 /// <summary>
 /// Node.js `querystring` module: parse, stringify, escape, unescape.
 /// </summary>
-public static class QueryStringModule
+[JsObject]
+public sealed partial class QueryStringModule : JsObjectBase
 {
-    private static PropertyDescriptor MethodDesc(string name, Func<JsValue, JsValue[], JsValue> impl, int length) =>
-        PropertyDescriptor.Data(JsFunction.CreateNative(name, impl, length), writable: true, enumerable: false, configurable: true);
-
-    public static JsDynamicObject Create()
+    public QueryStringModule(Realm realm)
     {
-        var obj = new JsDynamicObject();
-        obj.DefineOwnProperty("parse", MethodDesc("parse", (_, args) =>
-        {
-            var input = args.Length > 0 && args[0] is JsString s ? s.Value : "";
-            var sep = args.Length > 1 && args[1] is JsString s1 ? s1.Value : "&";
-            var eq = args.Length > 2 && args[2] is JsString s2 ? s2.Value : "=";
-            return Parse(input, sep, eq);
-        }, 4));
-
-        obj.DefineOwnProperty("stringify", MethodDesc("stringify", (_, args) =>
-        {
-            var o = args.Length > 0 && args[0] is JsDynamicObject j ? j : null;
-            var sep = args.Length > 1 && args[1] is JsString s1 ? s1.Value : "&";
-            var eq = args.Length > 2 && args[2] is JsString s2 ? s2.Value : "=";
-            return new JsString(Stringify(o, sep, eq));
-        }, 4));
-
-        obj.DefineOwnProperty("escape", MethodDesc("escape", (_, args) =>
-        {
-            var v = args.Length > 0 ? args[0].ToJsString() : "";
-            return new JsString(Uri.EscapeDataString(v));
-        }, 1));
-
-        obj.DefineOwnProperty("unescape", MethodDesc("unescape", (_, args) =>
-        {
-            var v = args.Length > 0 ? args[0].ToJsString() : "";
-            return new JsString(Unescape(v));
-        }, 1));
-
-        obj.DefineOwnProperty("encode", PropertyDescriptor.Data(obj.Get("stringify")));
-        obj.DefineOwnProperty("decode", PropertyDescriptor.Data(obj.Get("parse")));
-        return obj;
+        Prototype = realm.ObjectPrototype;
     }
+
+    public static QueryStringModule Create(Realm realm) => new(realm);
+
+    [JsMethod("parse")]
+    public static JsValue ParseMethod(JsValue _, JsValue[] args)
+    {
+        var input = args.Length > 0 && args[0] is JsString s ? s.Value : "";
+        var sep = args.Length > 1 && args[1] is JsString s1 ? s1.Value : "&";
+        var eq = args.Length > 2 && args[2] is JsString s2 ? s2.Value : "=";
+        return Parse(input, sep, eq);
+    }
+
+    [JsMethod("stringify")]
+    public static JsValue StringifyMethod(JsValue _, JsValue[] args)
+    {
+        var o = args.Length > 0 && args[0] is JsDynamicObject j ? j : null;
+        var sep = args.Length > 1 && args[1] is JsString s1 ? s1.Value : "&";
+        var eq = args.Length > 2 && args[2] is JsString s2 ? s2.Value : "=";
+        return new JsString(Stringify(o, sep, eq));
+    }
+
+    [JsMethod("encode")]
+    public static JsValue EncodeMethod(JsValue thisArg, JsValue[] args) => StringifyMethod(thisArg, args);
+
+    [JsMethod("decode")]
+    public static JsValue DecodeMethod(JsValue thisArg, JsValue[] args) => ParseMethod(thisArg, args);
+
+    [JsMethod("escape")]
+    public static string Escape(JsValue v) => Uri.EscapeDataString(v.ToJsString());
+
+    [JsMethod("unescape")]
+    public static string UnescapeMethod(JsValue v) => Unescape(v.ToJsString());
 
     internal static JsDynamicObject Parse(string input, string sep, string eq)
     {

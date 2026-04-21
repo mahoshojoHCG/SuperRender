@@ -64,7 +64,8 @@ public static class NodeSimulator
 
         // Cached module singletons
         JsDynamicObject? pathMod = null, osMod = null, utilMod = null, eventsMod = null, assertMod = null, fsMod = null;
-        JsDynamicObject? qsMod = null, urlMod = null, strDecMod = null, cryptoMod = null, zlibMod = null, streamMod = null;
+        JsObjectBase? qsMod = null;
+        JsDynamicObject? urlMod = null, strDecMod = null, cryptoMod = null, zlibMod = null, streamMod = null;
         var modules = new Dictionary<string, Func<JsValue>>(StringComparer.Ordinal)
         {
             ["path"] = () => pathMod ??= PathModule.CreateDefault(),
@@ -77,7 +78,7 @@ public static class NodeSimulator
             ["assert/strict"] = () => assertMod ??= AssertModule.Create(),
             ["fs"] = () => fsMod ??= FsModule.Create(realm),
             ["fs/promises"] = () => (fsMod ??= FsModule.Create(realm)).Get("promises") is JsDynamicObject o ? o : new JsDynamicObject(),
-            ["querystring"] = () => qsMod ??= QueryStringModule.Create(),
+            ["querystring"] = () => qsMod ??= QueryStringModule.Create(realm),
             ["url"] = () => urlMod ??= UrlModule.Create(realm),
             ["string_decoder"] = () => strDecMod ??= StringDecoderModule.Create(realm),
             ["crypto"] = () => cryptoMod ??= CryptoModule.Create(realm),

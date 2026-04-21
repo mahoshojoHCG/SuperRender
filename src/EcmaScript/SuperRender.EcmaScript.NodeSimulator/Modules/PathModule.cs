@@ -5,59 +5,76 @@ namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 /// <summary>
 /// Node.js `path` module. Provides posix + win32 variants plus the platform-default namespace.
 /// </summary>
-public static class PathModule
+[JsObject]
+public sealed partial class PathModule : JsDynamicObject
 {
-    private static PropertyDescriptor MethodDesc(string name, Func<JsValue, JsValue[], JsValue> impl, int length) =>
-        PropertyDescriptor.Data(JsFunction.CreateNative(name, impl, length), writable: true, enumerable: false, configurable: true);
+    private readonly bool _win32;
 
-    public static JsDynamicObject Create(bool win32)
+    public PathModule(bool win32)
     {
-        var obj = new JsDynamicObject();
-        char sep = win32 ? '\\' : '/';
-        string sepStr = sep.ToString();
-        string delimiter = win32 ? ";" : ":";
-
-        obj.DefineOwnProperty("sep", PropertyDescriptor.Data(new JsString(sepStr)));
-        obj.DefineOwnProperty("delimiter", PropertyDescriptor.Data(new JsString(delimiter)));
-
-        obj.DefineOwnProperty("join", MethodDesc("join", (_, args) => new JsString(Join(CollectStrings(args), win32)), 0));
-        obj.DefineOwnProperty("resolve", MethodDesc("resolve", (_, args) => new JsString(Resolve(CollectStrings(args), win32)), 0));
-        obj.DefineOwnProperty("normalize", MethodDesc("normalize", (_, args) => new JsString(Normalize(RequireString(args, 0, "path"), win32)), 1));
-        obj.DefineOwnProperty("isAbsolute", MethodDesc("isAbsolute", (_, args) =>
-            IsAbsolute(RequireString(args, 0, "path"), win32) ? JsValue.True : JsValue.False, 1));
-        obj.DefineOwnProperty("dirname", MethodDesc("dirname", (_, args) => new JsString(Dirname(RequireString(args, 0, "path"), win32)), 1));
-        obj.DefineOwnProperty("basename", MethodDesc("basename", (_, args) =>
-        {
-            var p = RequireString(args, 0, "path");
-            var ext = args.Length > 1 && args[1] is JsString es ? es.Value : null;
-            return new JsString(Basename(p, ext, win32));
-        }, 2));
-        obj.DefineOwnProperty("extname", MethodDesc("extname", (_, args) => new JsString(Extname(RequireString(args, 0, "path"), win32)), 1));
-        obj.DefineOwnProperty("relative", MethodDesc("relative", (_, args) =>
-        {
-            var from = RequireString(args, 0, "from");
-            var to = RequireString(args, 1, "to");
-            return new JsString(Relative(from, to, win32));
-        }, 2));
-        obj.DefineOwnProperty("parse", MethodDesc("parse", (_, args) => Parse(RequireString(args, 0, "path"), win32), 1));
-        obj.DefineOwnProperty("format", MethodDesc("format", (_, args) =>
-        {
-            if (args.Length == 0 || args[0] is not JsDynamicObject o) throw new Runtime.Errors.JsTypeError("path.format requires an object");
-            return new JsString(Format(o, win32));
-        }, 1));
-        obj.DefineOwnProperty("toNamespacedPath", MethodDesc("toNamespacedPath",
-            (_, args) => args.Length > 0 ? args[0] : JsValue.Undefined, 1));
-        return obj;
+        _win32 = win32;
     }
 
-    public static JsDynamicObject CreateDefault()
+    public static PathModule Create(bool win32) => new(win32);
+
+    public static PathModule CreateDefault()
     {
         var isWin = OperatingSystem.IsWindows();
-        var obj = Create(isWin);
-        obj.DefineOwnProperty("posix", PropertyDescriptor.Data(Create(win32: false)));
-        obj.DefineOwnProperty("win32", PropertyDescriptor.Data(Create(win32: true)));
+        var obj = new PathModule(isWin);
+        obj.DefineOwnProperty("posix", PropertyDescriptor.Data(new PathModule(win32: false)));
+        obj.DefineOwnProperty("win32", PropertyDescriptor.Data(new PathModule(win32: true)));
         return obj;
     }
+
+    [JsProperty("sep")]
+    public string Sep => _win32 ? "\\" : "/";
+
+    [JsProperty("delimiter")]
+    public string Delimiter => _win32 ? ";" : ":";
+
+    [JsMethod("join")]
+    public JsValue JoinMethod(JsValue _, JsValue[] args) => new JsString(Join(CollectStrings(args), _win32));
+
+    [JsMethod("resolve")]
+    public JsValue ResolveMethod(JsValue _, JsValue[] args) => new JsString(Resolve(CollectStrings(args), _win32));
+
+    [JsMethod("normalize")]
+    public string NormalizeMethod(string path) => Normalize(path, _win32);
+
+    [JsMethod("isAbsolute")]
+    public bool IsAbsoluteMethod(string path) => IsAbsolute(path, _win32);
+
+    [JsMethod("dirname")]
+    public string DirnameMethod(string path) => Dirname(path, _win32);
+
+    [JsMethod("basename")]
+    public JsValue BasenameMethod(JsValue _, JsValue[] args)
+    {
+        var p = RequireString(args, 0, "path");
+        var ext = args.Length > 1 && args[1] is JsString es ? es.Value : null;
+        return new JsString(Basename(p, ext, _win32));
+    }
+
+    [JsMethod("extname")]
+    public string ExtnameMethod(string path) => Extname(path, _win32);
+
+    [JsMethod("relative")]
+    public string RelativeMethod(string from, string to) => Relative(from, to, _win32);
+
+    [JsMethod("parse")]
+    public JsValue ParseMethod(string path) => Parse(path, _win32);
+
+    [JsMethod("format")]
+    public JsValue FormatMethod(JsValue _, JsValue[] args)
+    {
+        if (args.Length == 0 || args[0] is not JsDynamicObject o)
+            throw new Runtime.Errors.JsTypeError("path.format requires an object");
+        return new JsString(Format(o, _win32));
+    }
+
+    [JsMethod("toNamespacedPath")]
+    public static JsValue ToNamespacedPathMethod(JsValue _, JsValue[] args) =>
+        args.Length > 0 ? args[0] : JsValue.Undefined;
 
     private static string RequireString(JsValue[] args, int index, string param)
     {
