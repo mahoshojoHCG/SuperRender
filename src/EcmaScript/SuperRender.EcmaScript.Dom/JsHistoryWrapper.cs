@@ -2,11 +2,6 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.Dom;
 
-// JSGEN005/006/007: history.pushState/replaceState accept an arbitrary JS state value (pass-through
-// JsValue) and the `state` getter returns whatever was stored. Typed migration would lose this
-// arbitrary-payload semantics.
-#pragma warning disable JSGEN005, JSGEN006, JSGEN007
-
 /// <summary>
 /// JS wrapper for window.history. Provides pushState/replaceState/back/forward/go.
 /// Uses delegates so the EcmaScript.Dom project remains dependency-free.
@@ -51,6 +46,7 @@ internal sealed partial class JsHistoryWrapper : JsObject
     [JsProperty("length")]
     public int Length => _entries.Count;
 
+#pragma warning disable JSGEN006 // arbitrary JS state value — spec pass-through
     [JsProperty("state")]
     public JsValue State
     {
@@ -61,7 +57,11 @@ internal sealed partial class JsHistoryWrapper : JsObject
             return JsValue.Null;
         }
     }
+#pragma warning restore JSGEN006
 
+#pragma warning disable JSGEN005 // arbitrary JS state value — spec pass-through
+#pragma warning disable JSGEN006 // arbitrary JS state value — spec pass-through
+#pragma warning disable JSGEN007 // arbitrary JS state value — spec pass-through
     [JsMethod("pushState")]
     public JsValue PushState(JsValue _, JsValue[] args)
     {
@@ -104,6 +104,9 @@ internal sealed partial class JsHistoryWrapper : JsObject
         _updateAddressBar(newUri);
         return JsValue.Undefined;
     }
+#pragma warning restore JSGEN007
+#pragma warning restore JSGEN006
+#pragma warning restore JSGEN005
 
     [JsMethod("back")]
     public void Back()

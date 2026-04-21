@@ -4,10 +4,6 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.Dom;
 
-// JSGEN005/006/007: NodeList.item returns a wrapped Node (JsValue) or null; forEach takes a
-// JsFunction callback + optional thisArg (legacy variadic). Migration needs IJsNode IJsType.
-#pragma warning disable JSGEN005, JSGEN006, JSGEN007
-
 /// <summary>
 /// Array-like wrapper for NodeList/HTMLCollection query results.
 /// </summary>
@@ -33,6 +29,7 @@ internal sealed partial class JsNodeListWrapper : JsDynamicObject
     [JsProperty("length")]
     public int Length => _nodes.Count;
 
+#pragma warning disable JSGEN006 // returns wrapped DOM node — needs IJsNode/IJsElement IJsType
     [JsMethod("item")]
     public JsValue Item(int index)
     {
@@ -40,7 +37,9 @@ internal sealed partial class JsNodeListWrapper : JsDynamicObject
             return _cache.GetOrCreate(_nodes[index]);
         return JsValue.Null;
     }
+#pragma warning restore JSGEN006
 
+#pragma warning disable JSGEN005 // legacy variadic: optional positional args
     [JsMethod("forEach")]
     public void ForEach(JsValue[] args)
     {
@@ -53,4 +52,5 @@ internal sealed partial class JsNodeListWrapper : JsDynamicObject
             }
         }
     }
+#pragma warning restore JSGEN005
 }

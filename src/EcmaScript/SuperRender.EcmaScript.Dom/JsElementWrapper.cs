@@ -4,11 +4,6 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.Dom;
 
-// JSGEN005/006/007: Element members return wrapped child elements / NodeLists / DOMTokenList as
-// JsValue. toggleAttribute uses legacy variadic for its optional force flag; after()/before() take
-// a mixed Node|string rest list. Migration to IJsElement/IDomTokenList IJsType is tracked separately.
-#pragma warning disable JSGEN005, JSGEN006, JSGEN007
-
 /// <summary>
 /// JS wrapper for a DOM Element. Extends JsNodeWrapper with Element-specific APIs.
 /// </summary>
@@ -40,6 +35,7 @@ internal partial class JsElementWrapper : JsNodeWrapper
         set => _element.SetAttribute(HtmlAttributeNames.Class, value);
     }
 
+#pragma warning disable JSGEN006 // returns dynamic wrapper — needs IJsType
     [JsProperty("classList")]
     public JsValue ClassList
     {
@@ -72,6 +68,7 @@ internal partial class JsElementWrapper : JsNodeWrapper
             return list;
         }
     }
+#pragma warning restore JSGEN006
 
     [JsProperty("innerText")]
     public string InnerText
@@ -98,6 +95,7 @@ internal partial class JsElementWrapper : JsNodeWrapper
         }
     }
 
+#pragma warning disable JSGEN006 // returns wrapped node list — needs IJsNodeList IJsType
     [JsProperty("children")]
     public JsValue Children
     {
@@ -107,7 +105,9 @@ internal partial class JsElementWrapper : JsNodeWrapper
             return new JsNodeListWrapper(elements, Cache);
         }
     }
+#pragma warning restore JSGEN006
 
+#pragma warning disable JSGEN006 // returns dynamic wrapper — needs IJsType
     [JsProperty("style")]
     public JsValue Style => new JsCssStyleDeclaration(_element);
 
@@ -122,22 +122,27 @@ internal partial class JsElementWrapper : JsNodeWrapper
             return obj;
         }
     }
+#pragma warning restore JSGEN006
 
+#pragma warning disable JSGEN006 // returns wrapped DOM node — needs IJsNode/IJsElement IJsType
     [JsProperty("firstElementChild")]
     public JsValue FirstElementChild => Cache.WrapNullable(_element.FirstElementChild);
 
     [JsProperty("lastElementChild")]
     public JsValue LastElementChild => Cache.WrapNullable(_element.LastElementChild);
+#pragma warning restore JSGEN006
 
     [JsProperty("childElementCount")]
     public int ChildElementCount => _element.ChildElementCount;
 
+#pragma warning disable JSGEN006 // returns null (not undefined) for missing key
     [JsMethod("getAttribute")]
     public JsValue GetAttribute(string name)
     {
         var val = _element.GetAttribute(name);
         return val is not null ? new JsString(val) : JsValue.Null;
     }
+#pragma warning restore JSGEN006
 
     [JsMethod("setAttribute")]
     public void SetAttribute(string name, string value) => _element.SetAttribute(name, value);
@@ -148,26 +153,35 @@ internal partial class JsElementWrapper : JsNodeWrapper
     [JsMethod("hasAttribute")]
     public bool HasAttribute(string name) => _element.GetAttribute(name) is not null;
 
+#pragma warning disable JSGEN006 // returns wrapped DOM node — needs IJsNode/IJsElement IJsType
     [JsMethod("querySelector")]
     public JsValue QuerySelector(string selector)
     {
         var result = DomMutationApi.QuerySelector(_element, selector);
         return result is not null ? Cache.GetOrCreate(result) : JsValue.Null;
     }
+#pragma warning restore JSGEN006
 
+#pragma warning disable JSGEN006 // returns wrapped node list — needs IJsNodeList IJsType
     [JsMethod("querySelectorAll")]
     public JsValue QuerySelectorAll(string selector)
     {
         var results = DomMutationApi.QuerySelectorAll(_element, selector).Cast<Node>().ToList();
         return new JsNodeListWrapper(results, Cache);
     }
+#pragma warning restore JSGEN006
 
     [JsMethod("matches")]
     public bool Matches(string selector) => _element.Matches(selector);
 
+#pragma warning disable JSGEN006 // returns wrapped DOM node — needs IJsNode/IJsElement IJsType
     [JsMethod("closest")]
     public JsValue Closest(string selector) => Cache.WrapNullable(_element.Closest(selector));
+#pragma warning restore JSGEN006
 
+#pragma warning disable JSGEN005 // legacy variadic: optional positional args
+#pragma warning disable JSGEN006 // legacy variadic: optional positional args
+#pragma warning disable JSGEN007 // legacy variadic: optional positional args
     [JsMethod("toggleAttribute")]
     public JsValue ToggleAttribute(JsValue _, JsValue[] args)
     {
@@ -176,7 +190,11 @@ internal partial class JsElementWrapper : JsNodeWrapper
         bool? force = args.Length > 1 ? args[1].ToBoolean() : null;
         return _element.ToggleAttribute(name, force) ? JsValue.True : JsValue.False;
     }
+#pragma warning restore JSGEN007
+#pragma warning restore JSGEN006
+#pragma warning restore JSGEN005
 
+#pragma warning disable JSGEN005 // legacy variadic: optional positional args
     [JsMethod("after")]
     public void After(JsValue[] args)
     {
@@ -190,6 +208,7 @@ internal partial class JsElementWrapper : JsNodeWrapper
         var nodes = args.OfType<JsNodeWrapper>().Select(w => w.GetNode()).ToArray();
         if (nodes.Length > 0) _element.Before(nodes);
     }
+#pragma warning restore JSGEN005
 
     [JsMethod("remove")]
     public void Remove() => _element.Remove();

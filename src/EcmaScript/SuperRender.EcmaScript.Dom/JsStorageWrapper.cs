@@ -2,10 +2,6 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.Dom;
 
-// JSGEN005/006: Storage.getItem returns string|null (should become JsOptional<string>) and key(i)
-// returns the indexed key similarly; migration tracked separately with the rest of the DOM work.
-#pragma warning disable JSGEN005, JSGEN006
-
 /// <summary>
 /// JS wrapper for the Web Storage API (localStorage / sessionStorage).
 /// Wraps a WebStorage-like interface using delegates, so the EcmaScript.Dom project
@@ -39,12 +35,14 @@ internal sealed partial class JsStorageWrapper : JsObject
         Prototype = realm.ObjectPrototype;
     }
 
+#pragma warning disable JSGEN006 // returns null (not undefined) for missing key
     [JsMethod("getItem")]
     public JsValue GetItem(string key)
     {
         var result = _getItem(key);
         return result is not null ? new JsString(result) : JsValue.Null;
     }
+#pragma warning restore JSGEN006
 
     [JsMethod("setItem")]
     public void SetItem(string key, string value) => _setItem(key, value);
@@ -55,12 +53,14 @@ internal sealed partial class JsStorageWrapper : JsObject
     [JsMethod("clear")]
     public void Clear() => _clear();
 
+#pragma warning disable JSGEN006 // returns null (not undefined) for missing key
     [JsMethod("key")]
     public JsValue Key(int index)
     {
         var result = _key(index);
         return result is not null ? new JsString(result) : JsValue.Null;
     }
+#pragma warning restore JSGEN006
 
     [JsProperty("length")]
     public int Length => _getLength();

@@ -5,11 +5,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using SuperRender.EcmaScript.Runtime;
 
-// Promise handlers accept and return arbitrary JsValue — the disallowed-JsValue rules
-// JSGEN005/006 exist to nudge new typed builtins toward IJsType interfaces or primitives,
-// but Promise then/catch/finally are genuinely untyped by spec.
-#pragma warning disable JSGEN005, JSGEN006
-
 /// <summary>
 /// JS Promise — tracks settlement state, runs reactions via <see cref="MicrotaskScheduler"/>,
 /// and provides <see cref="FromTask(Task)"/> / <see cref="GetAwaiter"/> for C# interop.
@@ -89,6 +84,7 @@ public partial class JsPromise : JsObject
         TriggerReactions();
     }
 
+#pragma warning disable JSGEN005, JSGEN006 // spec-untyped: handlers accept/return arbitrary JsValue
     [JsMethod("then")]
     public JsPromise Then(JsValue onFulfilled, JsValue onRejected)
     {
@@ -120,6 +116,7 @@ public partial class JsPromise : JsObject
 
         return AttachHandlers(onF, onR);
     }
+#pragma warning restore JSGEN005, JSGEN006
 
     internal JsPromise AttachHandlers(JsFunction? onFulfilled, JsFunction? onRejected)
     {

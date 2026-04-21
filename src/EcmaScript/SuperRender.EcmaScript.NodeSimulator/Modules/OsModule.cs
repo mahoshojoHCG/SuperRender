@@ -7,10 +7,6 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 
-// JSGEN005/006/007: Node os.cpus()/networkInterfaces()/userInfo() return dynamic info records
-// backed by JsValue; typed migration would need INetworkInterface/ICpuInfo IJsType interfaces.
-#pragma warning disable JSGEN005, JSGEN006, JSGEN007
-
 /// <summary>
 /// Node.js `os` module. Values come from <see cref="System.Environment"/> where available.
 /// </summary>
@@ -40,6 +36,7 @@ public sealed partial class OsModule : JsObject
         Math.Max(0, GC.GetGCMemoryInfo().TotalAvailableMemoryBytes - GC.GetTotalMemory(forceFullCollection: false));
     [JsMethod("uptime")] public static double Uptime() => System.Environment.TickCount64 / 1000.0;
 
+#pragma warning disable JSGEN006 // returns dynamic structure (JsArray/JsDynamicObject)
     [JsMethod("loadavg")]
     public static JsValue Loadavg()
     {
@@ -54,6 +51,7 @@ public sealed partial class OsModule : JsObject
     [JsMethod("cpus")] public static JsValue Cpus() => BuildCpusArray();
     [JsMethod("userInfo")] public static JsValue UserInfo() => BuildUserInfo();
     [JsMethod("networkInterfaces")] public static JsValue NetworkInterfaces() => BuildNetworkInterfaces();
+#pragma warning restore JSGEN006
 
     public static string GetPlatform()
     {

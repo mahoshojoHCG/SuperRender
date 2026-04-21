@@ -2,10 +2,6 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 
-// JSGEN005/006/007: Node path.join/resolve/parse/format are variadic or return ParsedPath/PathObject
-// wrappers (JsValue). Typed migration needs IParsedPath IJsType and a rest `params string[]`.
-#pragma warning disable JSGEN005, JSGEN006, JSGEN007
-
 /// <summary>
 /// Node.js `path` module. Provides posix + win32 variants plus the platform-default namespace.
 /// </summary>
@@ -36,11 +32,13 @@ public sealed partial class PathModule : JsDynamicObject
     [JsProperty("delimiter")]
     public string Delimiter => _win32 ? ";" : ":";
 
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // legacy variadic: Node.js path API — variable number of path segments
     [JsMethod("join")]
     public JsValue JoinMethod(JsValue _, JsValue[] args) => new JsString(Join(CollectStrings(args), _win32));
 
     [JsMethod("resolve")]
     public JsValue ResolveMethod(JsValue _, JsValue[] args) => new JsString(Resolve(CollectStrings(args), _win32));
+#pragma warning restore JSGEN005, JSGEN006, JSGEN007
 
     [JsMethod("normalize")]
     public string NormalizeMethod(string path) => Normalize(path, _win32);
@@ -51,6 +49,7 @@ public sealed partial class PathModule : JsDynamicObject
     [JsMethod("dirname")]
     public string DirnameMethod(string path) => Dirname(path, _win32);
 
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // legacy variadic: optional positional args
     [JsMethod("basename")]
     public JsValue BasenameMethod(JsValue _, JsValue[] args)
     {
@@ -58,6 +57,7 @@ public sealed partial class PathModule : JsDynamicObject
         var ext = args.Length > 1 && args[1] is JsString es ? es.Value : null;
         return new JsString(Basename(p, ext, _win32));
     }
+#pragma warning restore JSGEN005, JSGEN006, JSGEN007
 
     [JsMethod("extname")]
     public string ExtnameMethod(string path) => Extname(path, _win32);
@@ -65,9 +65,12 @@ public sealed partial class PathModule : JsDynamicObject
     [JsMethod("relative")]
     public string RelativeMethod(string from, string to) => Relative(from, to, _win32);
 
+#pragma warning disable JSGEN006 // returns dynamic structure (JsArray/JsDynamicObject)
     [JsMethod("parse")]
     public JsValue ParseMethod(string path) => Parse(path, _win32);
+#pragma warning restore JSGEN006
 
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // legacy variadic: optional positional args
     [JsMethod("format")]
     public JsValue FormatMethod(JsValue _, JsValue[] args)
     {
@@ -79,6 +82,7 @@ public sealed partial class PathModule : JsDynamicObject
     [JsMethod("toNamespacedPath")]
     public static JsValue ToNamespacedPathMethod(JsValue _, JsValue[] args) =>
         args.Length > 0 ? args[0] : JsValue.Undefined;
+#pragma warning restore JSGEN005, JSGEN006, JSGEN007
 
     private static string RequireString(JsValue[] args, int index, string param)
     {

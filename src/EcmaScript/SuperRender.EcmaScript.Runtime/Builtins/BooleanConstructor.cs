@@ -2,12 +2,6 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-// Primitive-wrapper shape validated end-to-end with the generator:
-//   * [JsCall] handles call-form coercion to a primitive (not a wrapper).
-//   * Legacy [JsMethod] shape is required for toString/valueOf since `thisArg`
-//     may be either the wrapper object or a JsBoolean primitive — the typed
-//     coercion layer would reject the primitive receiver.
-#pragma warning disable JSGEN005, JSGEN006, JSGEN007
 [JsObject]
 public sealed partial class JsBooleanObject : JsDynamicObject
 {
@@ -19,6 +13,7 @@ public sealed partial class JsBooleanObject : JsDynamicObject
             PropertyDescriptor.Data(val.ToBoolean() ? JsValue.True : JsValue.False, writable: false, enumerable: false, configurable: false));
     }
 
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // primitive-wrapper: thisArg may be primitive or wrapper object
     [JsCall]
     public static JsValue Call(JsValue thisArg, JsValue[] args)
     {
@@ -40,6 +35,7 @@ public sealed partial class JsBooleanObject : JsDynamicObject
         _ = args;
         return GetBooleanValue(thisArg) ? JsValue.True : JsValue.False;
     }
+#pragma warning restore JSGEN005, JSGEN006, JSGEN007
 
     private static bool GetBooleanValue(JsValue thisArg)
     {
@@ -60,7 +56,6 @@ public sealed partial class JsBooleanObject : JsDynamicObject
         throw new Errors.JsTypeError("Boolean.prototype.valueOf requires that 'this' be a Boolean", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
     }
 }
-#pragma warning restore JSGEN005, JSGEN006, JSGEN007
 
 public static class BooleanConstructor
 {

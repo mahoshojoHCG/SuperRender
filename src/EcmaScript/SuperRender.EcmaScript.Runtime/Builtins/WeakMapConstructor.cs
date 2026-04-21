@@ -3,9 +3,6 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using System.Runtime.CompilerServices;
 using SuperRender.EcmaScript.Runtime;
 
-// JSGEN005/006: set() returns `this` (JsValue-derived); get() returns the stored value which
-// can be any JsValue; key param is checked internally, not via the typed-coercion layer.
-#pragma warning disable JSGEN005, JSGEN006
 [JsObject]
 public sealed partial class JsWeakMapObject : JsDynamicObject
 {
@@ -36,6 +33,7 @@ public sealed partial class JsWeakMapObject : JsDynamicObject
         }
     }
 
+#pragma warning disable JSGEN005, JSGEN006 // JsValue param/return: WeakMap key/value may be any object
     [JsMethod("get")]
     public JsValue Get(JsValue key)
     {
@@ -54,7 +52,9 @@ public sealed partial class JsWeakMapObject : JsDynamicObject
         _table.AddOrUpdate(keyObj, value);
         return this;
     }
+#pragma warning restore JSGEN005, JSGEN006
 
+#pragma warning disable JSGEN005 // JsValue param: WeakMap key/value may be any object
     [JsMethod("has")]
     public bool Has(JsValue key)
     {
@@ -66,5 +66,5 @@ public sealed partial class JsWeakMapObject : JsDynamicObject
     {
         return key is JsDynamicObject keyObj && _table.Remove(keyObj);
     }
+#pragma warning restore JSGEN005
 }
-#pragma warning restore JSGEN005, JSGEN006

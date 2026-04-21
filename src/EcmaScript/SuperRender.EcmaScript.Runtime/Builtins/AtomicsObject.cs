@@ -2,13 +2,6 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-// JSGEN005/006/007: every Atomics method takes variadic typed-array args, uses
-// dynamic runtime typing on the receiver, and returns JsValue (JsNumber/JsBoolean).
-// The legacy (JsValue, JsValue[]) shape is the only way to express these without
-// losing the ECMAScript semantics; migration would require a dedicated IJsType
-// for typed-array receivers plus per-op overloads.
-#pragma warning disable JSGEN005, JSGEN006, JSGEN007
-
 [JsObject]
 public sealed partial class AtomicsObject : JsObject
 {
@@ -36,6 +29,7 @@ public sealed partial class AtomicsObject : JsObject
         return base.TryGetSymbolProperty(symbol, out value);
     }
 
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // legacy variadic: TypedArray + index args with runtime dispatch
     [JsMethod("load")]
     public static JsValue Load(JsValue _, JsValue[] args)
     {
@@ -134,7 +128,9 @@ public sealed partial class AtomicsObject : JsObject
 
     [JsMethod("notify")]
     public static JsValue Notify(JsValue _, JsValue[] args) => JsNumber.Zero;
+#pragma warning restore JSGEN005, JSGEN006, JSGEN007
 
+#pragma warning disable JSGEN005, JSGEN006 // legacy variadic: TypedArray + index args with runtime dispatch
     [JsMethod("waitAsync")]
     public JsValue WaitAsync(JsValue[] args)
     {
@@ -148,6 +144,7 @@ public sealed partial class AtomicsObject : JsObject
         wrapper.Set("value", promise);
         return wrapper;
     }
+#pragma warning restore JSGEN005, JSGEN006
 
     private static JsValue AtomicOp(JsValue[] args, Func<double, double, double> op)
     {

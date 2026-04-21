@@ -2,9 +2,6 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-// JSGEN005: FinalizationRegistry.register/unregister accept an object target, arbitrary held value,
-// and an optional object token — object-vs-not checks happen internally, not via typed coercion.
-#pragma warning disable JSGEN005
 [JsObject]
 public sealed partial class JsFinalizationRegistryObject : JsDynamicObject
 {
@@ -23,6 +20,7 @@ public sealed partial class JsFinalizationRegistryObject : JsDynamicObject
         _callback = callbackFn;
     }
 
+#pragma warning disable JSGEN005 // JsValue param: target/heldValue may be any object
     [JsMethod("register")]
     public void Register(JsValue target, JsValue heldValue, params JsValue[] rest)
     {
@@ -55,6 +53,7 @@ public sealed partial class JsFinalizationRegistryObject : JsDynamicObject
 
         return removed;
     }
+#pragma warning restore JSGEN005
 
     /// <summary>
     /// Check for collected targets and invoke cleanup callback.
@@ -82,4 +81,3 @@ public sealed partial class JsFinalizationRegistryObject : JsDynamicObject
 
     private sealed record Registration(WeakReference<JsDynamicObject> Target, JsValue HeldValue, JsDynamicObject? UnregisterToken);
 }
-#pragma warning restore JSGEN005

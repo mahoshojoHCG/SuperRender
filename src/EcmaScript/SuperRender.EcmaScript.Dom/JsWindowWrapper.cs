@@ -2,11 +2,6 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.Dom;
 
-// JSGEN005/006/007: setTimeout/setInterval/requestAnimationFrame take a JsFunction callback + rest
-// args (legacy variadic); document returns the wrapped DOM document (JsValue). Migration to IJsDocument
-// IJsType + a typed timer ID return is tracked separately.
-#pragma warning disable JSGEN005, JSGEN006, JSGEN007
-
 /// <summary>
 /// The 'window' global object exposed to JavaScript.
 /// </summary>
@@ -51,13 +46,18 @@ internal sealed partial class JsWindowWrapper : JsDynamicObject
         DefineOwnProperty("history", PropertyDescriptor.Data(historyWrapper));
     }
 
+#pragma warning disable JSGEN006 // returns wrapped DOM node — needs IJsNode/IJsElement IJsType
     [JsProperty("document")]
     public JsValue Document => _documentWrapper;
+#pragma warning restore JSGEN006
 
     [JsProperty("innerWidth")] public double InnerWidth => _innerWidth;
     [JsProperty("innerHeight")] public double InnerHeight => _innerHeight;
     [JsProperty("devicePixelRatio")] public double DevicePixelRatio => _devicePixelRatio;
 
+#pragma warning disable JSGEN005 // legacy variadic: callback + optional args
+#pragma warning disable JSGEN006 // legacy variadic: callback + optional args
+#pragma warning disable JSGEN007 // legacy variadic: callback + optional args
     [JsMethod("setTimeout")]
     public JsValue SetTimeout(JsValue _, JsValue[] args)
     {
@@ -69,10 +69,16 @@ internal sealed partial class JsWindowWrapper : JsDynamicObject
         }
         return JsNumber.Create(0);
     }
+#pragma warning restore JSGEN007
+#pragma warning restore JSGEN006
+#pragma warning restore JSGEN005
 
     [JsMethod("clearTimeout")]
     public void ClearTimeout(int id) => _timerQueue.Cancel(id);
 
+#pragma warning disable JSGEN005 // legacy variadic: callback + optional args
+#pragma warning disable JSGEN006 // legacy variadic: callback + optional args
+#pragma warning disable JSGEN007 // legacy variadic: callback + optional args
     [JsMethod("setInterval")]
     public JsValue SetInterval(JsValue _, JsValue[] args)
     {
@@ -84,10 +90,16 @@ internal sealed partial class JsWindowWrapper : JsDynamicObject
         }
         return JsNumber.Create(0);
     }
+#pragma warning restore JSGEN007
+#pragma warning restore JSGEN006
+#pragma warning restore JSGEN005
 
     [JsMethod("clearInterval")]
     public void ClearInterval(int id) => _timerQueue.Cancel(id);
 
+#pragma warning disable JSGEN005 // legacy variadic: callback + optional args
+#pragma warning disable JSGEN006 // legacy variadic: callback + optional args
+#pragma warning disable JSGEN007 // legacy variadic: callback + optional args
     [JsMethod("requestAnimationFrame")]
     public JsValue RequestAnimationFrame(JsValue _, JsValue[] args)
     {
@@ -99,6 +111,9 @@ internal sealed partial class JsWindowWrapper : JsDynamicObject
         }
         return JsNumber.Create(0);
     }
+#pragma warning restore JSGEN007
+#pragma warning restore JSGEN006
+#pragma warning restore JSGEN005
 
     [JsMethod("cancelAnimationFrame")]
     public void CancelAnimationFrame(int id) => _timerQueue.Cancel(id);

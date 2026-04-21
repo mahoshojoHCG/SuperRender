@@ -29,7 +29,7 @@ public sealed partial class JsonObject : JsObject
         return base.TryGetSymbolProperty(symbol, out value);
     }
 
-#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // JSON.parse/stringify need raw JsValue for the optional reviver/replacer callbacks and the pass-through first argument (any JSON-compatible type).
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // legacy variadic: reviver/replacer callbacks + optional args
     [JsMethod("parse")]
     public static JsValue Parse(JsValue _, JsValue[] args)
     {
@@ -56,7 +56,9 @@ public sealed partial class JsonObject : JsObject
 
         return result;
     }
+#pragma warning restore JSGEN005, JSGEN006, JSGEN007
 
+#pragma warning disable JSGEN005 // legacy variadic: reviver/replacer callbacks + optional args
     [JsMethod("stringify")]
     public static JsOptional<string> Stringify(JsValue value, JsValue replacer, JsValue space)
     {
@@ -96,6 +98,7 @@ public sealed partial class JsonObject : JsObject
         var result = SerializeValue("", value, replacerFn, propertyList, indent, "");
         return result is not null ? JsOptional<string>.Of(result) : JsOptional<string>.Undefined;
     }
+#pragma warning restore JSGEN005
 
     private static JsValue ConvertElement(JsonElement element)
     {
@@ -131,7 +134,6 @@ public sealed partial class JsonObject : JsObject
                 return JsValue.Undefined;
         }
     }
-#pragma warning restore JSGEN005, JSGEN006, JSGEN007
 
     private static JsValue InternalizeJsonValue(JsDynamicObject holder, string name, JsFunction reviver)
     {

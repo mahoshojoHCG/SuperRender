@@ -4,10 +4,6 @@ using SuperRender.EcmaScript.Runtime.Builtins;
 
 namespace SuperRender.EcmaScript.Dom;
 
-// JSGEN006: Response.text()/json() return JsValue-wrapped Promises; migration requires a typed
-// IPromise<T> IJsType which doesn't exist yet.
-#pragma warning disable JSGEN006
-
 /// <summary>
 /// JS fetch() API implementation. Returns a Promise that resolves with a JsResponse.
 /// Uses delegates so the EcmaScript.Dom project remains dependency-free.
@@ -125,9 +121,12 @@ internal sealed partial class JsResponseWrapper : JsObject
     [JsProperty("url")] public string Url => _result.Url;
     [JsProperty("ok")] public bool Ok => _result.Status >= 200 && _result.Status < 300;
 
+#pragma warning disable JSGEN006 // returns dynamic wrapper — needs IJsType
     [JsProperty("headers")]
     public JsValue Headers => _headers;
+#pragma warning restore JSGEN006
 
+#pragma warning disable JSGEN006 // returns JsPromise — no typed Promise<T> yet
     [JsMethod("text")]
     public JsValue Text()
     {
@@ -153,6 +152,7 @@ internal sealed partial class JsResponseWrapper : JsObject
         }
         return p;
     }
+#pragma warning restore JSGEN006
 
     private static JsValue ParseJson(string text)
     {

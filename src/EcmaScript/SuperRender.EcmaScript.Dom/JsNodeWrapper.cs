@@ -4,12 +4,6 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.Dom;
 
-// JSGEN005/006/007: DOM Node members return JsValue-wrapped DOM nodes and accept raw JsValue for
-// mixed Node|string targets. Migration to IJsNode/IJsNodeList IJsType is tracked separately;
-// addEventListener/removeEventListener stay on the legacy variadic shape because the callback arg
-// is a JsFunction that can't be represented as a typed interface param.
-#pragma warning disable JSGEN005, JSGEN006, JSGEN007
-
 /// <summary>
 /// JS wrapper for a DOM Node. Exposes the standard DOM Node API.
 /// </summary>
@@ -46,14 +40,21 @@ internal partial class JsNodeWrapper : JsDynamicObject
         _ => ""
     };
 
+#pragma warning disable JSGEN006 // returns wrapped DOM node — needs IJsNode/IJsElement IJsType
     [JsProperty("parentNode")] public JsValue ParentNode => Cache.WrapNullable(DomNode.Parent);
     [JsProperty("parentElement")] public JsValue ParentElement => Cache.WrapNullable(DomNode.Parent is Element ? DomNode.Parent : null);
     [JsProperty("firstChild")] public JsValue FirstChild => Cache.WrapNullable(DomNode.FirstChild);
     [JsProperty("lastChild")] public JsValue LastChild => Cache.WrapNullable(DomNode.LastChild);
     [JsProperty("nextSibling")] public JsValue NextSibling => Cache.WrapNullable(DomNode.NextSibling);
     [JsProperty("previousSibling")] public JsValue PreviousSibling => Cache.WrapNullable(DomNode.PreviousSibling);
-    [JsProperty("childNodes")] public JsValue ChildNodes => new JsNodeListWrapper(DomNode.Children, Cache);
+#pragma warning restore JSGEN006
 
+#pragma warning disable JSGEN006 // returns wrapped node list — needs IJsNodeList IJsType
+    [JsProperty("childNodes")] public JsValue ChildNodes => new JsNodeListWrapper(DomNode.Children, Cache);
+#pragma warning restore JSGEN006
+
+#pragma warning disable JSGEN005 // JsValue param: accepts Node|string union
+#pragma warning disable JSGEN006 // returns wrapped DOM node — needs IJsNode/IJsElement IJsType
     [JsProperty("textContent")]
     public JsValue TextContent
     {
@@ -70,7 +71,11 @@ internal partial class JsNodeWrapper : JsDynamicObject
             else if (DomNode is TextNode t) t.Data = text;
         }
     }
+#pragma warning restore JSGEN006
+#pragma warning restore JSGEN005
 
+#pragma warning disable JSGEN005 // JsValue param: accepts Node|string union
+#pragma warning disable JSGEN006 // returns wrapped DOM node — needs IJsNode/IJsElement IJsType
     [JsMethod("appendChild")]
     public JsValue AppendChild(JsValue child)
     {
@@ -101,10 +106,14 @@ internal partial class JsNodeWrapper : JsDynamicObject
         DomNode.InsertBefore(n.DomNode, r?.DomNode);
         return n;
     }
+#pragma warning restore JSGEN006
+#pragma warning restore JSGEN005
 
     [JsMethod("hasChildNodes")]
     public bool HasChildNodes() => DomNode.Children.Count > 0;
 
+#pragma warning disable JSGEN005 // JsValue param: accepts Node|string union
+#pragma warning disable JSGEN006 // returns wrapped DOM node — needs IJsNode/IJsElement IJsType
     [JsMethod("replaceChild")]
     public JsValue ReplaceChild(JsValue newChild, JsValue oldChild)
     {
@@ -115,15 +124,19 @@ internal partial class JsNodeWrapper : JsDynamicObject
         DomNode.ReplaceChild(newWrap.GetNode(), oldWrap.GetNode());
         return Cache.GetOrCreate(oldWrap.GetNode());
     }
+#pragma warning restore JSGEN006
+#pragma warning restore JSGEN005
 
+#pragma warning disable JSGEN006 // returns wrapped DOM node — needs IJsNode/IJsElement IJsType
     [JsMethod("cloneNode")]
-    public JsValue CloneNode(JsValue deep)
+    public JsValue CloneNode(bool deep)
     {
-        bool isDeep = deep.ToBoolean();
-        var clone = DomNode.CloneNode(isDeep);
+        var clone = DomNode.CloneNode(deep);
         return Cache.GetOrCreate(clone);
     }
+#pragma warning restore JSGEN006
 
+#pragma warning disable JSGEN005 // JsValue param: caller may pass null/primitive
     [JsMethod("contains")]
     public bool Contains(JsValue other)
     {
@@ -131,7 +144,11 @@ internal partial class JsNodeWrapper : JsDynamicObject
         if (n == null) return false;
         return DomNode.Contains(n);
     }
+#pragma warning restore JSGEN005
 
+#pragma warning disable JSGEN005 // legacy variadic: callback + optional args
+#pragma warning disable JSGEN006 // legacy variadic: callback + optional args
+#pragma warning disable JSGEN007 // legacy variadic: callback + optional args
     [JsMethod("addEventListener")]
     public JsValue AddEventListener(JsValue _, JsValue[] args)
     {
@@ -159,7 +176,12 @@ internal partial class JsNodeWrapper : JsDynamicObject
         }
         return JsValue.Undefined;
     }
+#pragma warning restore JSGEN007
+#pragma warning restore JSGEN006
+#pragma warning restore JSGEN005
 
+#pragma warning disable JSGEN005 // JsValue param: caller may pass null/primitive
     [JsMethod("dispatchEvent")]
     public static bool DispatchEvent(JsValue _) => true;
+#pragma warning restore JSGEN005
 }

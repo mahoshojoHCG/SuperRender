@@ -4,11 +4,6 @@ using SuperRender.EcmaScript.Runtime.Builtins;
 
 namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 
-// JSGEN005/006/007: Node zlib mirrors the Node.js API — sync/callback/promise calls accept
-// Buffer|string + optional options (legacy variadic) and return Buffer wrappers (JsValue).
-// A typed migration would require IBuffer/IZlibOptions IJsType interfaces.
-#pragma warning disable JSGEN005, JSGEN006, JSGEN007
-
 /// <summary>
 /// Node.js `zlib` module. Sync + callback + promise variants for gzip, deflate,
 /// deflate-raw, and brotli, backed by <c>System.IO.Compression</c>.
@@ -30,6 +25,7 @@ public sealed partial class ZlibModule : JsDynamicObject
 
     public static ZlibModule Create(Realm realm) => new(realm);
 
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // legacy variadic: Node.js zlib API — Buffer/string + options
     [JsMethod("gzipSync")] public static JsValue GzipSync(JsValue _, JsValue[] args) => Sync(args, Kind.Gzip, compress: true);
     [JsMethod("gunzipSync")] public static JsValue GunzipSync(JsValue _, JsValue[] args) => Sync(args, Kind.Gzip, compress: false);
     [JsMethod("deflateSync")] public static JsValue DeflateSync(JsValue _, JsValue[] args) => Sync(args, Kind.Deflate, compress: true);
@@ -47,6 +43,7 @@ public sealed partial class ZlibModule : JsDynamicObject
     [JsMethod("inflateRaw")] public static JsValue InflateRawAsync(JsValue _, JsValue[] args) => Async(args, Kind.DeflateRaw, compress: false);
     [JsMethod("brotliCompress")] public static JsValue BrotliCompressAsync(JsValue _, JsValue[] args) => Async(args, Kind.Brotli, compress: true);
     [JsMethod("brotliDecompress")] public static JsValue BrotliDecompressAsync(JsValue _, JsValue[] args) => Async(args, Kind.Brotli, compress: false);
+#pragma warning restore JSGEN005, JSGEN006, JSGEN007
 
     private static BufferObject Sync(JsValue[] args, Kind kind, bool compress)
     {

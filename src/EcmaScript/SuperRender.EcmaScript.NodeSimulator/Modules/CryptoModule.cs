@@ -4,10 +4,6 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 
-// JSGEN005/006/007: Node crypto wraps Buffer-returning hash/HMAC/random helpers; variadic
-// callback overloads and Buffer outputs can't be typed without IBuffer + IDigest IJsType.
-#pragma warning disable JSGEN005, JSGEN006, JSGEN007
-
 /// <summary>
 /// Node.js `crypto` module (hash/hmac/random subset).
 /// Cross-platform via System.Security.Cryptography.
@@ -28,6 +24,7 @@ public sealed partial class CryptoModule : JsObject
     [JsMethod("randomUUID")]
     public static string RandomUUID() => Guid.NewGuid().ToString("D");
 
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // legacy variadic: Node.js crypto API
     [JsMethod("randomBytes")]
     public static JsValue RandomBytes(JsValue _, JsValue[] args)
     {
@@ -121,7 +118,9 @@ public sealed partial class CryptoModule : JsObject
         }
         return JsValue.Undefined;
     }
+#pragma warning restore JSGEN005, JSGEN006, JSGEN007
 
+#pragma warning disable JSGEN006 // returns dynamic structure (JsArray/JsDynamicObject)
     [JsMethod("getHashes")]
     public JsValue GetHashes()
     {
@@ -129,6 +128,7 @@ public sealed partial class CryptoModule : JsObject
         foreach (var h in HashNames) arr.Push(new JsString(h));
         return arr;
     }
+#pragma warning restore JSGEN006
 
     private static readonly string[] HashNames = ["md5", "sha1", "sha256", "sha384", "sha512"];
 

@@ -3,9 +3,6 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using System.Runtime.CompilerServices;
 using SuperRender.EcmaScript.Runtime;
 
-// JSGEN005/006: prototype methods take raw JsValue (objects only — non-object fast-returns
-// in has/delete match spec) and add() returns `this` (JsValue-derived).
-#pragma warning disable JSGEN005, JSGEN006
 [JsObject]
 public sealed partial class JsWeakSetObject : JsDynamicObject
 {
@@ -31,6 +28,7 @@ public sealed partial class JsWeakSetObject : JsDynamicObject
         }
     }
 
+#pragma warning disable JSGEN005, JSGEN006 // JsValue param: WeakSet accepts any object
     [JsMethod("add")]
     public JsValue Add(JsValue value)
     {
@@ -42,7 +40,9 @@ public sealed partial class JsWeakSetObject : JsDynamicObject
         _table.AddOrUpdate(objVal, Sentinel);
         return this;
     }
+#pragma warning restore JSGEN005, JSGEN006
 
+#pragma warning disable JSGEN005 // JsValue param: WeakSet accepts any object
     [JsMethod("has")]
     public bool Has(JsValue value)
     {
@@ -54,5 +54,5 @@ public sealed partial class JsWeakSetObject : JsDynamicObject
     {
         return value is JsDynamicObject objVal && _table.Remove(objVal);
     }
+#pragma warning restore JSGEN005
 }
-#pragma warning restore JSGEN005, JSGEN006

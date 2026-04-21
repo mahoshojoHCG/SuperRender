@@ -4,11 +4,6 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 
-// JSGEN005/006/007: Node util.format/inspect/types.* accept any JS value and return strings/bools
-// via pass-through JsValue. Typed migration would need per-predicate overloads and a string-format
-// value list that doesn't collapse type distinctions.
-#pragma warning disable JSGEN005, JSGEN006, JSGEN007
-
 /// <summary>
 /// Node.js `util` module. Implements format / inspect / promisify / callbackify and
 /// the isDeep* / types.* predicates needed by common library code.
@@ -29,6 +24,7 @@ public sealed partial class UtilModule : JsObject
 
     private static JsValue Arg(JsValue[] args, int index) => index < args.Length ? args[index] : JsValue.Undefined;
 
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // legacy variadic: optional positional args
     [JsMethod("format")]
     public static JsValue FormatMethod(JsValue _, JsValue[] args) => new JsString(Format(args));
 
@@ -110,15 +106,20 @@ public sealed partial class UtilModule : JsObject
         if (Arg(args, 0) is not JsFunction fn) return Arg(args, 0);
         return fn;
     }
+#pragma warning restore JSGEN005, JSGEN006, JSGEN007
 
+#pragma warning disable JSGEN006 // returns dynamic structure (JsArray/JsDynamicObject)
     [JsProperty("types")]
     public UtilTypesObject Types => _types ??= new UtilTypesObject(_realm);
+#pragma warning restore JSGEN006
 
+#pragma warning disable JSGEN006 // JsValue return: wraps realm global constructor
     [JsProperty("TextEncoder")]
     public JsValue TextEncoder => _realm.GlobalObject.Get("TextEncoder");
 
     [JsProperty("TextDecoder")]
     public JsValue TextDecoder => _realm.GlobalObject.Get("TextDecoder");
+#pragma warning restore JSGEN006
 
     internal static bool IsError(JsDynamicObject o, Realm realm)
     {
@@ -261,26 +262,28 @@ public sealed partial class UtilTypesObject : JsObject
         Prototype = realm.ObjectPrototype;
     }
 
+#pragma warning disable JSGEN005 // JsValue param: accepts any JS value for type checking
     [JsMethod("isDate")]
-    public JsValue IsDate(JsValue v) =>
-        (v is JsDynamicObject o && o.Prototype == _realm.DatePrototype) ? JsValue.True : JsValue.False;
+    public bool IsDate(JsValue v) =>
+        v is JsDynamicObject o && o.Prototype == _realm.DatePrototype;
 
     [JsMethod("isRegExp")]
-    public static JsValue IsRegExp(JsValue v) => v is JsRegExp ? JsValue.True : JsValue.False;
+    public static bool IsRegExp(JsValue v) => v is JsRegExp;
 
     [JsMethod("isPromise")]
-    public JsValue IsPromise(JsValue v) =>
-        (v is JsDynamicObject o && o.Prototype == _realm.PromisePrototype) ? JsValue.True : JsValue.False;
+    public bool IsPromise(JsValue v) =>
+        v is JsDynamicObject o && o.Prototype == _realm.PromisePrototype;
 
     [JsMethod("isMap")]
-    public JsValue IsMap(JsValue v) =>
-        (v is JsDynamicObject o && o.Prototype == _realm.MapPrototype) ? JsValue.True : JsValue.False;
+    public bool IsMap(JsValue v) =>
+        v is JsDynamicObject o && o.Prototype == _realm.MapPrototype;
 
     [JsMethod("isSet")]
-    public JsValue IsSet(JsValue v) =>
-        (v is JsDynamicObject o && o.Prototype == _realm.SetPrototype) ? JsValue.True : JsValue.False;
+    public bool IsSet(JsValue v) =>
+        v is JsDynamicObject o && o.Prototype == _realm.SetPrototype;
 
     [JsMethod("isNativeError")]
-    public JsValue IsNativeError(JsValue v) =>
-        v is JsDynamicObject e && UtilModule.IsError(e, _realm) ? JsValue.True : JsValue.False;
+    public bool IsNativeError(JsValue v) =>
+        v is JsDynamicObject e && UtilModule.IsError(e, _realm);
+#pragma warning restore JSGEN005
 }

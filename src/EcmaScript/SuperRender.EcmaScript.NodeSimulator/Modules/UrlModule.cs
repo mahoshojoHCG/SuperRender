@@ -2,10 +2,6 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 
-// JSGEN005/006/007: Node url module returns legacy URL objects / URLSearchParams wrappers (JsValue)
-// and accepts options objects via JsValue. Typed migration requires IUrlOptions + IUrlObject IJsType.
-#pragma warning disable JSGEN005, JSGEN006, JSGEN007
-
 /// <summary>
 /// Node.js `url` module. The WHATWG `URL`/`URLSearchParams` are provided by the engine; this
 /// module adds the legacy parse/format/resolve helpers and the fileURL/httpOptions bridges.
@@ -23,12 +19,15 @@ public sealed partial class UrlModule : JsObject
 
     public static UrlModule Create(Realm realm) => new(realm);
 
+#pragma warning disable JSGEN006 // JsValue return: wraps realm global constructor
     [JsProperty("URL")]
     public JsValue URL => _realm.GlobalObject.Get("URL");
 
     [JsProperty("URLSearchParams")]
     public JsValue URLSearchParams => _realm.GlobalObject.Get("URLSearchParams");
+#pragma warning restore JSGEN006
 
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // legacy variadic: optional positional args
     [JsMethod("parse")]
     public static JsValue ParseMethod(JsValue _, JsValue[] args)
     {
@@ -45,10 +44,12 @@ public sealed partial class UrlModule : JsObject
         if (args[0] is JsDynamicObject o) return new JsString(LegacyFormat(o));
         throw new Runtime.Errors.JsTypeError("url.format requires a string or object");
     }
+#pragma warning restore JSGEN005, JSGEN006, JSGEN007
 
     [JsMethod("resolve")]
     public static string ResolveMethod(string from, string to) => Resolve(from, to);
 
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // legacy variadic: optional positional args
     [JsMethod("fileURLToPath")]
     public static JsValue FileUrlToPathMethod(JsValue _, JsValue[] args)
     {
@@ -58,7 +59,9 @@ public sealed partial class UrlModule : JsObject
             : throw new Runtime.Errors.JsTypeError("fileURLToPath requires a URL");
         return new JsString(FileUrlToPath(url));
     }
+#pragma warning restore JSGEN005, JSGEN006, JSGEN007
 
+#pragma warning disable JSGEN006 // returns dynamic structure (JsArray/JsDynamicObject)
     [JsMethod("pathToFileURL")]
     public JsValue PathToFileUrlMethod(string path)
     {
@@ -69,7 +72,9 @@ public sealed partial class UrlModule : JsObject
         stub.DefineOwnProperty("href", PropertyDescriptor.Data(new JsString(href)));
         return stub;
     }
+#pragma warning restore JSGEN006
 
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // legacy variadic: optional positional args
     [JsMethod("urlToHttpOptions")]
     public static JsValue UrlToHttpOptionsMethod(JsValue _, JsValue[] args)
     {
@@ -77,20 +82,19 @@ public sealed partial class UrlModule : JsObject
             throw new Runtime.Errors.JsTypeError("urlToHttpOptions requires a URL object");
         return UrlToHttpOptions(u);
     }
+#pragma warning restore JSGEN005, JSGEN006, JSGEN007
 
     [JsMethod("domainToASCII")]
-    public static string DomainToASCII(JsValue v)
+    public static string DomainToASCII(string v)
     {
-        var s = v.ToJsString();
-        try { return new System.Globalization.IdnMapping().GetAscii(s); }
+        try { return new System.Globalization.IdnMapping().GetAscii(v); }
         catch (ArgumentException) { return ""; }
     }
 
     [JsMethod("domainToUnicode")]
-    public static string DomainToUnicode(JsValue v)
+    public static string DomainToUnicode(string v)
     {
-        var s = v.ToJsString();
-        try { return new System.Globalization.IdnMapping().GetUnicode(s); }
+        try { return new System.Globalization.IdnMapping().GetUnicode(v); }
         catch (ArgumentException) { return ""; }
     }
 

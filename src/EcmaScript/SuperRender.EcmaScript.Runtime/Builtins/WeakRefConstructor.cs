@@ -2,10 +2,6 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-// JSGEN006: WeakRef.prototype.deref returns the wrapped object or undefined — JsValue is
-// the honest union type here. Could be expressed as JsOptional<JsDynamicObject> once the
-// inner-coercion path preserves reference identity for JsValue-derived inner types.
-#pragma warning disable JSGEN006
 [JsObject]
 public sealed partial class JsWeakRefObject : JsDynamicObject
 {
@@ -23,10 +19,11 @@ public sealed partial class JsWeakRefObject : JsDynamicObject
         _target = new WeakReference<JsDynamicObject>(targetObj);
     }
 
+#pragma warning disable JSGEN006 // returns stored value of any type
     [JsMethod("deref")]
     public JsValue Deref()
     {
         return _target.TryGetTarget(out var target) ? target : Undefined;
     }
-}
 #pragma warning restore JSGEN006
+}

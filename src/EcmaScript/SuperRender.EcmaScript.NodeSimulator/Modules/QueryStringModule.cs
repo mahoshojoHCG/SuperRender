@@ -4,10 +4,6 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 
-// JSGEN005/006/007: Node querystring.parse/stringify accept optional sep/eq/options (legacy variadic)
-// and return a dynamic key/value object (JsValue). A typed contract would collapse the parsed shape.
-#pragma warning disable JSGEN005, JSGEN006, JSGEN007
-
 /// <summary>
 /// Node.js `querystring` module: parse, stringify, escape, unescape.
 /// </summary>
@@ -21,6 +17,7 @@ public sealed partial class QueryStringModule : JsObject
 
     public static QueryStringModule Create(Realm realm) => new(realm);
 
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // legacy variadic: Node.js querystring API — optional sep/eq/options
     [JsMethod("parse")]
     public static JsValue ParseMethod(JsValue _, JsValue[] args)
     {
@@ -44,12 +41,13 @@ public sealed partial class QueryStringModule : JsObject
 
     [JsMethod("decode")]
     public static JsValue DecodeMethod(JsValue thisArg, JsValue[] args) => ParseMethod(thisArg, args);
+#pragma warning restore JSGEN005, JSGEN006, JSGEN007
 
     [JsMethod("escape")]
-    public static string Escape(JsValue v) => Uri.EscapeDataString(v.ToJsString());
+    public static string Escape(string v) => Uri.EscapeDataString(v);
 
     [JsMethod("unescape")]
-    public static string UnescapeMethod(JsValue v) => Unescape(v.ToJsString());
+    public static string UnescapeMethod(string v) => Unescape(v);
 
     internal static JsDynamicObject Parse(string input, string sep, string eq)
     {

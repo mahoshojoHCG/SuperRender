@@ -3,11 +3,6 @@ using SuperRender.EcmaScript.Runtime;
 
 namespace SuperRender.EcmaScript.NodeSimulator.Modules;
 
-// JSGEN005/006/007: Node fs mirrors the Node.js API — sync/callback variants take PathLike|Buffer
-// with optional flags/encoding (legacy variadic) and return Buffer|string|Stats wrappers (JsValue).
-// Typed migration would need IPathLike/IBuffer/IStats IJsType interfaces.
-#pragma warning disable JSGEN005, JSGEN006, JSGEN007
-
 /// <summary>
 /// Node.js `fs` module. Implements the commonly used sync operations plus a
 /// `promises` namespace whose methods return JS Promises. Real disk I/O is
@@ -37,6 +32,7 @@ public sealed partial class FsModule : JsDynamicObject
         throw new Runtime.Errors.JsTypeError($"The \"{param}\" argument must be of type string");
     }
 
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // legacy variadic: Node.js fs API — path/data/options positional args
     [JsMethod("readFileSync")]
     public static JsValue ReadFileSync(JsValue _, JsValue[] args)
     {
@@ -193,6 +189,7 @@ public sealed partial class FsModule : JsDynamicObject
         }
         return new FsWatcherObject(path, recursive, listener, _realm);
     }
+#pragma warning restore JSGEN005, JSGEN006, JSGEN007
 
     private static JsDynamicObject BuildConstants()
     {

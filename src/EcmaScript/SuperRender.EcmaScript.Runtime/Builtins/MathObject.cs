@@ -83,7 +83,7 @@ public sealed partial class MathObject : JsObject
     [JsMethod("pow")]
     public static double Pow(double b, double e) => Math.Pow(b, e);
 
-#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // Math.max/min/hypot are variadic — typed signatures cannot express arbitrary-arity numeric folds
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // legacy variadic: arbitrary-arity numeric fold
     [JsMethod("max")]
     public static JsValue Max(JsValue _, JsValue[] args)
     {

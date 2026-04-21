@@ -2,12 +2,6 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-// JSGEN005/006/007: Reflect is a pure meta-object — every method operates on an
-// untyped target `JsObject`/`JsValue` and forwards raw args. Typed signatures
-// cannot express Reflect.apply/construct/defineProperty/etc. without losing the
-// "pass-through any JS value" contract, so the legacy variadic shape is kept.
-#pragma warning disable JSGEN005, JSGEN006, JSGEN007
-
 [JsObject]
 public sealed partial class ReflectObject : JsObject
 {
@@ -32,6 +26,7 @@ public sealed partial class ReflectObject : JsObject
         return base.TryGetSymbolProperty(symbol, out value);
     }
 
+#pragma warning disable JSGEN005, JSGEN006, JSGEN007 // meta-object: operates on arbitrary target
     [JsMethod("get")]
     public static JsValue Get(JsValue _, JsValue[] args)
     {
@@ -222,7 +217,9 @@ public sealed partial class ReflectObject : JsObject
             return JsValue.False;
         }
     }
+#pragma warning restore JSGEN005, JSGEN006, JSGEN007
 
+#pragma warning disable JSGEN005 // meta-object: operates on arbitrary target
     [JsMethod("getOwnPropertyDescriptor")]
     public static JsOptional<JsValue> GetOwnPropertyDescriptor(JsValue target, JsValue propertyKey)
     {
@@ -236,6 +233,7 @@ public sealed partial class ReflectObject : JsObject
 
         return JsOptional<JsValue>.Of(FromPropertyDescriptor(desc));
     }
+#pragma warning restore JSGEN005
 
     private static JsDynamicObject RequireObject(JsValue value)
     {
