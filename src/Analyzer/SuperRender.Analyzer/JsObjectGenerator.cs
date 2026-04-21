@@ -18,6 +18,10 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
     private const string JsObjectAttr = "JsObjectAttribute";
     private const string JsMethodAttr = "JsMethodAttribute";
     private const string JsPropertyAttr = "JsPropertyAttribute";
+    private const string JsConstructorAttr = "JsConstructorAttribute";
+    private const string JsStaticMethodAttr = "JsStaticMethodAttribute";
+    private const string JsStaticPropertyAttr = "JsStaticPropertyAttribute";
+    private const string JsCallAttr = "JsCallAttribute";
 
     private static readonly DiagnosticDescriptor UnsupportedParamType = new(
         "JSGEN001",
@@ -65,6 +69,14 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         "Method {0}.{1} uses the legacy (JsValue thisArg, JsValue[] args) shape. Prefer typed parameters; suppress with a reason when variadics genuinely require this shape.",
         "SuperRender.Analyzer",
         DiagnosticSeverity.Warning,
+        true);
+
+    private static readonly DiagnosticDescriptor InvalidConstructorShape = new(
+        "JSGEN008",
+        "Invalid [JsConstructor] / [JsStaticMethod] usage",
+        "{0}",
+        "SuperRender.Analyzer",
+        DiagnosticSeverity.Error,
         true);
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -139,6 +151,10 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
 
         var methods = new List<MethodModel>();
         var properties = new List<PropertyModel>();
+        var staticMethods = new List<MethodModel>();
+        var staticProperties = new List<PropertyModel>();
+        ConstructorModel? constructor = null;
+        string? callMethodName = null;
         var diagnostics = new List<Diagnostic>();
 
         foreach (var member in cls.GetMembers())
@@ -154,15 +170,74 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
                         methods.Add(model);
                     }
                 }
+                else if (attrName == JsStaticMethodAttr && member is IMethodSymbol sm)
+                {
+                    if (!sm.IsStatic)
+                    {
+                        diagnostics.Add(Diagnostic.Create(
+                            InvalidConstructorShape,
+                            sm.Locations.FirstOrDefault(),
+                            $"[JsStaticMethod] on {cls.Name}.{sm.Name}: method must be static."));
+                        continue;
+                    }
+                    var model = BuildMethod(sm, attr, cls.Name, diagnostics);
+                    if (model is not null)
+                    {
+                        staticMethods.Add(model);
+                    }
+                }
                 else if (attrName == JsPropertyAttr)
                 {
                     var models = BuildProperty(member, attr, cls.Name, diagnostics);
                     properties.AddRange(models);
                 }
+                else if (attrName == JsStaticPropertyAttr)
+                {
+                    if (member is IPropertySymbol sp && !sp.IsStatic)
+                    {
+                        diagnostics.Add(Diagnostic.Create(
+                            InvalidConstructorShape,
+                            sp.Locations.FirstOrDefault(),
+                            $"[JsStaticProperty] on {cls.Name}.{sp.Name}: property must be static."));
+                        continue;
+                    }
+                    var models = BuildProperty(member, attr, cls.Name, diagnostics);
+                    staticProperties.AddRange(models);
+                }
+                else if (attrName == JsConstructorAttr && member is IMethodSymbol ctorSym
+                    && ctorSym.MethodKind == MethodKind.Constructor)
+                {
+                    if (constructor is not null)
+                    {
+                        diagnostics.Add(Diagnostic.Create(
+                            InvalidConstructorShape,
+                            ctorSym.Locations.FirstOrDefault(),
+                            $"[JsConstructor] on {cls.Name}: only one constructor may carry the attribute."));
+                        continue;
+                    }
+                    constructor = BuildConstructor(ctorSym, attr, cls.Name, diagnostics);
+                }
+                else if (attrName == JsCallAttr && member is IMethodSymbol callSym)
+                {
+                    if (!callSym.IsStatic || callSym.Parameters.Length != 2
+                        || !IsJsValue(callSym.Parameters[0].Type)
+                        || !IsJsValueArray(callSym.Parameters[1].Type)
+                        || !IsJsValueDerived(callSym.ReturnType))
+                    {
+                        diagnostics.Add(Diagnostic.Create(
+                            InvalidConstructorShape,
+                            callSym.Locations.FirstOrDefault(),
+                            $"[JsCall] on {cls.Name}.{callSym.Name}: must be static with signature (JsValue, JsValue[]) => JsValue-derived."));
+                        continue;
+                    }
+                    callMethodName = callSym.Name;
+                }
             }
         }
 
-        if (methods.Count == 0 && properties.Count == 0 && diagnostics.Count == 0 && !generateInterface && exportType == 0)
+        if (methods.Count == 0 && properties.Count == 0 && staticMethods.Count == 0
+            && staticProperties.Count == 0 && constructor is null
+            && diagnostics.Count == 0 && !generateInterface && exportType == 0)
         {
             return null;
         }
@@ -176,7 +251,88 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             jsName,
             methods.ToImmutableArray(),
             properties.ToImmutableArray(),
+            staticMethods.ToImmutableArray(),
+            staticProperties.ToImmutableArray(),
+            constructor,
+            callMethodName,
             diagnostics.ToImmutableArray());
+    }
+
+    private static ConstructorModel? BuildConstructor(IMethodSymbol ctor, AttributeData attr, string className, List<Diagnostic> diagnostics)
+    {
+        string? name = null;
+        bool callable = true;
+        bool constructable = true;
+        int explicitLength = -1;
+        string? prototypeField = null;
+        string? global = null;
+        string? toStringTag = null;
+
+        if (attr.ConstructorArguments.Length > 0 && attr.ConstructorArguments[0].Value is string nm)
+        {
+            name = nm;
+        }
+
+        foreach (var na in attr.NamedArguments)
+        {
+            switch (na.Key)
+            {
+                case "Callable" when na.Value.Value is bool cb: callable = cb; break;
+                case "Constructable" when na.Value.Value is bool cs: constructable = cs; break;
+                case "Length" when na.Value.Value is int ln: explicitLength = ln; break;
+                case "Prototype" when na.Value.Value is string pf: prototypeField = pf; break;
+                case "Global" when na.Value.Value is string gg: global = gg; break;
+                case "ToStringTag" when na.Value.Value is string ts: toStringTag = ts; break;
+            }
+        }
+
+        if (string.IsNullOrEmpty(name))
+        {
+            diagnostics.Add(Diagnostic.Create(
+                InvalidConstructorShape,
+                ctor.Locations.FirstOrDefault(),
+                $"[JsConstructor] on {className}: Name is required."));
+            return null;
+        }
+
+        // Legacy: single JsValue[] arg
+        var isLegacy = ctor.Parameters.Length == 1 && IsJsValueArray(ctor.Parameters[0].Type);
+
+        var parameters = ImmutableArray.CreateBuilder<ParamModel>();
+        if (!isLegacy)
+        {
+            for (var i = 0; i < ctor.Parameters.Length; i++)
+            {
+                var p = ctor.Parameters[i];
+                var kind = ClassifyParam(p.Type, i == ctor.Parameters.Length - 1);
+                if (kind == ParamKind.Unsupported)
+                {
+                    diagnostics.Add(Diagnostic.Create(
+                        UnsupportedParamType,
+                        p.Locations.FirstOrDefault() ?? ctor.Locations.FirstOrDefault(),
+                        p.Type.ToDisplayString(),
+                        className,
+                        ".ctor"));
+                    return null;
+                }
+
+                parameters.Add(new ParamModel(p.Name, p.Type.ToDisplayString(), kind));
+            }
+        }
+
+        var autoLength = isLegacy ? 0 : parameters.Count(static p => p.Kind != ParamKind.ArgsArray);
+        var length = explicitLength >= 0 ? explicitLength : autoLength;
+
+        return new ConstructorModel(
+            name!,
+            callable,
+            constructable,
+            prototypeField ?? $"{name}Prototype",
+            global,
+            toStringTag ?? name,
+            length,
+            isLegacy,
+            parameters.ToImmutable());
     }
 
     private static MethodModel? BuildMethod(IMethodSymbol m, AttributeData attr, string className, List<Diagnostic> diagnostics)
@@ -657,7 +813,9 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             ctx.ReportDiagnostic(d);
         }
 
-        if (model.Methods.Length == 0 && model.Properties.Length == 0 && !model.GenerateInterface && model.ExportType == 0)
+        if (model.Methods.Length == 0 && model.Properties.Length == 0
+            && model.StaticMethods.Length == 0 && model.StaticProperties.Length == 0
+            && model.Constructor is null && !model.GenerateInterface && model.ExportType == 0)
         {
             return;
         }
@@ -704,6 +862,11 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         if (model.GenerateInterface)
         {
             EmitInterface(ctx, model);
+        }
+
+        if (model.Constructor is not null)
+        {
+            EmitConstructor(ctx, model);
         }
 
         if ((model.ExportType & ExportTypeGlobal) != 0)
@@ -807,6 +970,302 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         sb.AppendLine("}");
 
         ctx.AddSource($"{model.ClassName}.JsObject.Interface.g.cs", sb.ToString());
+    }
+
+    private static void EmitConstructor(SourceProductionContext ctx, JsObjectModel model)
+    {
+        var c = model.Constructor!;
+        var sb = new StringBuilder();
+        sb.AppendLine("// <auto-generated/>");
+        sb.AppendLine("#nullable enable");
+        sb.AppendLine("using SuperRender.EcmaScript.Runtime;");
+        sb.AppendLine();
+        if (model.Namespace is not null)
+        {
+            sb.Append("namespace ").Append(model.Namespace).AppendLine(";");
+            sb.AppendLine();
+        }
+
+        sb.Append("partial class ").AppendLine(model.ClassName);
+        sb.AppendLine("{");
+        sb.AppendLine("    static partial void __OnConstructorInstalling(Realm realm, JsDynamicObject proto, JsFunction ctor);");
+        sb.AppendLine();
+        sb.AppendLine("    public static JsFunction __InstallConstructor(Realm realm)");
+        sb.AppendLine("    {");
+
+        // Prototype lookup
+        sb.Append("        var proto = realm.").Append(c.PrototypeField).AppendLine(";");
+
+        sb.AppendLine("        var ctor = new JsFunction");
+        sb.AppendLine("        {");
+        sb.Append("            Name = \"").Append(Escape(c.Name)).AppendLine("\",");
+        sb.Append("            Length = ").Append(c.Length).AppendLine(",");
+        sb.Append("            IsConstructor = ").Append(c.Constructable ? "true" : "false").AppendLine(",");
+        sb.AppendLine("            Prototype = realm.FunctionPrototype,");
+        sb.AppendLine("            PrototypeObject = proto,");
+        sb.AppendLine("        };");
+        sb.AppendLine();
+
+        // ConstructTarget
+        if (c.Constructable)
+        {
+            sb.AppendLine("        ctor.ConstructTarget = __args =>");
+            sb.AppendLine("        {");
+            EmitCtorBody(sb, model, c, isCall: false);
+            sb.AppendLine("        };");
+        }
+        else
+        {
+            sb.Append("        ctor.ConstructTarget = _ => throw new global::SuperRender.EcmaScript.Runtime.Errors.JsTypeError(\"")
+              .Append(Escape(c.Name))
+              .AppendLine(" is not a constructor\", global::SuperRender.EcmaScript.Runtime.ExecutionContext.CurrentLine, global::SuperRender.EcmaScript.Runtime.ExecutionContext.CurrentColumn);");
+        }
+        sb.AppendLine();
+
+        // CallTarget
+        if (!c.Callable)
+        {
+            sb.Append("        ctor.CallTarget = (_, _) => throw new global::SuperRender.EcmaScript.Runtime.Errors.JsTypeError(\"Constructor ")
+              .Append(Escape(c.Name))
+              .AppendLine(" requires 'new'\", global::SuperRender.EcmaScript.Runtime.ExecutionContext.CurrentLine, global::SuperRender.EcmaScript.Runtime.ExecutionContext.CurrentColumn);");
+        }
+        else if (model.CallMethodName is { } cmn)
+        {
+            sb.Append("        ctor.CallTarget = ").Append(model.ClassName).Append('.').Append(cmn).AppendLine(";");
+        }
+        else
+        {
+            sb.AppendLine("        ctor.CallTarget = (__thisArg, __args) =>");
+            sb.AppendLine("        {");
+            EmitCtorBody(sb, model, c, isCall: true);
+            sb.AppendLine("        };");
+        }
+        sb.AppendLine();
+
+        // proto.constructor = ctor
+        sb.AppendLine("        proto.DefineOwnProperty(\"constructor\", PropertyDescriptor.Data(ctor, writable: true, enumerable: false, configurable: true));");
+
+        // Symbol.toStringTag
+        if (!string.IsNullOrEmpty(c.ToStringTag))
+        {
+            sb.Append("        proto.DefineSymbolProperty(JsSymbol.ToStringTag, PropertyDescriptor.Data(new JsString(\"")
+              .Append(Escape(c.ToStringTag!))
+              .AppendLine("\"), writable: false, enumerable: false, configurable: true));");
+        }
+
+        // Prototype methods
+        foreach (var m in model.Methods.Where(m => !m.IsStatic))
+        {
+            sb.Append("        proto.DefineOwnProperty(\"").Append(Escape(m.JsName))
+              .AppendLine("\", PropertyDescriptor.Data(JsFunction.CreateNative(");
+            sb.Append("            \"").Append(Escape(m.JsName)).AppendLine("\",");
+            EmitProtoTrampoline(sb, model, m);
+            sb.Append("            ").Append(m.Length).AppendLine("), writable: true, enumerable: false, configurable: true));");
+        }
+
+        // Static methods on ctor
+        foreach (var sm in model.StaticMethods)
+        {
+            sb.Append("        ctor.DefineOwnProperty(\"").Append(Escape(sm.JsName))
+              .AppendLine("\", PropertyDescriptor.Data(JsFunction.CreateNative(");
+            sb.Append("            \"").Append(Escape(sm.JsName)).AppendLine("\",");
+            EmitStaticTrampoline(sb, model, sm);
+            sb.Append("            ").Append(sm.Length).AppendLine("), writable: true, enumerable: false, configurable: true));");
+        }
+
+        // Static properties on ctor
+        foreach (var sp in model.StaticProperties.Where(p => !p.IsSetter))
+        {
+            var access = sp.IsCsharpProperty ? $"{model.ClassName}.{sp.CsharpName}" : $"{model.ClassName}.{sp.CsharpName}()";
+            var wrapped = WrapReturn(sp.ReturnKind ?? ReturnKind.JsValue, sp.ValueTypeDisplay, access);
+            sb.Append("        ctor.DefineOwnProperty(\"").Append(Escape(sp.JsName))
+              .Append("\", PropertyDescriptor.Data(").Append(wrapped)
+              .AppendLine(", writable: false, enumerable: false, configurable: false));");
+        }
+
+        // Hook
+        sb.AppendLine("        __OnConstructorInstalling(realm, proto, ctor);");
+
+        // Global install
+        if (c.Global is null)
+        {
+            sb.Append("        realm.InstallGlobal(\"").Append(Escape(c.Name)).AppendLine("\", ctor);");
+        }
+        else if (c.Global.Length > 0)
+        {
+            sb.Append("        realm.InstallGlobal(\"").Append(Escape(c.Global)).AppendLine("\", ctor);");
+        }
+
+        sb.AppendLine("        return ctor;");
+        sb.AppendLine("    }");
+        sb.AppendLine("}");
+
+        ctx.AddSource($"{model.ClassName}.JsObject.Constructor.g.cs", sb.ToString());
+    }
+
+    private static void EmitCtorBody(StringBuilder sb, JsObjectModel model, ConstructorModel c, bool isCall)
+    {
+        if (c.IsLegacy)
+        {
+            sb.Append("            var __obj = new ").Append(model.ClassName).AppendLine("(__args);");
+        }
+        else
+        {
+            var callArgs = new List<string>();
+            for (var i = 0; i < c.Parameters.Length; i++)
+            {
+                var p = c.Parameters[i];
+                var local = "__p" + i;
+                if (p.Kind == ParamKind.ArgsArray)
+                {
+                    if (i == 0)
+                    {
+                        sb.Append("            var ").Append(local).AppendLine(" = __args;");
+                    }
+                    else
+                    {
+                        sb.Append("            var ").Append(local)
+                          .Append(" = __args.Length > ").Append(i).Append(" ? __args[")
+                          .Append(i).AppendLine("..] : System.Array.Empty<JsValue>();");
+                    }
+                }
+                else
+                {
+                    var argExpr = $"(__args.Length > {i} ? __args[{i}] : JsValue.Undefined)";
+                    var convert = ConvertArg(p.Kind, p.TypeDisplay, argExpr, local, c.Name, i);
+                    sb.Append("            ").AppendLine(convert);
+                }
+                callArgs.Add(local);
+            }
+            sb.Append("            var __obj = new ").Append(model.ClassName)
+              .Append('(').Append(string.Join(", ", callArgs)).AppendLine(");");
+        }
+
+        sb.AppendLine("            __obj.Prototype = proto;");
+        sb.AppendLine("            return __obj;");
+    }
+
+    private static void EmitProtoTrampoline(StringBuilder sb, JsObjectModel model, MethodModel m)
+    {
+        if (m.IsLegacy)
+        {
+            sb.Append("            ").Append("(__thisArg, __args) => ((").Append(model.ClassName)
+              .Append(")__thisArg).").Append(m.CsharpName).AppendLine("(__thisArg, __args),");
+            return;
+        }
+
+        sb.AppendLine("            static (__thisArg, __args) =>");
+        sb.AppendLine("            {");
+        var callArgs = new List<string>();
+        for (var i = 0; i < m.Parameters.Length; i++)
+        {
+            var p = m.Parameters[i];
+            var local = "__p" + i;
+            if (p.Kind == ParamKind.ArgsArray)
+            {
+                if (i == 0)
+                {
+                    sb.Append("                var ").Append(local).AppendLine(" = __args;");
+                }
+                else
+                {
+                    sb.Append("                var ").Append(local).Append(" = __args.Length > ")
+                      .Append(i).Append(" ? __args[").Append(i).AppendLine("..] : System.Array.Empty<JsValue>();");
+                }
+            }
+            else
+            {
+                var argExpr = $"(__args.Length > {i} ? __args[{i}] : JsValue.Undefined)";
+                var convert = ConvertArg(p.Kind, p.TypeDisplay, argExpr, local, m.JsName, i);
+                sb.Append("                ").AppendLine(convert);
+            }
+            callArgs.Add(local);
+        }
+
+        var call = $"(({model.ClassName})__thisArg).{m.CsharpName}({string.Join(", ", callArgs)})";
+        if (m.Return.Kind == ReturnKind.Void)
+        {
+            sb.Append("                ").Append(call).AppendLine(";");
+            sb.AppendLine("                return JsValue.Undefined;");
+        }
+        else if (m.Return.Kind == ReturnKind.ROptional)
+        {
+            sb.Append("                var __r = ").Append(call).AppendLine(";");
+            var inner = WrapReturn(m.Return.InnerKind, m.Return.InnerTypeDisplay ?? string.Empty, "__r.Value!");
+            sb.Append("                return __r.HasValue ? ").Append(inner).AppendLine(" : JsValue.Undefined;");
+        }
+        else if (m.Return.Kind == ReturnKind.RTaskOfT)
+        {
+            sb.Append("                return global::SuperRender.EcmaScript.Runtime.Builtins.JsPromise.FromTask(")
+              .Append(call).AppendLine(");");
+        }
+        else
+        {
+            var wrapped = WrapReturn(m.Return.Kind, m.Return.TypeDisplay, call);
+            sb.Append("                return ").Append(wrapped).AppendLine(";");
+        }
+        sb.AppendLine("            },");
+    }
+
+    private static void EmitStaticTrampoline(StringBuilder sb, JsObjectModel model, MethodModel m)
+    {
+        if (m.IsLegacy)
+        {
+            sb.Append("            ").Append(model.ClassName).Append('.').Append(m.CsharpName).AppendLine(",");
+            return;
+        }
+
+        sb.AppendLine("            static (__thisArg, __args) =>");
+        sb.AppendLine("            {");
+        var callArgs = new List<string>();
+        for (var i = 0; i < m.Parameters.Length; i++)
+        {
+            var p = m.Parameters[i];
+            var local = "__p" + i;
+            if (p.Kind == ParamKind.ArgsArray)
+            {
+                if (i == 0)
+                {
+                    sb.Append("                var ").Append(local).AppendLine(" = __args;");
+                }
+                else
+                {
+                    sb.Append("                var ").Append(local).Append(" = __args.Length > ")
+                      .Append(i).Append(" ? __args[").Append(i).AppendLine("..] : System.Array.Empty<JsValue>();");
+                }
+            }
+            else
+            {
+                var argExpr = $"(__args.Length > {i} ? __args[{i}] : JsValue.Undefined)";
+                var convert = ConvertArg(p.Kind, p.TypeDisplay, argExpr, local, m.JsName, i);
+                sb.Append("                ").AppendLine(convert);
+            }
+            callArgs.Add(local);
+        }
+
+        var call = $"{model.ClassName}.{m.CsharpName}({string.Join(", ", callArgs)})";
+        if (m.Return.Kind == ReturnKind.Void)
+        {
+            sb.Append("                ").Append(call).AppendLine(";");
+            sb.AppendLine("                return JsValue.Undefined;");
+        }
+        else if (m.Return.Kind == ReturnKind.ROptional)
+        {
+            sb.Append("                var __r = ").Append(call).AppendLine(";");
+            var inner = WrapReturn(m.Return.InnerKind, m.Return.InnerTypeDisplay ?? string.Empty, "__r.Value!");
+            sb.Append("                return __r.HasValue ? ").Append(inner).AppendLine(" : JsValue.Undefined;");
+        }
+        else if (m.Return.Kind == ReturnKind.RTaskOfT)
+        {
+            sb.Append("                return global::SuperRender.EcmaScript.Runtime.Builtins.JsPromise.FromTask(")
+              .Append(call).AppendLine(");");
+        }
+        else
+        {
+            var wrapped = WrapReturn(m.Return.Kind, m.Return.TypeDisplay, call);
+            sb.Append("                return ").Append(wrapped).AppendLine(";");
+        }
+        sb.AppendLine("            },");
     }
 
     private static void AppendInterfaceBody(StringBuilder sb, JsObjectModel model, string ifaceName)
@@ -1236,7 +1695,22 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         string? JsName,
         ImmutableArray<MethodModel> Methods,
         ImmutableArray<PropertyModel> Properties,
+        ImmutableArray<MethodModel> StaticMethods,
+        ImmutableArray<PropertyModel> StaticProperties,
+        ConstructorModel? Constructor,
+        string? CallMethodName,
         ImmutableArray<Diagnostic> Diagnostics);
+
+    private sealed record ConstructorModel(
+        string Name,
+        bool Callable,
+        bool Constructable,
+        string PrototypeField,
+        string? Global,
+        string? ToStringTag,
+        int Length,
+        bool IsLegacy,
+        ImmutableArray<ParamModel> Parameters);
 
     private sealed record MethodModel(
         string JsName,
@@ -1309,6 +1783,38 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         {
             Get = 1,
             Set = 2
+        }
+
+        [AttributeUsage(AttributeTargets.Constructor, Inherited = false, AllowMultiple = false)]
+        internal sealed class JsConstructorAttribute : Attribute
+        {
+            public JsConstructorAttribute(string name) { Name = name; }
+            public string Name { get; }
+            public bool Callable { get; set; } = true;
+            public bool Constructable { get; set; } = true;
+            public int Length { get; set; } = -1;
+            public string? Prototype { get; set; }
+            public string? Global { get; set; }
+            public string? ToStringTag { get; set; }
+        }
+
+        [AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
+        internal sealed class JsStaticMethodAttribute : Attribute
+        {
+            public JsStaticMethodAttribute(string name) { Name = name; }
+            public string Name { get; }
+        }
+
+        [AttributeUsage(AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
+        internal sealed class JsStaticPropertyAttribute : Attribute
+        {
+            public JsStaticPropertyAttribute(string name) { Name = name; }
+            public string Name { get; }
+        }
+
+        [AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
+        internal sealed class JsCallAttribute : Attribute
+        {
         }
         """;
 }

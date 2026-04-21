@@ -19,6 +19,8 @@ public sealed class Realm
     public JsDynamicObject SymbolPrototype { get; private set; } = null!;
     public JsDynamicObject MapPrototype { get; private set; } = null!;
     public JsDynamicObject SetPrototype { get; private set; } = null!;
+    public JsDynamicObject WeakMapPrototype { get; private set; } = null!;
+    public JsDynamicObject WeakSetPrototype { get; private set; } = null!;
     public JsDynamicObject PromisePrototype { get; private set; } = null!;
     public JsDynamicObject IteratorPrototype { get; private set; } = null!;
     public JsDynamicObject GeneratorPrototype { get; private set; } = null!;
@@ -62,6 +64,8 @@ public sealed class Realm
         SymbolPrototype = new JsDynamicObject { Prototype = ObjectPrototype };
         MapPrototype = new JsDynamicObject { Prototype = ObjectPrototype };
         SetPrototype = new JsDynamicObject { Prototype = ObjectPrototype };
+        WeakMapPrototype = new JsDynamicObject { Prototype = ObjectPrototype };
+        WeakSetPrototype = new JsDynamicObject { Prototype = ObjectPrototype };
         PromisePrototype = new JsDynamicObject { Prototype = ObjectPrototype };
         IteratorPrototype = new JsDynamicObject { Prototype = ObjectPrototype };
         GeneratorPrototype = new JsDynamicObject { Prototype = IteratorPrototype };

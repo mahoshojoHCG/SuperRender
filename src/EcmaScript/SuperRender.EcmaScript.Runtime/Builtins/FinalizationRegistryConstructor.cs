@@ -2,97 +2,47 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public static class FinalizationRegistryConstructor
-{
-    public static void Install(Realm realm)
-    {
-        var proto = realm.FinalizationRegistryPrototype;
-
-        var ctor = new JsFunction
-        {
-            Name = "FinalizationRegistry",
-            Length = 1,
-            IsConstructor = true,
-            Prototype = realm.FunctionPrototype,
-            PrototypeObject = proto,
-            ConstructTarget = args =>
-            {
-                var callback = BuiltinHelper.Arg(args, 0);
-                if (callback is not JsFunction callbackFn)
-                {
-                    throw new Errors.JsTypeError("FinalizationRegistry callback must be a function", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
-                }
-
-                var registry = new JsFinalizationRegistryObject(callbackFn) { Prototype = realm.FinalizationRegistryPrototype };
-                return registry;
-            },
-            CallTarget = (_, _) =>
-            {
-                throw new Errors.JsTypeError("Constructor FinalizationRegistry requires 'new'", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
-            }
-        };
-
-        BuiltinHelper.DefineProperty(proto, "constructor", ctor);
-
-        BuiltinHelper.DefineMethod(proto, "register", (thisArg, args) =>
-        {
-            if (thisArg is not JsFinalizationRegistryObject registry)
-            {
-                throw new Errors.JsTypeError("Method register called on incompatible receiver", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
-            }
-
-            var target = BuiltinHelper.Arg(args, 0);
-            if (target is not JsDynamicObject targetObj)
-            {
-                throw new Errors.JsTypeError("FinalizationRegistry target must be an object", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
-            }
-
-            var heldValue = BuiltinHelper.Arg(args, 1);
-            var unregisterToken = args.Length > 2 ? args[2] as JsDynamicObject : null;
-            registry.Register(targetObj, heldValue, unregisterToken);
-            return JsValue.Undefined;
-        }, 2);
-
-        BuiltinHelper.DefineMethod(proto, "unregister", (thisArg, args) =>
-        {
-            if (thisArg is not JsFinalizationRegistryObject registry)
-            {
-                throw new Errors.JsTypeError("Method unregister called on incompatible receiver", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
-            }
-
-            var token = BuiltinHelper.Arg(args, 0);
-            if (token is not JsDynamicObject tokenObj)
-            {
-                throw new Errors.JsTypeError("unregister token must be an object", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
-            }
-
-            return registry.Unregister(tokenObj) ? JsValue.True : JsValue.False;
-        }, 1);
-
-        proto.DefineSymbolProperty(JsSymbol.ToStringTag,
-            PropertyDescriptor.Data(new JsString("FinalizationRegistry"), writable: false, enumerable: false, configurable: true));
-
-        realm.InstallGlobal("FinalizationRegistry", ctor);
-    }
-}
-
-internal sealed class JsFinalizationRegistryObject : JsDynamicObject
+// JSGEN005: FinalizationRegistry.register/unregister accept an object target, arbitrary held value,
+// and an optional object token — object-vs-not checks happen internally, not via typed coercion.
+#pragma warning disable JSGEN005
+[JsObject]
+public sealed partial class JsFinalizationRegistryObject : JsDynamicObject
 {
     private readonly JsFunction _callback;
     private readonly List<Registration> _registrations = [];
 
-    public JsFinalizationRegistryObject(JsFunction callback)
+    [JsConstructor("FinalizationRegistry", Length = 1, Callable = false)]
+    public JsFinalizationRegistryObject(JsValue[] args)
     {
-        _callback = callback;
+        var callback = args.Length > 0 ? args[0] : Undefined;
+        if (callback is not JsFunction callbackFn)
+        {
+            throw new Errors.JsTypeError("FinalizationRegistry callback must be a function", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
+        }
+
+        _callback = callbackFn;
     }
 
-    public void Register(JsDynamicObject target, JsValue heldValue, JsDynamicObject? unregisterToken)
+    [JsMethod("register")]
+    public void Register(JsValue target, JsValue heldValue, params JsValue[] rest)
     {
-        _registrations.Add(new Registration(new WeakReference<JsDynamicObject>(target), heldValue, unregisterToken));
+        if (target is not JsDynamicObject targetObj)
+        {
+            throw new Errors.JsTypeError("FinalizationRegistry target must be an object", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
+        }
+
+        var unregisterToken = rest.Length > 0 ? rest[0] as JsDynamicObject : null;
+        _registrations.Add(new Registration(new WeakReference<JsDynamicObject>(targetObj), heldValue, unregisterToken));
     }
 
-    public bool Unregister(JsDynamicObject token)
+    [JsMethod("unregister")]
+    public bool Unregister(JsValue tokenValue)
     {
+        if (tokenValue is not JsDynamicObject token)
+        {
+            throw new Errors.JsTypeError("unregister token must be an object", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
+        }
+
         var removed = false;
         for (var i = _registrations.Count - 1; i >= 0; i--)
         {
@@ -132,3 +82,4 @@ internal sealed class JsFinalizationRegistryObject : JsDynamicObject
 
     private sealed record Registration(WeakReference<JsDynamicObject> Target, JsValue HeldValue, JsDynamicObject? UnregisterToken);
 }
+#pragma warning restore JSGEN005

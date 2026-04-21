@@ -3,120 +3,56 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using System.Runtime.CompilerServices;
 using SuperRender.EcmaScript.Runtime;
 
-public static class WeakSetConstructor
+// JSGEN005/006: prototype methods take raw JsValue (objects only — non-object fast-returns
+// in has/delete match spec) and add() returns `this` (JsValue-derived).
+#pragma warning disable JSGEN005, JSGEN006
+[JsObject]
+public sealed partial class JsWeakSetObject : JsDynamicObject
 {
-    public static void Install(Realm realm)
-    {
-        var proto = new JsDynamicObject { Prototype = realm.ObjectPrototype };
-
-        var ctor = new JsFunction
-        {
-            Name = "WeakSet",
-            Length = 0,
-            IsConstructor = true,
-            Prototype = realm.FunctionPrototype,
-            PrototypeObject = proto,
-            ConstructTarget = args =>
-            {
-                var weakSet = new JsWeakSetObject { Prototype = proto };
-                var iterable = BuiltinHelper.Arg(args, 0);
-                if (iterable is JsArray arr)
-                {
-                    for (var i = 0; i < arr.DenseLength; i++)
-                    {
-                        var val = arr.GetIndex(i);
-                        if (val is not JsDynamicObject objVal)
-                        {
-                            throw new Errors.JsTypeError("Invalid value used in weak set", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
-                        }
-
-                        weakSet.WeakSetAdd(objVal);
-                    }
-                }
-
-                return weakSet;
-            },
-            CallTarget = (_, _) =>
-            {
-                throw new Errors.JsTypeError("Constructor WeakSet requires 'new'", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
-            }
-        };
-
-        BuiltinHelper.DefineProperty(proto, "constructor", ctor);
-
-        BuiltinHelper.DefineMethod(proto, "add", (thisArg, args) =>
-        {
-            var weakSet = RequireWeakSet(thisArg);
-            var val = BuiltinHelper.Arg(args, 0);
-            if (val is not JsDynamicObject objVal)
-            {
-                throw new Errors.JsTypeError("Invalid value used in weak set", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
-            }
-
-            weakSet.WeakSetAdd(objVal);
-            return thisArg;
-        }, 1);
-
-        BuiltinHelper.DefineMethod(proto, "has", (thisArg, args) =>
-        {
-            var weakSet = RequireWeakSet(thisArg);
-            var val = BuiltinHelper.Arg(args, 0);
-            if (val is not JsDynamicObject objVal)
-            {
-                return JsValue.False;
-            }
-
-            return weakSet.WeakSetHas(objVal) ? JsValue.True : JsValue.False;
-        }, 1);
-
-        BuiltinHelper.DefineMethod(proto, "delete", (thisArg, args) =>
-        {
-            var weakSet = RequireWeakSet(thisArg);
-            var val = BuiltinHelper.Arg(args, 0);
-            if (val is not JsDynamicObject objVal)
-            {
-                return JsValue.False;
-            }
-
-            return weakSet.WeakSetDelete(objVal) ? JsValue.True : JsValue.False;
-        }, 1);
-
-        // Symbol.toStringTag
-        proto.DefineSymbolProperty(JsSymbol.ToStringTag,
-            PropertyDescriptor.Data(new JsString("WeakSet"), writable: false, enumerable: false, configurable: true));
-
-        realm.InstallGlobal("WeakSet", ctor);
-    }
-
-    private static JsWeakSetObject RequireWeakSet(JsValue value)
-    {
-        if (value is JsWeakSetObject weakSet)
-        {
-            return weakSet;
-        }
-
-        throw new Errors.JsTypeError("Method requires that 'this' be a WeakSet", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
-    }
-}
-
-internal sealed class JsWeakSetObject : JsDynamicObject
-{
-    // Using ConditionalWeakTable with a sentinel value since we only need key presence
     private readonly ConditionalWeakTable<JsDynamicObject, JsDynamicObject> _table = new();
     private static readonly JsDynamicObject Sentinel = new();
 
-    public void WeakSetAdd(JsDynamicObject value)
+    [JsConstructor("WeakSet", Length = 0, Callable = false)]
+    public JsWeakSetObject(JsValue[] args)
     {
-        _table.AddOrUpdate(value, Sentinel);
+        var iterable = args.Length > 0 ? args[0] : Undefined;
+        if (iterable is JsArray arr)
+        {
+            for (var i = 0; i < arr.DenseLength; i++)
+            {
+                var val = arr.GetIndex(i);
+                if (val is not JsDynamicObject objVal)
+                {
+                    throw new Errors.JsTypeError("Invalid value used in weak set", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
+                }
+
+                _table.AddOrUpdate(objVal, Sentinel);
+            }
+        }
     }
 
-    public bool WeakSetHas(JsDynamicObject value)
+    [JsMethod("add")]
+    public JsValue Add(JsValue value)
     {
-        return _table.TryGetValue(value, out _);
+        if (value is not JsDynamicObject objVal)
+        {
+            throw new Errors.JsTypeError("Invalid value used in weak set", ExecutionContext.CurrentLine, ExecutionContext.CurrentColumn);
+        }
+
+        _table.AddOrUpdate(objVal, Sentinel);
+        return this;
     }
 
-    public bool WeakSetDelete(JsDynamicObject value)
+    [JsMethod("has")]
+    public bool Has(JsValue value)
     {
-        return _table.Remove(value);
+        return value is JsDynamicObject objVal && _table.TryGetValue(objVal, out _);
+    }
+
+    [JsMethod("delete")]
+    public bool Delete(JsValue value)
+    {
+        return value is JsDynamicObject objVal && _table.Remove(objVal);
     }
 }
+#pragma warning restore JSGEN005, JSGEN006
