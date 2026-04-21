@@ -98,60 +98,56 @@ public sealed class FetchResult
 /// <summary>
 /// JS Response object for the fetch API.
 /// </summary>
-internal sealed class JsResponseWrapper : JsDynamicObject
+[JsObject(GenerateInterface = true)]
+internal sealed partial class JsResponseWrapper : JsObjectBase
 {
     private readonly FetchResult _result;
     private readonly Realm _realm;
+    private readonly JsDynamicObject _headers;
 
     public JsResponseWrapper(FetchResult result, Realm realm)
     {
         _result = result;
         _realm = realm;
         Prototype = realm.ObjectPrototype;
-        InstallProperties();
+
+        _headers = new JsDynamicObject { Prototype = realm.ObjectPrototype };
+        foreach (var h in result.Headers)
+            _headers.Set(h.Key, new JsString(h.Value));
     }
 
-    private void InstallProperties()
+    [JsProperty("status")] public int Status => _result.Status;
+    [JsProperty("statusText")] public string StatusText => _result.StatusText;
+    [JsProperty("url")] public string Url => _result.Url;
+    [JsProperty("ok")] public bool Ok => _result.Status >= 200 && _result.Status < 300;
+
+    [JsProperty("headers")]
+    public JsValue Headers => _headers;
+
+    [JsMethod("text")]
+    public JsValue Text()
     {
-        DefineOwnProperty("status", PropertyDescriptor.Data(JsNumber.Create(_result.Status)));
-        DefineOwnProperty("statusText", PropertyDescriptor.Data(new JsString(_result.StatusText)));
-        DefineOwnProperty("url", PropertyDescriptor.Data(new JsString(_result.Url)));
-        DefineOwnProperty("ok", PropertyDescriptor.Data(
-            _result.Status >= 200 && _result.Status < 300 ? True : False));
+        var p = new JsPromiseObject { Prototype = _realm.PromisePrototype };
+        PromiseConstructor.ResolvePromise(p, new JsString(_result.Body), _realm);
+        return p;
+    }
 
-        // headers object
-        var headersObj = new JsDynamicObject { Prototype = _realm.ObjectPrototype };
-        foreach (var h in _result.Headers)
-            headersObj.Set(h.Key, new JsString(h.Value));
-        DefineOwnProperty("headers", PropertyDescriptor.Data(headersObj));
-
-        // .text() -> Promise<string>
-        DefineOwnProperty("text", PropertyDescriptor.Data(
-            JsFunction.CreateNative("text", (_, _) =>
-            {
-                var p = new JsPromiseObject { Prototype = _realm.PromisePrototype };
-                PromiseConstructor.ResolvePromise(p, new JsString(_result.Body), _realm);
-                return p;
-            }, 0)));
-
-        // .json() -> Promise<JsValue>
-        DefineOwnProperty("json", PropertyDescriptor.Data(
-            JsFunction.CreateNative("json", (_, _) =>
-            {
-                var p = new JsPromiseObject { Prototype = _realm.PromisePrototype };
-                try
-                {
-                    var parsed = ParseJson(_result.Body);
-                    PromiseConstructor.ResolvePromise(p, parsed, _realm);
-                }
-                catch (Exception ex)
-                {
-                    var jsonErr = new JsDynamicObject { Prototype = _realm.ErrorPrototype };
-                    jsonErr.Set("message", new JsString(ex.Message));
-                    PromiseConstructor.RejectPromise(p, jsonErr);
-                }
-                return p;
-            }, 0)));
+    [JsMethod("json")]
+    public JsValue Json()
+    {
+        var p = new JsPromiseObject { Prototype = _realm.PromisePrototype };
+        try
+        {
+            var parsed = ParseJson(_result.Body);
+            PromiseConstructor.ResolvePromise(p, parsed, _realm);
+        }
+        catch (Exception ex)
+        {
+            var jsonErr = new JsDynamicObject { Prototype = _realm.ErrorPrototype };
+            jsonErr.Set("message", new JsString(ex.Message));
+            PromiseConstructor.RejectPromise(p, jsonErr);
+        }
+        return p;
     }
 
     private static JsValue ParseJson(string text)
@@ -164,14 +160,14 @@ internal sealed class JsResponseWrapper : JsDynamicObject
     {
         return element.ValueKind switch
         {
-            JsonValueKind.Null => Null,
-            JsonValueKind.True => True,
-            JsonValueKind.False => False,
+            JsonValueKind.Null => JsValue.Null,
+            JsonValueKind.True => JsValue.True,
+            JsonValueKind.False => JsValue.False,
             JsonValueKind.Number => JsNumber.Create(element.GetDouble()),
             JsonValueKind.String => new JsString(element.GetString() ?? ""),
             JsonValueKind.Array => ConvertArray(element),
             JsonValueKind.Object => ConvertObject(element),
-            _ => Undefined,
+            _ => JsValue.Undefined,
         };
     }
 

@@ -6,7 +6,8 @@ namespace SuperRender.EcmaScript.Dom;
 /// <summary>
 /// JS wrapper for a DOM TextNode.
 /// </summary>
-internal sealed class JsTextNodeWrapper : JsNodeWrapper
+[JsObject]
+internal sealed partial class JsTextNodeWrapper : JsNodeWrapper
 {
     private readonly TextNode _textNode;
 
@@ -14,23 +15,20 @@ internal sealed class JsTextNodeWrapper : JsNodeWrapper
         : base(textNode, cache, realm)
     {
         _textNode = textNode;
-        InstallTextProperties();
     }
 
-    private void InstallTextProperties()
-    {
-        DefineOwnProperty("data", PropertyDescriptor.Accessor(
-            Getter(() => new JsString(_textNode.Data)),
-            Setter(v => _textNode.Data = v.ToJsString()),
-            enumerable: true, configurable: true));
+    [JsProperty("data")]
+    public string Data => _textNode.Data;
 
-        DefineOwnProperty("nodeValue", PropertyDescriptor.Accessor(
-            Getter(() => new JsString(_textNode.Data)),
-            Setter(v => _textNode.Data = v.ToJsString()),
-            enumerable: true, configurable: true));
+    [JsProperty("data", IsSetter = true)]
+    public void SetData(string value) => _textNode.Data = value;
 
-        DefineOwnProperty("length", PropertyDescriptor.Accessor(
-            Getter(() => JsNumber.Create(_textNode.Data.Length)),
-            null, enumerable: true, configurable: true));
-    }
+    [JsProperty("nodeValue")]
+    public string NodeValue => _textNode.Data;
+
+    [JsProperty("nodeValue", IsSetter = true)]
+    public void SetNodeValue(string value) => _textNode.Data = value;
+
+    [JsProperty("length")]
+    public int Length => _textNode.Data.Length;
 }

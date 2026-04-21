@@ -7,7 +7,8 @@ namespace SuperRender.EcmaScript.Dom;
 /// <summary>
 /// JS wrapper for a DOM Document. Exposes the standard document API.
 /// </summary>
-internal sealed class JsDocumentWrapper : JsElementWrapper
+[JsObject]
+internal sealed partial class JsDocumentWrapper : JsElementWrapper
 {
     private readonly DomDocument _document;
 
@@ -15,7 +16,6 @@ internal sealed class JsDocumentWrapper : JsElementWrapper
         : base(document.DocumentElement ?? CreateDummyElement(document), cache, realm)
     {
         _document = document;
-        InstallDocumentProperties();
     }
 
     private static Element CreateDummyElement(DomDocument doc) => doc.CreateElement("html");
@@ -30,96 +30,77 @@ internal sealed class JsDocumentWrapper : JsElementWrapper
             v => setCookie(v.ToJsString()));
     }
 
-    private void InstallDocumentProperties()
+    [JsProperty("nodeType")] public override double NodeType => 9;
+    [JsProperty("nodeName")] public override string NodeName => "#document";
+    [JsProperty("documentElement")] public JsValue DocumentElement => Cache.WrapNullable(_document.DocumentElement);
+    [JsProperty("body")] public JsValue Body => Cache.WrapNullable(_document.Body);
+    [JsProperty("head")] public JsValue Head => Cache.WrapNullable(_document.Head);
+
+    [JsProperty("title")]
+    public string Title
     {
-        this.DefineGetter("nodeType", () => JsNumber.Create(9));
-        this.DefineGetter("nodeName", () => new JsString("#document"));
-        this.DefineGetter("documentElement", () => Cache.WrapNullable(_document.DocumentElement));
-        this.DefineGetter("body", () => Cache.WrapNullable(_document.Body));
-        this.DefineGetter("head", () => Cache.WrapNullable(_document.Head));
-
-        this.DefineGetterSetter("title",
-            () =>
-            {
-                var titleElement = FindElement(_document, HtmlTagNames.Title);
-                return new JsString(titleElement?.InnerText ?? "");
-            },
-            v =>
-            {
-                var titleElement = FindElement(_document, HtmlTagNames.Title);
-                if (titleElement is not null)
-                    titleElement.InnerText = v.ToJsString();
-            });
-
-        this.DefineMethod("createElement", 1, args =>
+        get
         {
-            if (args.Length > 0)
-            {
-                var el = _document.CreateElement(args[0].ToJsString());
-                return Cache.GetOrCreate(el);
-            }
-            return Undefined;
-        });
+            var titleElement = FindElement(_document, HtmlTagNames.Title);
+            return titleElement?.InnerText ?? "";
+        }
+    }
 
-        this.DefineMethod("createTextNode", 1, args =>
-        {
-            var data = args.Length > 0 ? args[0].ToJsString() : "";
-            var textNode = _document.CreateTextNode(data);
-            return Cache.GetOrCreate(textNode);
-        });
+    [JsProperty("title", IsSetter = true)]
+    public void SetTitle(string value)
+    {
+        var titleElement = FindElement(_document, HtmlTagNames.Title);
+        if (titleElement is not null)
+            titleElement.InnerText = value;
+    }
 
-        this.DefineMethod("getElementById", 1, args =>
-        {
-            if (args.Length > 0)
-            {
-                var id = args[0].ToJsString();
-                var element = FindElementById(_document, id);
-                return element is not null ? Cache.GetOrCreate(element) : Null;
-            }
-            return Null;
-        });
+    [JsMethod("createElement")]
+    public JsValue CreateElement(string tagName)
+    {
+        var el = _document.CreateElement(tagName);
+        return Cache.GetOrCreate(el);
+    }
 
-        this.DefineMethod("getElementsByTagName", 1, args =>
-        {
-            if (args.Length > 0)
-            {
-                var tagName = args[0].ToJsString().ToLowerInvariant();
-                var results = FindElementsByTagName(_document, tagName);
-                return new JsNodeListWrapper(results.Cast<Node>().ToList(), Cache);
-            }
-            return new JsNodeListWrapper([], Cache);
-        });
+    [JsMethod("createTextNode")]
+    public JsValue CreateTextNode(string data)
+    {
+        var textNode = _document.CreateTextNode(data);
+        return Cache.GetOrCreate(textNode);
+    }
 
-        this.DefineMethod("getElementsByClassName", 1, args =>
-        {
-            if (args.Length > 0)
-            {
-                var className = args[0].ToJsString();
-                var results = FindElementsByClassName(_document, className);
-                return new JsNodeListWrapper(results.Cast<Node>().ToList(), Cache);
-            }
-            return new JsNodeListWrapper([], Cache);
-        });
+    [JsMethod("getElementById")]
+    public JsValue GetElementById(string id)
+    {
+        var element = FindElementById(_document, id);
+        return element is not null ? Cache.GetOrCreate(element) : JsValue.Null;
+    }
 
-        this.DefineMethod("querySelector", 1, args =>
-        {
-            if (args.Length > 0)
-            {
-                var result = DomMutationApi.QuerySelector(_document, args[0].ToJsString());
-                return result is not null ? Cache.GetOrCreate(result) : Null;
-            }
-            return Null;
-        });
+    [JsMethod("getElementsByTagName")]
+    public JsValue GetElementsByTagName(string tagName)
+    {
+        var results = FindElementsByTagName(_document, tagName.ToLowerInvariant()).Cast<Node>().ToList();
+        return new JsNodeListWrapper(results, Cache);
+    }
 
-        this.DefineMethod("querySelectorAll", 1, args =>
-        {
-            if (args.Length > 0)
-            {
-                var results = DomMutationApi.QuerySelectorAll(_document, args[0].ToJsString()).ToList();
-                return new JsNodeListWrapper(results.Cast<Node>().ToList(), Cache);
-            }
-            return new JsNodeListWrapper([], Cache);
-        });
+    [JsMethod("getElementsByClassName")]
+    public JsValue GetElementsByClassName(string className)
+    {
+        var results = FindElementsByClassName(_document, className).Cast<Node>().ToList();
+        return new JsNodeListWrapper(results, Cache);
+    }
+
+    [JsMethod("querySelector")]
+    public new JsValue QuerySelector(string selector)
+    {
+        var result = DomMutationApi.QuerySelector(_document, selector);
+        return result is not null ? Cache.GetOrCreate(result) : JsValue.Null;
+    }
+
+    [JsMethod("querySelectorAll")]
+    public new JsValue QuerySelectorAll(string selector)
+    {
+        var results = DomMutationApi.QuerySelectorAll(_document, selector).Cast<Node>().ToList();
+        return new JsNodeListWrapper(results, Cache);
     }
 
     private static Element? FindFirst(Node root, Func<Element, bool> predicate)

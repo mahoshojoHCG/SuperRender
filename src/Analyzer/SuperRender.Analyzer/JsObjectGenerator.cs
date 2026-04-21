@@ -892,6 +892,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
         foreach (var s in setters)
         {
             sb.Append("            case \"").Append(Escape(s.JsName)).AppendLine("\":");
+            sb.AppendLine("            {");
             var target = s.IsStatic ? model.ClassName : "this";
             var kind = s.SetterParamKind ?? ParamKind.JsValue;
             var local = "__v";
@@ -899,6 +900,7 @@ public sealed class JsObjectGenerator : IIncrementalGenerator
             sb.Append("                ").AppendLine(convert);
             sb.Append("                ").Append(target).Append('.').Append(s.CsharpName).Append('(').Append(local).AppendLine(");");
             sb.AppendLine("                return;");
+            sb.AppendLine("            }");
         }
 
         sb.AppendLine("            default:");
