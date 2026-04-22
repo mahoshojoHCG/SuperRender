@@ -4,7 +4,8 @@ using System.Diagnostics;
 using System.Globalization;
 using SuperRender.EcmaScript.Runtime;
 
-public sealed class ConsoleObject : IJsInstallable
+[JsGlobalInstall("console")]
+public sealed partial class ConsoleObject
 {
     private static TextWriter _output = Console.Out;
     private static TextWriter _errorOutput = Console.Error;
@@ -26,7 +27,7 @@ public sealed class ConsoleObject : IJsInstallable
         _warnOutput = warnOutput;
     }
 
-    public static void Install(Realm realm)
+    private static void __Install(Realm realm)
     {
         var console = new JsDynamicObject { Prototype = realm.ObjectPrototype };
 

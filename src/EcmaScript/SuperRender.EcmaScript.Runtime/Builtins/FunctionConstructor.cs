@@ -2,9 +2,10 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public sealed partial class FunctionConstructor : IJsInstallable
+[JsGlobalInstall("Function")]
+public sealed partial class FunctionConstructor
 {
-    public static void Install(Realm realm)
+    private static void __Install(Realm realm)
     {
         var proto = realm.FunctionPrototype;
 

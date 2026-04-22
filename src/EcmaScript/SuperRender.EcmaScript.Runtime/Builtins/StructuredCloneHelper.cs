@@ -2,9 +2,10 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public sealed partial class StructuredCloneHelper : IJsInstallable
+[JsGlobalInstall("structuredClone")]
+public sealed partial class StructuredCloneHelper
 {
-    public static void Install(Realm realm)
+    private static void __Install(Realm realm)
     {
         realm.InstallGlobal("structuredClone", __JsFn_StructuredCloneImpl(realm));
     }

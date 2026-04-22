@@ -2,9 +2,10 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public sealed class ShadowRealmConstructor : IJsInstallable
+[JsGlobalInstall("ShadowRealm")]
+public sealed partial class ShadowRealmConstructor
 {
-    public static void Install(Realm realm)
+    private static void __Install(Realm realm)
     {
         var proto = new JsDynamicObject { Prototype = realm.ObjectPrototype };
 

@@ -3,9 +3,10 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using System.Globalization;
 using SuperRender.EcmaScript.Runtime;
 
-public sealed class ArrayConstructor : IJsInstallable
+[JsGlobalInstall("Array")]
+public sealed partial class ArrayConstructor
 {
-    public static void Install(Realm realm)
+    private static void __Install(Realm realm)
     {
         var proto = realm.ArrayPrototype;
 

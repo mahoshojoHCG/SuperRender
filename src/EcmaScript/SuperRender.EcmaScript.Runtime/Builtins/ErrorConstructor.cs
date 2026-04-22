@@ -2,9 +2,10 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public sealed class ErrorConstructor : IJsInstallable
+[JsGlobalInstall("Error")]
+public sealed partial class ErrorConstructor
 {
-    public static void Install(Realm realm)
+    private static void __Install(Realm realm)
     {
         // Base Error
         var errorProto = realm.ErrorPrototype;

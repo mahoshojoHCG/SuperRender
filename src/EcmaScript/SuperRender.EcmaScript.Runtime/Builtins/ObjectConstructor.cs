@@ -2,9 +2,10 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public sealed class ObjectConstructor : IJsInstallable
+[JsGlobalInstall("Object")]
+public sealed partial class ObjectConstructor
 {
-    public static void Install(Realm realm)
+    private static void __Install(Realm realm)
     {
         var proto = realm.ObjectPrototype;
         var ctor = realm.ObjectConstructorFn;

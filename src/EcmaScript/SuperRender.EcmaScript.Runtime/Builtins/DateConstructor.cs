@@ -3,11 +3,12 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using System.Globalization;
 using SuperRender.EcmaScript.Runtime;
 
-public sealed partial class DateConstructor : IJsInstallable
+[JsGlobalInstall("Date")]
+public sealed partial class DateConstructor
 {
     private static readonly DateTimeOffset Epoch = new(1970, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
-    public static void Install(Realm realm)
+    private static void __Install(Realm realm)
     {
         var proto = realm.DatePrototype;
 

@@ -2,9 +2,10 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public sealed class PromiseConstructor : IJsInstallable
+[JsGlobalInstall("Promise")]
+public sealed partial class PromiseConstructor
 {
-    public static void Install(Realm realm)
+    private static void __Install(Realm realm)
     {
         var proto = realm.PromisePrototype;
         JsPromise.DefaultPrototype = proto;

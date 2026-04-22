@@ -2,11 +2,12 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public sealed partial class SymbolConstructor : IJsInstallable
+[JsGlobalInstall("Symbol")]
+public sealed partial class SymbolConstructor
 {
     private static readonly Dictionary<string, JsSymbol> GlobalRegistry = new(StringComparer.Ordinal);
 
-    public static void Install(Realm realm)
+    private static void __Install(Realm realm)
     {
         var proto = realm.SymbolPrototype;
 

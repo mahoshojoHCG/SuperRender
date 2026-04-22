@@ -3,9 +3,10 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using System.Globalization;
 using SuperRender.EcmaScript.Runtime;
 
-public sealed partial class NumberConstructor : IJsInstallable
+[JsGlobalInstall("Number")]
+public sealed partial class NumberConstructor
 {
-    public static void Install(Realm realm)
+    private static void __Install(Realm realm)
     {
         var proto = realm.NumberPrototype;
 

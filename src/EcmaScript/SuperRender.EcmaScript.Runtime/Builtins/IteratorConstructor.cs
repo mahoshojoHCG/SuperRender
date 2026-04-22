@@ -2,9 +2,10 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public sealed partial class IteratorConstructor : IJsInstallable
+[JsGlobalInstall("Iterator")]
+public sealed partial class IteratorConstructor
 {
-    public static void Install(Realm realm)
+    private static void __Install(Realm realm)
     {
         var iterProto = realm.IteratorPrototype;
 

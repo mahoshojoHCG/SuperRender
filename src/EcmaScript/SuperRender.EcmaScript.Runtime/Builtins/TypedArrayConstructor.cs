@@ -3,7 +3,8 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using System.Globalization;
 using SuperRender.EcmaScript.Runtime;
 
-public sealed class TypedArrayConstructor : IJsInstallable
+[JsGlobalInstall("TypedArray")]
+public sealed partial class TypedArrayConstructor
 {
     private static readonly (string Name, int BytesPerElement, Func<byte[], int, double> Getter, Action<byte[], int, double> Setter)[] TypedArrayTypes =
     [
@@ -20,7 +21,7 @@ public sealed class TypedArrayConstructor : IJsInstallable
         ("BigUint64Array", 8, (b, i) => (double)BitConverter.ToUInt64(b, i), (b, i, v) => BitConverter.TryWriteBytes(b.AsSpan(i), (ulong)v)),
     ];
 
-    public static void Install(Realm realm)
+    private static void __Install(Realm realm)
     {
         foreach (var (name, bytesPerElement, getter, setter) in TypedArrayTypes)
         {

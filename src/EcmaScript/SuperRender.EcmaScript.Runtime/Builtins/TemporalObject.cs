@@ -5,7 +5,8 @@ using System.Text.RegularExpressions;
 using SuperRender.EcmaScript.Runtime;
 
 [JsObject]
-public sealed partial class TemporalObject : JsDynamicObject, IJsInstallable
+[JsGlobalInstall("Temporal")]
+public sealed partial class TemporalObject : JsDynamicObject
 {
     private static readonly JsString ToStringTagValue = new("Temporal");
 
@@ -25,18 +26,14 @@ public sealed partial class TemporalObject : JsDynamicObject, IJsInstallable
         return base.TryGetSymbolProperty(symbol, out value);
     }
 
-    public static void Install(Realm realm)
+    static partial void __OnGlobalInstalling(Realm realm, TemporalObject instance)
     {
-        var temporal = new TemporalObject(realm);
-
-        InstallPlainDate(temporal, realm);
-        InstallPlainTime(temporal, realm);
-        InstallPlainDateTime(temporal, realm);
-        InstallInstant(temporal, realm);
-        InstallDuration(temporal, realm);
-        InstallNow(temporal, realm);
-
-        realm.InstallGlobal("Temporal", temporal);
+        InstallPlainDate(instance, realm);
+        InstallPlainTime(instance, realm);
+        InstallPlainDateTime(instance, realm);
+        InstallInstant(instance, realm);
+        InstallDuration(instance, realm);
+        InstallNow(instance, realm);
     }
 
     private static JsDynamicObject CreatePlainDateObject(DateOnly date, JsDynamicObject proto)

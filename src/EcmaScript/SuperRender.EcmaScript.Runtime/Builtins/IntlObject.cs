@@ -4,7 +4,8 @@ using System.Globalization;
 using SuperRender.EcmaScript.Runtime;
 
 [JsObject]
-public sealed partial class IntlObject : JsDynamicObject, IJsInstallable
+[JsGlobalInstall("Intl")]
+public sealed partial class IntlObject : JsDynamicObject
 {
     private static readonly JsString ToStringTagValue = new("Intl");
 
@@ -24,16 +25,12 @@ public sealed partial class IntlObject : JsDynamicObject, IJsInstallable
         return base.TryGetSymbolProperty(symbol, out value);
     }
 
-    public static void Install(Realm realm)
+    static partial void __OnGlobalInstalling(Realm realm, IntlObject instance)
     {
-        var intl = new IntlObject(realm);
-
-        InstallCollator(intl, realm);
-        InstallNumberFormat(intl, realm);
-        InstallDateTimeFormat(intl, realm);
-        InstallPluralRules(intl, realm);
-
-        realm.InstallGlobal("Intl", intl);
+        InstallCollator(instance, realm);
+        InstallNumberFormat(instance, realm);
+        InstallDateTimeFormat(instance, realm);
+        InstallPluralRules(instance, realm);
     }
 
     private static void InstallCollator(JsDynamicObject intl, Realm realm)

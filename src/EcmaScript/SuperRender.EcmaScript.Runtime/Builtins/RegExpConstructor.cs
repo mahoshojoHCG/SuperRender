@@ -3,9 +3,10 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using System.Text.RegularExpressions;
 using SuperRender.EcmaScript.Runtime;
 
-public sealed class RegExpConstructor : IJsInstallable
+[JsGlobalInstall("RegExp")]
+public sealed partial class RegExpConstructor
 {
-    public static void Install(Realm realm)
+    private static void __Install(Realm realm)
     {
         var proto = realm.RegExpPrototype;
 

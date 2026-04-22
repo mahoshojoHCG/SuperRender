@@ -4,9 +4,10 @@ using System.Globalization;
 using System.Numerics;
 using SuperRender.EcmaScript.Runtime;
 
-public sealed class BigIntConstructor : IJsInstallable
+[JsGlobalInstall("BigInt")]
+public sealed partial class BigIntConstructor
 {
-    public static void Install(Realm realm)
+    private static void __Install(Realm realm)
     {
         var proto = realm.BigIntPrototype;
 

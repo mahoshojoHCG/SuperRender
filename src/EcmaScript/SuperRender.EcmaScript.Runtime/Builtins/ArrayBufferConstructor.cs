@@ -2,9 +2,10 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public sealed class ArrayBufferConstructor : IJsInstallable
+[JsGlobalInstall("ArrayBuffer")]
+public sealed partial class ArrayBufferConstructor
 {
-    public static void Install(Realm realm)
+    private static void __Install(Realm realm)
     {
         var abProto = realm.ArrayBufferPrototype;
         var sabProto = realm.SharedArrayBufferPrototype;

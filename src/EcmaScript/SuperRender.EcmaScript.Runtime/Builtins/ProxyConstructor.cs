@@ -2,9 +2,10 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 
 using SuperRender.EcmaScript.Runtime;
 
-public sealed class ProxyConstructor : IJsInstallable
+[JsGlobalInstall("Proxy")]
+public sealed partial class ProxyConstructor
 {
-    public static void Install(Realm realm)
+    private static void __Install(Realm realm)
     {
         var ctor = new JsFunction
         {

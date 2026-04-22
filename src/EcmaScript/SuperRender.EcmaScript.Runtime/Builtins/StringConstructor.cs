@@ -3,9 +3,10 @@ namespace SuperRender.EcmaScript.Runtime.Builtins;
 using System.Text;
 using SuperRender.EcmaScript.Runtime;
 
-public sealed class StringConstructor : IJsInstallable
+[JsGlobalInstall("String")]
+public sealed partial class StringConstructor
 {
-    public static void Install(Realm realm)
+    private static void __Install(Realm realm)
     {
         var proto = realm.StringPrototype;
 
